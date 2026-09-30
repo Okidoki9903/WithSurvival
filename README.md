@@ -1,67 +1,62 @@
-# 🐻‍❄️ Polar Camp
+# WithSurvival — Les Terres oubliées
 
-Un remake du mini-jeu « chasse aux ours polaires » des pubs *Whiteout Survival* : tu chasses, tu cuisines, tu vends et tu agrandis ton camp.
+Une aventure 3D mobile : chassez, nourrissez les voyageurs, développez une colonie, rouvrez quatre territoires de chasse et construisez huit quartiers de production. Cette version étend le prototype original ; elle ne constitue pas une production AAA achevée.
 
-- **Moteur de jeu en Rust**, compilé en WebAssembly (`core/`)
-- **Rendu 3D en three.js** (`web/`)
-- Jouable sur **téléphone** (joystick tactile) et **PC** (ZQSD / WASD / flèches)
-- Publié automatiquement sur **GitHub Pages**
+## Progression jouable
 
-👉 **Jouer :** https://okidoki9903.github.io/WithSurvival/ (une fois GitHub Pages activé, voir plus bas)
+- Refuge → hameau → village → cité → citadelle. Les constructions demandent des pièces, des victoires et trois victoires dans le dernier territoire ouvert.
+- Forêt de givre, canyon des braises, marais de cristal, faille de l’éclipse : ambiances et silhouettes distinctes ; vitesse, résistance, attaque et récompenses différentes.
+- Enclos extensible sur trois niveaux : clôture et surface réellement accessible grandissent. Les expansions productives se débloquent ensuite sur des dalles successives, en maîtrisant les machines et les ventes du quartier précédent.
+- Huit chaînes : poissons → filets → poissons fumés ; blé → farine → pains ; fruits → jus → confitures ; minerai → lingots → outils ; bêtes → peaux → cuir ; cristaux → essences → potions ; vestiges → reliques → artefacts ; minerai rare → alliages → couronnes.
+- Chaque quartier possède ses propres récoltes, transformation, finition, convoyeurs, équipes, stockage, collecte directe et marché. Les améliorations sont calculées dans le moteur Rust ; les stocks restent physiques et limités.
+- Atelier et cuisine sur quatre niveaux ; convoyeurs et grill turbo sur trois niveaux. Les améliorations changent réellement la cadence.
+- Collecteurs : ramassage de la viande réellement déposée au sol et retour par le portail. Guilde : chasseurs qui poursuivent, frappent et vainquent les créatures. Ferme : récoltes renouvelables transportées par un fermier. Entrepôt : capacité de stockage 30 → 150. Comptoir des caravanes : contrats variés, récompenses et menaces croissantes.
+- Assistants industriels : transport des stocks, caisse puis chasseur supplémentaire. Le ravitaillement ne fait plus apparaître de viande artificiellement.
+- Armes sur trois niveaux, sac, bottes et armure. Les armes avancées consomment les essences du combat.
+- Les monstres anticipent leur frappe : quittez le cercle rouge ou esquivez. Les régions avancées attaquent à vue.
+- Journal de Nora : cinq chapitres, objectifs, achats, voyages. La simulation se met en pause dans le journal, BÂTIR et EXPANSION.
+- Sauvegarde locale : progression, améliorations et financement partiel des dalles ; anciennes sauvegardes migrées. Les ressources et travailleurs sont conservés dans la nouvelle sauvegarde. Aucun gain hors ligne.
 
-## Comment jouer
+## Commandes
 
-1. 🪓 Sors du camp par le portail nord et approche-toi des ours : ton personnage frappe tout seul.
-2. 🍖 Les ours vaincus lâchent de la viande, que tu empiles sur ton dos (jusqu'à la limite de ton sac, « MAX »).
-3. ⚙️ Dépose la viande sur la zone du **hachoir** : 1 viande donne 2 tranches crues.
-4. 🔥 Récupère les tranches et pose-les sur la zone du **grill**.
-5. 🥩 Apporte les steaks cuits au **comptoir** : les clients en file les achètent.
-6. 💵 Ramasse l'argent à côté du comptoir.
-7. ⬆️ Marche sur les **dalles d'amélioration** pour les acheter :
-   | Dalle | Effet |
-   |---|---|
-   | ⚙️ Tapis roulant | Le hachoir envoie tout seul la viande au grill |
-   | 🎒 Grand sac (3 niveaux) | Tu portes plus d'objets |
-   | 🚚 Tapis vers comptoir | Le grill livre tout seul le comptoir |
-   | 👟 Bottes (2 niveaux) | Tu cours plus vite |
-   | ⚔️ Héros | Armure, attaque tournoyante en zone, plus de PV et de place |
-   | 🔥 Grill turbo | Le grill cuit 2 fois plus vite |
+Mobile : glissez sur le monde pour marcher ; utilisez le bouton Esquive et le journal en haut à droite. Clavier : ZQSD, WASD ou flèches ; Espace pour esquiver. Approchez les créatures pour attaquer automatiquement et les zones des machines pour transférer les ressources. Restez sur les dalles pour les financer.
 
-Une flèche verte t'indique toujours quoi faire ensuite. Attention : un ours que tu frappes riposte ! Si tu tombes KO, tu perds ce que tu portais. Ta progression (argent et améliorations) est sauvegardée dans le navigateur.
+Chaîne de départ : chasse → atelier → cuisine → comptoir → pièces. EXPANSION affiche les nouvelles chaînes, leurs ressources, leurs conditions et leurs machines. Ses boutons indiquent le chemin vers une source, une entrée ou une sortie de machine, le marché ou la prochaine dalle. La flèche indique l’action suivante. Le journal affiche les conditions de développement et les routes disponibles.
 
-## Architecture
+## Lancer et vérifier
 
-```
-core/            Crate Rust « polar-camp-core » (aucune dépendance)
-  src/lib.rs     Toutes les règles : déplacements, combat, ours, chaîne de production,
-                 clients, économie, améliorations, sauvegarde + tests unitaires
-web/             Site statique servi par GitHub Pages
-  index.html     Page, HUD et écran titre
-  main.js        Rendu three.js : décor, modèles low-poly procéduraux, effets,
-                 joystick, sons. Lit l'état exporté par le module wasm à chaque frame.
-  game.wasm      Moteur Rust compilé (reconstruit par la CI)
-.github/workflows/pages.yml   Tests, compilation wasm et déploiement Pages
-```
-
-Le module wasm expose une petite ABI C (`pc_init`, `pc_tick(dt, x, z)`, `pc_state_ptr/len`, …) sans `wasm-bindgen`. À chaque frame, Rust sérialise l'état visible dans un tampon `f32` que `main.js` relit directement depuis la mémoire du module.
-
-## Lancer en local
-
-```bash
+```sh
 rustup target add wasm32-unknown-unknown
 cd core
 cargo test --release
 cargo build --release --target wasm32-unknown-unknown
 cp target/wasm32-unknown-unknown/release/polar_camp_core.wasm ../web/game.wasm
-cd ../web && python3 -m http.server 8000
-# puis ouvre http://localhost:8000
+cd ../web
+python -m http.server 8000
 ```
 
-## Publier sur GitHub Pages (une seule fois)
+Ouvrez http://localhost:8000. Le wasm compilé est inclus. Three.js est chargé depuis jsDelivr : une connexion est nécessaire. Le chargement propose une reprise si le moteur échoue.
 
-1. Sur GitHub : **Settings → Pages → Build and deployment → Source : « GitHub Actions »**.
-2. Pousse sur `main` (ou relance le workflow « Build & deploy to GitHub Pages » depuis l'onglet **Actions**).
-3. Le jeu est en ligne sur `https://okidoki9903.github.io/WithSurvival/` : il ne te reste plus qu'à envoyer le lien à tes amis.
+Sans éditeur de liens natif, les tests fonctionnent sur wasm32-wasip1 avec Wasmtime comme CARGO_TARGET_WASM32_WASIP1_RUNNER.
 
----
-Projet de fan, sans lien avec Century Games ni *Whiteout Survival*. Tous les modèles 3D sont générés par le code.
+## Architecture et publication
+
+core/src/lib.rs : simulation Rust sans dépendances. web/main.js : rendu Three.js, entrée et effets. web/campaign.js : interface narrative dérivée de l’état réel. web/boot.js : reprise du chargement. L’ABI historique reste compatible ; un trailer version 2 ajoute progression et anticipations d’attaque. Sauvegarde : tampon de 32 mots, format v3 étendu ; sa capacité est fournie par le moteur.
+
+Le workflow GitHub Pages teste et compile le moteur. Les branches main, master et claude/** déclenchent la publication ; codex/** permet une revue sans changer le site public.
+
+Voir [DESIGN.md](DESIGN.md) pour les limites et prochains jalons.
+
+Projet indépendant, sans affiliation à Century Games ou Whiteout Survival. Modèles procéduraux.
+
+## Test navigateur reproductible
+
+Démarrez le serveur sur le port 8765, puis lancez `npm install`, `npx playwright install chromium` et `npm run test:browser`. `GAME_URL` permet une autre adresse. Le test crée une sauvegarde de scénario dans un navigateur isolé ; aucun outil de triche n’est ajouté au jeu. Captures dans `test-artifacts/`.
+
+## Nouvelle progression de colonie
+
+Le bouton BÂTIR expose directement l’enclos, les 5 bâtiments spécialisés et les 17 catégories d’améliorations. Les cartes indiquent leurs effets actuels et suivants, coûts et dépendances. L’enclos possède aussi une pancarte cliquable dans le monde. La colonie nécessite des infrastructures concrètes avant de passer au stade suivant.
+
+Les caravanes alternent repas, victoires régionales, collecte, récoltes et prime de champion. Les élites préparent une frappe plus dangereuse. Les textures de terrain, pavés, bois et toitures utilisent deux atlas ImageGen ; les bâtiments et personnages restent de vrais meshes 3D. Prompts et provenance dans web/assets/README.md.
+
+Objectif de conception : soutenir des sessions de quatre heures ou davantage grâce aux métiers, aux choix de développement et aux contrats évolutifs. Un test de quatre heures simulées vérifie la stabilité du moteur ; il ne démontre pas encore quatre heures de plaisir en session utilisateur.
