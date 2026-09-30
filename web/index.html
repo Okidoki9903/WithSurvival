@@ -1,56 +1,29 @@
 <!doctype html>
 <html lang="fr">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <meta name="theme-color" content="#dfeaf3">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <title>Polar Camp</title>
-  <meta name="description" content="Chasse les ours polaires, cuisine la viande et fais tourner ton camp ! Moteur en Rust (WebAssembly), rendu three.js.">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐻‍❄️</text></svg>">
-  <link rel="stylesheet" href="style.css">
-  <script type="importmap">
-  {
-    "imports": {
-      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
-      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
-    }
-  }
-  </script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#152d37">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>WithSurvival — Les Terres oubliées</title>
+<meta name="description" content="Bâtissez un refuge sous les aurores, explorez les terres sauvages et faites grandir votre village dans cette aventure 3D mobile.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>❄️</text></svg>">
+<link rel="stylesheet" href="style.css">
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}</script>
 </head>
 <body>
-  <canvas id="c"></canvas>
-
-  <div id="hud">
-    <div id="logo"><span class="l1">POLAR</span><span class="l2">CAMP</span></div>
-    <div id="money"><span class="bill">$</span><span id="money-val">0</span></div>
-    <div id="buttons">
-      <button id="btn-sound" title="Son">🔊</button>
-      <button id="btn-reset" title="Recommencer">↺</button>
-    </div>
-    <div id="hint"></div>
-    <div id="toast"></div>
-    <div id="vignette"></div>
-  </div>
-
-  <div id="joy"><div id="joy-knob"></div></div>
-
-  <div id="start">
-    <div class="card">
-      <div class="big">🐻‍❄️</div>
-      <h1>POLAR CAMP</h1>
-      <ol>
-        <li>🪓 Chasse les ours polaires</li>
-        <li>🍖 Apporte la viande au hachoir</li>
-        <li>🔥 Fais griller les steaks</li>
-        <li>🧑‍🤝‍🧑 Sers les clients et encaisse 💵</li>
-        <li>⬆️ Achète des améliorations sur les dalles</li>
-      </ol>
-      <p class="ctrl">Glisse le doigt n'importe où pour bouger<br><small>(clavier : ZQSD / WASD / flèches)</small></p>
-      <button id="play" disabled>Chargement…</button>
-    </div>
-  </div>
-
-  <script type="module" src="main.js"></script>
-</body>
-</html>
+<canvas id="c" aria-label="Monde 3D de WithSurvival"></canvas>
+<div id="hud">
+ <div id="logo"><span class="l1">WITHSURVIVAL</span><span class="l2">LES TERRES OUBLIÉES</span></div>
+ <div id="money" aria-label="Pièces"><span class="bill">✦</span><span id="money-val">0</span></div>
+ <div id="buttons"><button id="btn-journal" title="Journal de voyage" aria-label="Ouvrir le journal">☷</button><button id="btn-sound" title="Son" aria-label="Activer ou couper le son">🔊</button><button id="btn-reset" title="Recommencer" aria-label="Recommencer la partie">↺</button></div>
+ <section id="mission" aria-live="polite"><div class="eyebrow" id="campaign-title">CHAPITRE I · LE DERNIER FEU</div><div id="campaign-objective">Préparez le premier repas du refuge.</div><div class="progress-track"><div id="campaign-progress"></div></div><div class="mission-footer"><span id="village-name">Refuge de l'Aurore</span><span id="campaign-count">0 / 1</span></div></section>
+ <div id="player-status"><span class="status-label">VITALITÉ</span><div class="health-track"><div id="health-bar"></div></div><span id="inventory-val">Sac 0 / 8</span></div>
+ <div id="hint"></div><div id="toast" role="status"></div><div id="vignette"></div>
+ <button id="btn-dash" aria-label="Esquiver">⚡<small>ESQUIVE</small></button><div id="control-label">GLISSEZ POUR EXPLORER</div>
+</div>
+<div id="joy"><div id="joy-knob"></div></div>
+<div id="start"><div class="card"><div class="start-symbol">✧</div><div class="eyebrow">UNE AVENTURE SOUS LES AURORES</div><h1>WITH<br><span>SURVIVAL</span></h1><div class="rule"></div><p class="intro">La tempête a emporté les routes.<br>Un dernier feu résiste au cœur du Nord.</p><p class="story">Nora vous confie le refuge : nourrissez les voyageurs, bâtissez un village et rouvrez les chemins oubliés.</p><div class="start-features"><span>⚒ BÂTISSEZ</span><span>❄ EXPLOREZ</span><span>✦ PROSPÉREZ</span></div><p class="ctrl">Glissez pour marcher · Les actions sont automatiques<br><small>Clavier : ZQSD, WASD ou flèches</small></p><button id="play" disabled>Chargement du refuge…</button><p class="save-note">Votre aventure est sauvegardée sur cet appareil</p></div></div>
+<dialog id="journal"><button class="dialog-close" id="journal-close" aria-label="Fermer le journal">×</button><div class="eyebrow">LE JOURNAL DE NORA</div><h2>Les terres de l'Aurore</h2><p id="journal-story">Chaque voyageur nourri rallume une lumière. Les anciennes routes attendent que le refuge retrouve sa force.</p><h3>Votre prochain pas</h3><p id="journal-objective"></p><h3>Routes & territoires</h3><div id="route-list"></div><p class="journal-tip">Restez sur une dalle pour financer une construction. Ramenez vos ressources au refuge, préparez les repas puis récupérez les pièces au comptoir.</p></dialog>
+<script type="module" src="boot.js"></script>
+</body></html>

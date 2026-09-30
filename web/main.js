@@ -1,8 +1,9 @@
-// Polar Camp — three.js front-end.
+// WithSurvival — three.js front-end.
 // Gameplay runs in Rust (game.wasm); this file only renders the exported state,
 // reads input and plays effects.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { initCampaign, updateCampaign } from './campaign.js';
 
 // ---------------------------------------------------------------------------
 // WebAssembly core
@@ -18,7 +19,7 @@ const PAD_INFO = [
   { icon: '👟', name: 'Bottes', done: 'Plus rapide !' },
   { icon: '🔥', name: 'Grill turbo', done: 'Grill 2x plus rapide !' },
 ];
-const SAVE_KEY = 'polar-camp-save-v1';
+const SAVE_KEY = 'withsurvival-save-v2';
 
 const wasmBytes = await fetch('game.wasm').then((r) => {
   if (!r.ok) throw new Error('game.wasm introuvable');
@@ -67,6 +68,16 @@ function readState() {
   for (let k = 0; k < n; k++) { s.pads.push({ kind: a[i], x: a[i + 1], z: a[i + 2], cost: a[i + 3], paid: a[i + 4], visible: a[i + 5] > 0, level: a[i + 6] }); i += 7; }
   n = a[i++]; s.events = [];
   for (let k = 0; k < n; k++) { s.events.push(Array.from(a.subarray(i, i + 7))); i += 7; }
+  if (a[i++] === 2) {
+    s.tier = a[i++]; s.region = a[i++]; s.unlockedRegions = a[i++];
+    s.campRadius = a[i++]; s.kills = a[i++]; s.served = a[i++];
+    s.essence = a[i++]; s.nextTownCost = a[i++];
+    n = a[i++]; s.archetypes = Array.from(a.subarray(i, i + n)); i += n;
+    s.enclosure = a[i++]; s.weapon = a[i++]; s.dashCooldown = a[i++];
+    s.grinderLevel = a[i++]; s.kitchenLevel = a[i++]; s.helperLevel = a[i++];
+    for (const b of s.bears) b.windup = a[i++] || 0;
+    s.regionKills = Array.from(a.subarray(i, i + 4));
+  }
   return s;
 }
 
@@ -79,11 +90,11 @@ function saveGame() {
 }
 function loadSave() {
   try {
-    const v = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null');
+    const v = JSON.parse(localStorage.getItem(SAVE_KEY) || localStorage.getItem('polar-camp-save-v1') || 'null');
     if (!Array.isArray(v)) return;
-    const buf = new Uint32Array(W.memory.buffer, W.pc_save_ptr(), 16);
-    v.slice(0, 16).forEach((x, k) => { buf[k] = x >>> 0; });
-    W.pc_load(Math.min(v.length, 16));
+    const buf = new Uint32Array(W.memory.buffer, W.pc_save_ptr(), 32);
+    v.slice(0, 32).forEach((x, k) => { buf[k] = x >>> 0; });
+    W.pc_load(Math.min(v.length, 32));
   } catch (_) { /* ignore */ }
 }
 
@@ -93,14 +104,17 @@ function loadSave() {
 
 const canvas = document.getElementById('c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+const mobileGPU = window.innerWidth < 800;
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, mobileGPU ? 1.5 : 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.15;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color('#e3edf5');
-scene.fog = new THREE.Fog('#e3edf5', 45, 85);
+scene.fog = new THREE.Fog('#e3edf5', 75, 140);
 
 const camera = new THREE.PerspectiveCamera(38, 1, 0.5, 200);
 const CAM_OFFSET = new THREE.Vector3(0, 21, 13.5);
@@ -109,7 +123,7 @@ function resize() {
   const w = window.innerWidth, h = window.innerHeight;
   renderer.setSize(w, h, false);
   camera.aspect = w / h;
-  camZoom = w < h ? Math.min(1.85, 1.2 + 0.9 * (h / w - 1)) : 1.0;
+  camZoom = w < h ? Math.min(3.0, 1.12 * h / w) : 1.0;
   camera.updateProjectionMatrix();
 }
 window.addEventListener('resize', resize);
@@ -119,7 +133,7 @@ scene.add(new THREE.HemisphereLight('#f4f8ff', '#b9c9d8', 1.6));
 const sun = new THREE.DirectionalLight('#fff6e8', 2.1);
 sun.position.set(-8, 20, 10);
 sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.mapSize.set(mobileGPU ? 1024 : 2048, mobileGPU ? 1024 : 2048);
 Object.assign(sun.shadow.camera, { left: -22, right: 22, top: 22, bottom: -22, near: 1, far: 60 });
 sun.shadow.bias = -0.0005;
 sun.shadow.normalBias = 0.02;
@@ -148,7 +162,7 @@ function part(geo, color, x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0, sx = 1, s
   return paint(g, color);
 }
 const merge = (parts) => mergeGeometries(parts.map((p) => (p.index ? p.toNonIndexed() : p)), false);
-const vmat = new THREE.MeshLambertMaterial({ vertexColors: true });
+const vmat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0.03 });
 const box = (w, h, d) => new THREE.BoxGeometry(w, h, d);
 const sph = (r, s = 10) => new THREE.SphereGeometry(r, s, Math.max(6, s * 0.7 | 0));
 const cyl = (rt, rb, h, s = 12) => new THREE.CylinderGeometry(rt, rb, h, s);
@@ -187,6 +201,8 @@ function roundRect(ctx, x, y, w, h, r) {
 // Environment
 // ---------------------------------------------------------------------------
 
+let worldGround, worldTrees;
+const originalFenceMeshes = [];
 // snow ground with subtle noise
 {
   const { tex } = canvasTex(512, 512, (ctx, w, h) => {
@@ -205,6 +221,7 @@ function roundRect(ctx, x, y, w, h, r) {
   ground.position.z = -10;
   ground.receiveShadow = true;
   scene.add(ground);
+  worldGround = ground;
 }
 
 // camp dirt floor (slightly chamfered rectangle)
@@ -300,6 +317,7 @@ function roundRect(ctx, x, y, w, h, r) {
   posts.forEach(([x, z], k) => postMesh.setMatrixAt(k, m4.makeTranslation(x, 0, z)));
   postMesh.castShadow = true; postMesh.receiveShadow = true;
   scene.add(postMesh);
+  originalFenceMeshes.push(postMesh);
 
   const railGeo = merge([
     part(box(1, 0.13, 0.08), '#e0977a', 0, 0.45, 0),
@@ -314,6 +332,7 @@ function roundRect(ctx, x, y, w, h, r) {
   });
   railMesh.castShadow = true; railMesh.receiveShadow = true;
   scene.add(railMesh);
+  originalFenceMeshes.push(railMesh);
 }
 
 // trees & rocks -----------------------------------------------------------------
@@ -334,7 +353,7 @@ function roundRect(ctx, x, y, w, h, r) {
   for (let k = 0; k < 30; k++) spots.push([rnd(c.x0 - 16, c.x0 - 3), rnd(c.z0 + 1, c.z1 + 16)]);
   for (let k = 0; k < 12; k++) spots.push([rnd(c.x0 + 5, c.x1 - 5) * 0.3 + rnd(-10, 10), rnd(c.z1 + 3, c.z1 + 16)]);
   const ok = spots.filter(([x, z]) => !(Math.abs(x - L.queueX) < 2.2 && z > c.z1) && !(Math.abs(x - 4.5) < 2 && z > c.z1));
-  const trees = new THREE.InstancedMesh(treeGeo, vmat, ok.length);
+  const trees = new THREE.InstancedMesh(treeGeo, vmat.clone(), ok.length);
   const m4 = new THREE.Matrix4();
   ok.forEach(([x, z], k) => {
     const s = rnd(0.8, 1.5);
@@ -343,6 +362,7 @@ function roundRect(ctx, x, y, w, h, r) {
   });
   trees.castShadow = true; trees.receiveShadow = true;
   scene.add(trees);
+  worldTrees = trees;
 
   const rockGeo = merge([part(new THREE.DodecahedronGeometry(0.5, 0), '#c7d6e3'), part(sph(0.3, 6), '#ffffff', 0.1, 0.3, 0, 0, 0, 0, 1.2, 0.5, 1.2)]);
   const rocks = new THREE.InstancedMesh(rockGeo, vmat, 26);
@@ -355,6 +375,166 @@ function roundRect(ctx, x, y, w, h, r) {
   }
   rocks.castShadow = true;
   scene.add(rocks);
+}
+
+// Living world: one shared set of low-cost meshes, rebuilt only on upgrades.
+const biomePalettes = [
+  { ground: '#f0f6ff', trees: '#c8e8ff', sky: '#b7d6ec', sun: '#ffe5bd', monster: '#ffffff', dust: '#ffffff' },
+  { ground: '#bb7754', trees: '#665c39', sky: '#d9a185', sun: '#ffd396', monster: '#8f5036', dust: '#ffbf67' },
+  { ground: '#647d87', trees: '#6dcbb4', sky: '#9bbbc5', sun: '#b6fff0', monster: '#8aaed5', dust: '#96ffdf' },
+  { ground: '#574662', trees: '#be91cf', sky: '#686582', sun: '#dab6ff', monster: '#9272c2', dust: '#dfa1ff' },
+];
+const settlement = new THREE.Group(), frontier = new THREE.Group(), biomeLandmarks = new THREE.Group();
+scene.add(settlement, frontier, biomeLandmarks);
+let visualRegion = -1, visualTier = -1, visualRadius = -1;
+const warmWindows = new THREE.MeshStandardMaterial({ color: '#ffcf76', emissive: '#ffae42', emissiveIntensity: 1.4 });
+const weatherCount = mobileGPU ? 100 : 220;
+const weatherPositions = new Float32Array(weatherCount * 3);
+for (let k = 0; k < weatherCount; k++) { weatherPositions[k*3] = Math.random()*70-35; weatherPositions[k*3+1] = Math.random()*15; weatherPositions[k*3+2] = Math.random()*70-45; }
+const weatherGeo = new THREE.BufferGeometry();
+weatherGeo.setAttribute('position', new THREE.BufferAttribute(weatherPositions, 3));
+const weather = new THREE.Points(weatherGeo, new THREE.PointsMaterial({ color: '#ffffff', size: 0.075, transparent: true, opacity: 0.65, depthWrite: false }));
+weather.frustumCulled = false;
+scene.add(weather);
+function clearWorldGroup(group) {
+  for (const child of [...group.children]) { group.remove(child); child.geometry?.dispose(); }
+}
+function buildSettlement(tier, radius) {
+  clearWorldGroup(settlement);
+  const n = 2 + tier * 2;
+  for (let k=0; k<n; k++) {
+    const side = k % 2 ? -1 : 1, row = Math.floor(k/2);
+    const x = side*(radius+3.1), z = -5 + row*4.3;
+    const h = tier >= 3 ? 3.1 + (row%2)*0.7 : 1.9;
+    const house = mesh(merge([
+      part(box(2.8,h,2.8), tier>=3 ? '#738da0' : '#947057',x,h/2,z),
+      part(cone(2.25,1.35,4),tier>=3 ? '#3d657c' : '#526f7f',x,h+.65,z,0,Math.PI/4),
+      part(box(.55,h*.68,.09),'#483932',x,h*.34,z+1.44),
+      part(box(.35,1,.35),'#6c6462',x+.7,h+.75,z-.4),
+    ]));
+    settlement.add(house);
+    for (const dx of [-.83,.83]) {
+      const windowMesh = mesh(box(.48,.6,.06),warmWindows,false);
+      windowMesh.position.set(x+dx,h*.61,z+1.43); settlement.add(windowMesh);
+    }
+    const lamp = mesh(merge([part(cyl(.06,.07,2.4,6),'#364b55',x-side*1.7,1.2,z+1.7),part(box(.3,.4,.3),'#ffc56b',x-side*1.7,2.4,z+1.7)]));
+    settlement.add(lamp);
+  }
+  if(tier>=2) {
+    const tower = mesh(merge([part(cyl(1.1,1.4,4+tier,8),'#869eac',0,(4+tier)/2,L.camp.z1+10),part(cone(1.55,1.6,8),'#375f76',0,4.8+tier,L.camp.z1+10)]));
+    settlement.add(tower);
+  }
+}
+function buildFrontier(radius) {
+  clearWorldGroup(frontier);
+  // Replace both camp and hunting rails so expansion remains visible.
+  originalFenceMeshes.forEach(m=>m.visible=false);
+  const c=L.camp,f=L.field,g=L.gate, segments=[[-radius,c.z0,g.x0,c.z0],[g.x1,c.z0,radius,c.z0],[-radius,c.z0,-radius,c.z1],[radius,c.z0,radius,c.z1],[-radius,c.z1,L.counter.x-2.1,c.z1],[L.counter.x+2.1,c.z1,radius,c.z1],[g.x0,c.z0,g.x0,f.z1],[g.x1,c.z0,g.x1,f.z1],[f.x0,f.z1,g.x0,f.z1],[g.x1,f.z1,f.x1,f.z1],[f.x0,f.z0,f.x1,f.z0],[f.x0,f.z0,f.x0,f.z1],[f.x1,f.z0,f.x1,f.z1]];
+  const parts=[];
+  for(const [ax,az,bx,bz] of segments){
+    const len=Math.hypot(bx-ax,bz-az), angle=-Math.atan2(bz-az,bx-ax);
+    for(let k=0;k<=Math.ceil(len/1.5);k++){const t=k/Math.ceil(len/1.5);parts.push(part(cyl(.1,.13,1.2,6),'#8e6c52',ax+(bx-ax)*t,.6,az+(bz-az)*t));}
+    for(const y of [.43,.89]) parts.push(part(box(len,.12,.1),'#c49d71',(ax+bx)/2,y,(az+bz)/2,0,angle));
+  }
+  frontier.add(mesh(merge(parts)));
+  const deck=mesh(box(radius*2,.045,L.camp.z1-L.camp.z0),new THREE.MeshStandardMaterial({color:'#ac9682',roughness:1}),false);
+  deck.position.set(0,.025,(L.camp.z0+L.camp.z1)/2);frontier.add(deck);
+}
+function buildBiomeLandmarks(region) {
+  clearWorldGroup(biomeLandmarks);
+  if(!region)return;
+  const parts=[];
+  for(let k=0;k<30;k++){
+    const side=k%2?-1:1, x=side*(L.field.x1+3+(k%4)*1.8), z=L.field.z0+Math.floor(k/2)*2.3;
+    const h=1.4+(k%5)*.6;
+    if(region===1)parts.push(part(new THREE.DodecahedronGeometry(1,0),'#b5593d',x,h/2,z,0,k,0,1.3,h,1.1));
+    else parts.push(part(cone(.65,h,5),region===2?'#63dfd2':'#b580ea',x,h/2,z,.13,k,.12));
+  }
+  biomeLandmarks.add(mesh(merge(parts)));
+  const accents=[];
+  for(let k=0;k<16;k++){
+    const side=k%2?-1:1,x=side*(L.field.x1+1.4+(k%3)*.4),z=L.field.z0+Math.floor(k/2)*3.5;
+    if(region===1){
+      accents.push(part(cyl(.13,.16,1.7,6),'#76906b',x,.85,z));
+      accents.push(part(box(.65,.16,.16),'#76906b',x+.2,.95,z));
+    }else if(region===2){
+      accents.push(part(cyl(.035,.035,.65,5),'#496d60',x,.325,z));
+      accents.push(part(sph(.3,6),'#8ce4c9',x,.7,z,0,0,0,1,.45,1));
+    }else{
+      accents.push(part(new THREE.TorusGeometry(.5,.05,4,16),'#a994d1',x,.08,z,Math.PI/2));
+      accents.push(part(cone(.09,.55,5),'#e5bcff',x,.275,z));
+    }
+  }
+  biomeLandmarks.add(mesh(merge(accents)));
+}
+const industrialDetails = new THREE.Group();
+scene.add(industrialDetails);
+let industrySignature = '';
+let workshopDrone = null;
+const machineryGlow = new THREE.MeshStandardMaterial({ color: '#75f4e0', emissive: '#2acbb5', emissiveIntensity: 1.1, roughness: .3, metalness: .45 });
+function updateIndustryVisuals(s) {
+  const mill = Math.max(0,s.grinderLevel || 0), kitchen = Math.max(0,s.kitchenLevel || 0), helper = Math.max(0,s.helperLevel || 0);
+  const belts = s.pads?.filter(p=>p.kind===0 || p.kind===1).map(p=>p.level||0) || [];
+  const signature = [mill,kitchen,helper,...belts].join(':');
+  if(signature !== industrySignature){
+    industrySignature=signature; clearWorldGroup(industrialDetails); workshopDrone=null;
+    for(const [center,level,color] of [[L.grinder,mill,'#72dfd4'],[L.grill,kitchen,'#ffb45d']]){
+      if(!level) continue;
+      const hardware=[];
+      for(let k=0;k<Math.min(level,5);k++){
+        const dx=(k%2?1:-1)*1.05, z=center.z + (Math.floor(k/2)-.5)*.6;
+        hardware.push(part(cyl(.17,.22,1.3+k*.1,8),color,center.x+dx,.8,z));
+        hardware.push(part(box(.35,.18,.35),'#405568',center.x+dx,1.5+k*.1,z));
+      }
+      industrialDetails.add(mesh(merge(hardware)));
+      const ring=mesh(new THREE.TorusGeometry(1.7+level*.08,.035,4,40),machineryGlow,false);
+      ring.rotation.x=Math.PI/2;ring.position.set(center.x,.11,center.z);industrialDetails.add(ring);
+      const sign=mesh(box(.85,.16,.08),machineryGlow,false);
+      sign.position.set(center.x,2.2,center.z);industrialDetails.add(sign);
+    }
+    for(let j=0;j<belts.length;j++){
+      if(belts[j]<2)continue;
+      const route=j?L.conv2:L.conv1;
+      for(const point of route){
+        const beacon=mesh(merge([part(cyl(.09,.12,1.3,6),'#526a76',point.x+.65,.65,point.z),part(sph(.14,6),'#72f1dc',point.x+.65,1.4,point.z)]));industrialDetails.add(beacon);
+      }
+    }
+    if(helper){
+      workshopDrone=mesh(merge([part(box(.65,.4,.55),'#426374'),part(box(.4,.13,.07),'#7bffe8',0,.03,.3),part(cyl(.25,.25,.06,8),'#cfdae3',-.5,.25,0),part(cyl(.25,.25,.06,8),'#cfdae3',.5,.25,0)]));
+      industrialDetails.add(workshopDrone);
+    }
+  }
+  machineryGlow.emissiveIntensity=1+Math.sin(s.time*2.5)*.18;
+  if(workshopDrone){
+    const t=(Math.sin(s.time*.32)+1)/2;
+    workshopDrone.position.set(THREE.MathUtils.lerp(L.grinder.x,L.counter.x,t),2.8+Math.sin(s.time*3)*.1,THREE.MathUtils.lerp(L.grinder.z,L.counter.z,t));
+    workshopDrone.rotation.y=s.time*.7;
+  }
+}
+function updateWorldVisuals(s,dt) {
+  updateIndustryVisuals(s);
+  const region=Math.max(0,Math.min(3,s.region||0)),tier=s.tier||0,radius=s.campRadius||9,palette=biomePalettes[region];
+  if(region!==visualRegion){
+    visualRegion=region;
+    bearBodies.mesh.geometry=monsterBodyGeometries[region];
+    bearLegs.mesh.geometry=monsterLegGeometries[region];
+    worldGround.material.color.set(palette.ground); worldTrees.material.color.set(palette.trees);
+    scene.background.set(palette.sky);scene.fog.color.set(palette.sky);sun.color.set(palette.sun);
+    weather.material.color.set(palette.dust);weather.material.size=region===0?.075:.055;
+    buildBiomeLandmarks(region);
+  }
+  if(radius!==visualRadius){visualRadius=radius;buildFrontier(radius);visualTier=-1;}
+  if(tier!==visualTier){visualTier=tier;buildSettlement(tier,radius);}
+  sun.intensity=1.75+Math.sin(s.time*.025)*.3;
+  warmWindows.emissiveIntensity=1.2+Math.sin(s.time*2)*.1;
+  for(let k=0;k<weatherCount;k++){
+    const i=k*3;weatherPositions[i]+=dt*(region===0?.25:.1);
+    weatherPositions[i+1]+=dt*(region===0?-.7:.35);
+    if(weatherPositions[i+1]<0)weatherPositions[i+1]=15;
+    if(weatherPositions[i+1]>15)weatherPositions[i+1]=0;
+    if(weatherPositions[i]>35)weatherPositions[i]=-35;
+  }
+  weatherGeo.attributes.position.needsUpdate=true;
 }
 
 // ---------------------------------------------------------------------------
@@ -742,8 +922,44 @@ const bearBodyGeo = merge([
   part(box(0.07, 0.07, 0.03), '#20242a', 0.16, 1.45, 1.3),
 ]);
 const bearLegGeo = merge([part(box(0.34, 0.8, 0.38), '#ecebe5', 0, -0.4, 0), part(box(0.36, 0.1, 0.42), '#d9d8d2', 0, -0.78, 0.03)]);
+// Silhouettes communicate the threat before the player sees a health bar.
+const monsterBodyGeometries = [bearBodyGeo, merge([
+  part(cap(.4,1.65,8),'#b9a394',0,.98,-.15,Math.PI/2,0,0,1,.85,1),
+  part(sph(.37,8),'#c9b8a4',0,1.28,.9,0,0,0,.85,1,1.15),
+  part(box(.28,.26,.65),'#c9b8a4',0,1.12,1.31),
+  part(box(.2,.15,.1),'#292930',0,1.2,1.68),
+  part(cone(.19,.53,4),'#d4c3a7',-.24,1.69,.77,0,Math.PI/4,-.18),
+  part(cone(.19,.53,4),'#d4c3a7',.24,1.69,.77,0,Math.PI/4,.18),
+  part(cap(.16,.75,6),'#bdab9a',0,1.08,-1.37,-.9),
+  part(box(.08,.08,.05),'#ffdf80',-.17,1.39,1.23),
+  part(box(.08,.08,.05),'#ffdf80',.17,1.39,1.23),
+]), merge([
+  part(new THREE.DodecahedronGeometry(.88,0),'#9db8bd',0,1.25,0,0,.3,0,1,.95,.75),
+  part(new THREE.IcosahedronGeometry(.42,0),'#83dfd7',0,2.05,.12),
+  part(new THREE.DodecahedronGeometry(.38,0),'#698a98',-.95,1.23,0,0,0,.3,1,1.65,1),
+  part(new THREE.DodecahedronGeometry(.38,0),'#698a98',.95,1.23,0,0,0,-.3,1,1.65,1),
+  part(cone(.2,.9,5),'#7bffe8',-.46,2,.02,0,0,-.5),
+  part(cone(.2,.9,5),'#7bffe8',.46,2,.02,0,0,.5),
+  part(box(.48,.1,.06),'#efffee',0,2.11,.47),
+]), merge([
+  part(new THREE.IcosahedronGeometry(.68,1),'#9074c0',0,1.15,0,0,0,0,.85,1.15,.8),
+  part(sph(.36,8),'#483759',0,1.91,.13),
+  part(sph(.2,8),'#f9bfff',0,1.96,.41,0,0,0,1.3,.45,.4),
+  part(cone(.22,1.2,5),'#b6a2da',-.64,1.7,-.08,0,0,-.8),
+  part(cone(.22,1.2,5),'#b6a2da',.64,1.7,-.08,0,0,.8),
+  part(cap(.1,.95,6),'#746293',-.75,.79,.15,0,0,-.3),
+  part(cap(.1,.95,6),'#746293',.75,.79,.15,0,0,.3),
+  part(cone(.2,.7,5),'#c9addf',0,2.48,.08),
+])];
+const monsterLegGeometries = [bearLegGeo,
+  merge([part(cap(.1,.52,6),'#aa9484',0,-.32,0),part(box(.2,.12,.32),'#847466',0,-.7,.06)]),
+  merge([part(new THREE.DodecahedronGeometry(.27,0),'#658a93',0,-.38,0,0,0,0,1,1.6,1),part(box(.42,.2,.5),'#7796a0',0,-.73,0)]),
+  merge([part(cone(.12,.85,5),'#8771a8',0,-.35,0,Math.PI),part(sph(.15,6),'#b889d9',0,-.75,0)])];
 const bearBodies = new Batch(bearBodyGeo, MAX_BEARS);
+const attackZones = new Batch(new THREE.RingGeometry(0.82, 1, 32), MAX_BEARS,
+  new THREE.MeshBasicMaterial({color:'#ff594a',transparent:true,opacity:0.85,side:THREE.DoubleSide,depthWrite:false}));
 const bearLegs = new Batch(bearLegGeo, MAX_BEARS * 4);
+const monsterCrests = new Batch(merge([part(cone(.17,.8,5),'#a8f2eb',-.35,1.9,.8,0,0,-.4),part(cone(.17,.8,5),'#a8f2eb',.35,1.9,.8,0,0,.4),part(cone(.25,.9,5),'#c8a5ed',0,1.75,-.55,.5)]), MAX_BEARS);
 bearBodies.mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(MAX_BEARS * 3).fill(1), 3);
 const bearBars = { bg: new Batch(new THREE.PlaneGeometry(1.0, 0.16), MAX_BEARS, new THREE.MeshBasicMaterial({ color: '#2a2f36', depthTest: false, transparent: true })),
   fg: new Batch(new THREE.PlaneGeometry(0.94, 0.1).translate(0.47, 0, 0), MAX_BEARS, new THREE.MeshBasicMaterial({ color: '#e5484d', depthTest: false, transparent: true })) };
@@ -927,7 +1143,7 @@ document.getElementById('btn-sound').addEventListener('click', (e) => {
 });
 document.getElementById('btn-reset').addEventListener('click', () => {
   if (!confirm('Recommencer une nouvelle partie ?')) return;
-  try { localStorage.removeItem(SAVE_KEY); } catch (_) { /* ignore */ }
+  try { localStorage.removeItem(SAVE_KEY); localStorage.removeItem('polar-camp-save-v1'); } catch (_) { /* ignore */ }
   location.reload();
 });
 
@@ -963,7 +1179,11 @@ const endJoy = (e) => {
 canvas.addEventListener('pointerup', endJoy);
 canvas.addEventListener('pointercancel', endJoy);
 const keys = new Set();
-window.addEventListener('keydown', (e) => keys.add(e.code));
+window.addEventListener('keydown', (e) => {
+  if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
+  keys.add(e.code);
+  if (e.code === 'Space' && !e.repeat && playing && !document.getElementById('journal').open) W.pc_dash();
+});
 window.addEventListener('keyup', (e) => keys.delete(e.code));
 window.addEventListener('blur', () => keys.clear());
 function readInput() {
@@ -1025,7 +1245,7 @@ function handleEvents(s) {
       spawnSwing(e[1], e[2], e[3], e[4] > 0, e[5]);
     } else if (k === EV.PURCHASE) {
       const info = PAD_INFO[e[1]];
-      toast(info.done);
+      toast(info?.done || ['Colonie développée !', 'Enclos agrandi !', 'Arme renforcée !', 'Atelier amélioré !', 'Cuisine améliorée !', 'Assistant recruté !'][e[1] - 6] || 'Amélioration acquise !');
       spawnParticles(e[2], 0.5, e[3], 40, '#ffd23a', 6, 1.0, 1.3);
       spawnParticles(e[2], 0.5, e[3], 30, '#3fbf4a', 6, 1.0, 1.3);
       sfx('buy');
@@ -1065,16 +1285,17 @@ function guideTarget(s) {
   const afford = s.pads.filter((q) => q.visible && s.money >= Math.min(q.cost - q.paid, 40) && s.money > 0)
     .sort((a, b) => (a.cost - a.paid) - (b.cost - b.paid))[0];
   if (afford && s.money >= afford.cost - afford.paid) return { x: afford.x, z: afford.z, hint: 'Achète une amélioration !' };
-  if (!inField) return { x: 0, z: L.field.z1 - 2, hint: 'Va chasser les ours 🐻‍❄️' };
+  if (!inField) return { x: 0, z: L.field.z1 - 2, hint: 'Explore le territoire et affronte ses créatures' };
   return null;
 }
 
 function update(dt) {
   readInput();
-  if (playing) W.pc_tick(dt, input.x, input.z);
-  else W.pc_tick(dt, 0, 0);
+  if (playing && !document.hidden && !document.getElementById('journal').open) W.pc_tick(dt, input.x, input.z);
   const s = readState();
   S = s;
+  updateCampaign(s);
+  updateWorldVisuals(s, dt);
   const p = s.player;
 
   if (p.hero !== player.lastHero) {
@@ -1188,15 +1409,27 @@ function update(dt) {
   for (const b of Object.values(items)) b.end();
 
   // --- bears ------------------------------------------------------------------
-  bearBodies.begin(); bearLegs.begin(); bearBars.bg.begin(); bearBars.fg.begin();
+  bearBodies.begin(); bearLegs.begin(); monsterCrests.begin(); bearBars.bg.begin(); bearBars.fg.begin(); attackZones.begin();
+  for (const b of s.bears) {
+    if (b.windup > 0) {
+      const radius = [1.7,1.6,2.3,1.9][s.region || 0];
+      const matrix = new THREE.Matrix4().compose(new THREE.Vector3(b.x,0.08,b.z),
+        new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2,0,0)),
+        new THREE.Vector3(radius,radius,radius));
+      attackZones.addMatrix(matrix);
+    }
+  }
+  attackZones.end();
   const col = new THREE.Color();
   const legOff = [[-0.33, 0.55], [0.33, 0.55], [-0.33, -0.65], [0.33, -0.65]];
   const addBear = (x, z, angle, walk, moving, flash, tilt, sink) => {
     const idx = bearBodies.n;
     tmpQ.setFromEuler(new THREE.Euler(0, angle, tilt, 'YXZ'));
-    tmpM.compose(tmpV.set(x, -sink, z), tmpQ, tmpS.set(1, 1, 1));
+    tmpM.compose(tmpV.set(x, -sink, z), tmpQ, tmpS.set(visualRegion===1?.78:visualRegion===2?1.2:1, visualRegion===1?.78:visualRegion===3?1.3:1, visualRegion===1?1.2:1));
     bearBodies.addMatrix(tmpM);
-    col.setRGB(1, 1 - flash * 0.6, 1 - flash * 0.6);
+    if(visualRegion>=2) monsterCrests.addMatrix(tmpM);
+    col.set(biomePalettes[Math.max(0,visualRegion)].monster);
+    col.lerp(new THREE.Color('#ff5656'),Math.min(1,flash*.8));
     bearBodies.mesh.setColorAt(idx, col);
     const ca = Math.cos(angle), sa = Math.sin(angle);
     legOff.forEach(([lx, lz], li) => {
@@ -1224,7 +1457,7 @@ function update(dt) {
     addBear(d.x, d.z, d.angle, 0, false, Math.max(0, 1 - d.t * 3), tilt, sink);
     if (d.t > 1.6) dyingBears.splice(k, 1);
   }
-  bearBodies.end(); bearLegs.end(); bearBars.bg.end(); bearBars.fg.end();
+  bearBodies.end(); bearLegs.end(); monsterCrests.end(); bearBars.bg.end(); bearBars.fg.end();
 
   // --- customers --------------------------------------------------------------
   const seen = new Set();
@@ -1339,6 +1572,7 @@ function update(dt) {
   sun.position.set(camTarget.x - 8, 20, camTarget.z + 10);
   sun.target.position.set(camTarget.x, 0, camTarget.z);
   snow.position.set(camTarget.x, 0, camTarget.z);
+  snow.visible = (s.region || 0) === 0;
   const sp = snow.geometry.attributes.position;
   for (let k = 0; k < sp.count; k++) {
     let y = sp.getY(k) - dt * (1.2 + (k % 5) * 0.2);
@@ -1395,4 +1629,11 @@ playBtn.addEventListener('click', () => {
   } catch (_) { actx = null; }
 });
 document.addEventListener('visibilitychange', () => { if (document.hidden) saveGame(); });
-window.__polar = { get state() { return S; }, guide: () => S && guideTarget(S), layout: L };
+initCampaign({
+  travel: (region) => { if (!playing) return false; const ok = !!W.pc_travel(region); if (ok) { joy.id = null; joy.x = joy.y = 0; keys.clear(); joyEl.style.display = 'none'; saveGame(); } return ok; },
+  upgrade: (kind) => { if (!playing) return false; const ok = !!W.pc_upgrade(kind); if (ok) saveGame(); return ok; },
+  dash: () => playing && !document.getElementById('journal').open && !!W.pc_dash(),
+  save: saveGame, toast,
+});
+window.__withsurvival = { get state() { return S; }, guide: () => S && guideTarget(S), layout: L };
+window.__polar = window.__withsurvival;

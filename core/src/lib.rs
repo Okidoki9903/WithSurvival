@@ -1,4 +1,4 @@
-//! Polar Camp — simulation core.
+//! WithSurvival: Les Terres oubliees — simulation core.
 //!
 //! All gameplay rules live here (movement, combat, production chain, customers,
 //! economy, upgrades). The crate compiles to a dependency-free WebAssembly
@@ -150,6 +150,7 @@ pub struct Bear {
     pub aggro_t: f32,
     pub attack_cd: f32,
     pub flash: f32,
+    pub windup: f32,
     pub wander_t: f32,
     pub tx: f32,
     pub tz: f32,
@@ -212,6 +213,20 @@ impl Pad {
 }
 
 pub struct Game {
+    pub tier: u32,
+    pub region: u32,
+    pub enclosure: u32,
+    pub weapon: u32,
+    pub grinder_level: u32,
+    pub kitchen_level: u32,
+    pub helper_level: u32,
+    helper_t: f32,
+    pub kills: u32,
+    pub region_kills: [u32;4],
+    pub served: u32,
+    pub essence: u32,
+    dash_t: f32,
+    dash_cd: f32,
     rng: Rng,
     pub time: f32,
     pub money: u32,
@@ -246,6 +261,7 @@ impl Game {
     pub fn new(seed: u32) -> Game {
         let mut g = Game {
             rng: Rng(seed.max(1)),
+            tier: 0, region: 0, enclosure: 0, weapon: 0, grinder_level: 0, kitchen_level: 0, helper_level: 0, helper_t: 0.0, kills: 0, region_kills: [0;4], served: 0, essence: 0, dash_t: 0.0, dash_cd: 0.0,
             time: 0.0,
             money: 0,
             player: Player {
@@ -279,12 +295,12 @@ impl Game {
             conv1: Vec::new(),
             conv2: Vec::new(),
             pads: vec![
-                Pad { kind: PadKind::ConveyorA, x: 3.0, z: -4.6, costs: &[140], level: 0, paid: 0, visible: true },
+                Pad { kind: PadKind::ConveyorA, x: 3.0, z: -4.6, costs: &[140,300,650], level: 0, paid: 0, visible: true },
                 Pad { kind: PadKind::Backpack, x: 1.2, z: -0.8, costs: &[60, 220, 550], level: 0, paid: 0, visible: true },
-                Pad { kind: PadKind::ConveyorB, x: 5.8, z: -1.6, costs: &[200], level: 0, paid: 0, visible: false },
+                Pad { kind: PadKind::ConveyorB, x: 5.8, z: -1.6, costs: &[200,420,850], level: 0, paid: 0, visible: false },
                 Pad { kind: PadKind::Boots, x: -2.0, z: 1.8, costs: &[150, 450], level: 0, paid: 0, visible: false },
                 Pad { kind: PadKind::Hero, x: 5.8, z: 2.2, costs: &[400], level: 0, paid: 0, visible: false },
-                Pad { kind: PadKind::Grill2, x: -1.0, z: -3.2, costs: &[350], level: 0, paid: 0, visible: false },
+                Pad { kind: PadKind::Grill2, x: -1.0, z: -3.2, costs: &[350,700,1200], level: 0, paid: 0, visible: false },
             ],
             pay_t: 0.0,
             events: Vec::new(),
@@ -304,6 +320,7 @@ impl Game {
                 aggro_t: 0.0,
                 attack_cd: 0.0,
                 flash: 0.0,
+                windup: 0.0,
                 wander_t: 0.0,
                 tx: x,
                 tz: z,
@@ -317,6 +334,51 @@ impl Game {
 
     // ---- upgrade queries -------------------------------------------------
 
+    pub fn camp_radius(&self) -> f32 { 9.0 + self.enclosure as f32 * 3.0 }
+    pub fn town_cost(&self) -> u32 { [180, 450, 900, 1600].get(self.tier as usize).copied().unwrap_or(0) }
+    pub fn unlocked_regions(&self) -> u32 { (1 + self.tier).min(4) }
+    fn region_hp(&self) -> f32 { [3.0, 5.0, 9.0, 15.0][self.region as usize] }
+    fn camp(&self) -> Rect { Rect { x0: -self.camp_radius(), x1: self.camp_radius(), ..CAMP } }
+    pub fn upgrade(&mut self, kind: u32) -> bool {
+        let (level, costs): (u32, &[u32]) = match kind {
+            6 => (self.tier, &[180,450,900,1600]),
+            7 => (self.enclosure, &[100,280,650]),
+            8 => (self.weapon, &[90,240,600]),
+            9 => (self.grinder_level, &[80,220,550,1000]),
+            10 => (self.kitchen_level, &[100,260,650,1200]),
+            11 => (self.helper_level, &[200,500,1100]),
+            _ => return false,
+        };
+        let Some(&cost) = costs.get(level as usize) else { return false; };
+        if self.money < cost { return false; }
+        if kind == 6 && (self.kills < [3,10,22,40][level as usize] || self.region_kills[level as usize] < 3) { return false; }
+        let essence_cost = if kind == 8 { [0,8,20][level as usize] } else { 0 };
+        if self.essence < essence_cost { return false; }
+        self.essence -= essence_cost;
+        self.money -= cost;
+        match kind { 6 => { self.tier += 1; self.player.hp = self.max_hp(); }, 7 => self.enclosure += 1, 8 => self.weapon += 1, 9 => self.grinder_level += 1, 10 => self.kitchen_level += 1, 11 => self.helper_level += 1, _ => {} }
+        self.push_event([ev::PURCHASE, kind as f32, self.player.x, self.player.z, 0.0,0.0,0.0]);
+        true
+    }
+    pub fn travel(&mut self, region: u32) -> bool {
+        if region >= self.unlocked_regions() || self.player.dead_t > 0.0 { return false; }
+        if region == self.region { return true; }
+        self.region = region;
+        self.player.x = 0.0; self.player.z = -15.0;
+        self.player.since_hurt = 0.0;
+        self.meats.clear();
+        let hp = self.region_hp();
+        for i in 0..self.bears.len() {
+            let (x,z) = self.random_field_point(false);
+            let b = &mut self.bears[i];
+            b.x=x; b.z=z; b.tx=x; b.tz=z; b.hp=hp; b.alive=true; b.aggro_t=0.0; b.attack_cd=1.0; b.windup=0.0;
+        }
+        true
+    }
+    pub fn dash(&mut self) -> bool {
+        if self.dash_cd > 0.0 || self.player.dead_t > 0.0 { return false; }
+        self.dash_t=0.28; self.dash_cd=3.5; true
+    }
     fn pad_level(&self, k: PadKind) -> u32 {
         self.pads.iter().find(|p| p.kind == k).map(|p| p.level).unwrap_or(0)
     }
@@ -330,7 +392,7 @@ impl Game {
         5.2 + 1.0 * self.pad_level(PadKind::Boots) as f32 + if self.hero() { 0.4 } else { 0.0 }
     }
     pub fn max_hp(&self) -> f32 {
-        if self.hero() { 180.0 } else { 100.0 }
+        (if self.hero() { 180.0 } else { 100.0 }) + 15.0 * self.tier as f32
     }
     fn has_conv1(&self) -> bool {
         self.pad_level(PadKind::ConveyorA) > 0
@@ -339,7 +401,7 @@ impl Game {
         self.pad_level(PadKind::ConveyorB) > 0
     }
     fn grill_period(&self) -> f32 {
-        if self.pad_level(PadKind::Grill2) > 0 { 0.22 } else { 0.45 }
+        (if self.pad_level(PadKind::Grill2) > 0 { 0.22 } else { 0.45 }) / (1.0 + 0.3 * self.kitchen_level as f32)
     }
 
     // ---- helpers -----------------------------------------------------------
@@ -379,6 +441,8 @@ impl Game {
 
     fn step(&mut self, dt: f32, ix: f32, iz: f32) {
         self.time += dt;
+        self.dash_t = (self.dash_t-dt).max(0.0);
+        self.dash_cd = (self.dash_cd-dt).max(0.0);
         self.update_player(dt, ix, iz);
         self.update_bears(dt);
         self.update_combat(dt);
@@ -410,18 +474,20 @@ impl Game {
             dx = ix / n * len;
             dz = iz / n * len;
         }
-        let sp = self.speed();
+        let sp = self.speed() * if self.dash_t > 0.0 { 2.8 } else { 1.0 };
+        let camp = self.camp();
+        let max_hp = self.max_hp();
         let p = &mut self.player;
         p.moving = len > 0.08;
         if p.moving {
             let nx = p.x + dx * sp * dt;
             let nz = p.z + dz * sp * dt;
-            if Game::walkable(nx, nz) {
+            if camp.contains(nx,nz,0.5) || Game::walkable(nx, nz) {
                 p.x = nx;
                 p.z = nz;
-            } else if Game::walkable(nx, p.z) {
+            } else if camp.contains(nx,p.z,0.5) || Game::walkable(nx, p.z) {
                 p.x = nx;
-            } else if Game::walkable(p.x, nz) {
+            } else if camp.contains(p.x,nz,0.5) || Game::walkable(p.x, nz) {
                 p.z = nz;
             }
             let face = dx.atan2(dz);
@@ -437,10 +503,10 @@ impl Game {
         }
         // regen
         p.since_hurt += dt;
-        let in_camp = CAMP.contains(p.x, p.z, 0.0);
+        let in_camp = camp.contains(p.x, p.z, 0.0);
         let regen = if in_camp { 30.0 } else if p.since_hurt > 2.0 { 10.0 } else { 0.0 };
-        let max = if self.pads.iter().any(|q| q.kind == PadKind::Hero && q.level > 0) { 180.0 } else { 100.0 };
-        p.hp = (p.hp + regen * dt).min(max);
+
+        p.hp = (p.hp + regen * dt).min(max_hp);
     }
 
     fn update_bears(&mut self, dt: f32) {
@@ -448,6 +514,9 @@ impl Game {
         let player_alive = self.player.dead_t <= 0.0;
         let player_in_field = FIELD.contains(px, pz, -1.0);
         let mut hurt = 0.0;
+        let region = self.region;
+        let region_hp = self.region_hp();
+        let invulnerable = self.dash_t > 0.0;
         for i in 0..self.bears.len() {
             if !self.bears[i].alive {
                 self.bears[i].respawn_t -= dt;
@@ -458,9 +527,10 @@ impl Game {
                     b.z = z;
                     b.tx = x;
                     b.tz = z;
-                    b.hp = BEAR_HP;
+                    b.hp = region_hp;
                     b.alive = true;
                     b.aggro_t = 0.0;
+                    b.windup = 0.0;
                 }
                 continue;
             }
@@ -472,13 +542,23 @@ impl Game {
             b.aggro_t -= dt;
             let (tx, tz, speed);
             let dp = dist(b.x, b.z, px, pz);
-            if b.aggro_t > 0.0 && player_alive && player_in_field {
+            if (b.aggro_t > 0.0 || (region > 0 && dp < 4.5)) && player_alive && player_in_field {
                 tx = px;
                 tz = pz;
-                speed = 2.3;
-                if dp < 1.45 && b.attack_cd <= 0.0 {
-                    b.attack_cd = 1.6;
-                    hurt += 4.0;
+                speed = [2.3, 3.7, 1.8, 3.1][region as usize];
+                if b.windup > 0.0 {
+                    b.windup = (b.windup-dt).max(0.0);
+                    if b.windup == 0.0 {
+                        b.attack_cd = [1.6,1.0,2.2,1.35][region as usize];
+                        // Commit the strike only after its visible anticipation.
+                        // Escape the impact radius or dash to avoid all damage.
+                        let radius = [1.7,1.6,2.3,1.9][region as usize];
+                        if dp < radius && !invulnerable {
+                            hurt += [4.0,6.0,14.0,11.0][region as usize];
+                        }
+                    }
+                } else if dp < 1.45 && b.attack_cd <= 0.0 {
+                    b.windup = [0.45,0.35,0.7,0.5][region as usize];
                 }
             } else {
                 b.wander_t -= dt;
@@ -492,7 +572,7 @@ impl Game {
                 speed = 0.9;
             }
             let d = dist(b.x, b.z, tx, tz);
-            b.moving = d > 1.1;
+            b.moving = d > 1.1 && b.windup <= 0.0;
             if b.moving {
                 let a = angle_to(b.x, b.z, tx, tz);
                 b.angle = turn_towards(b.angle, a, 4.0 * dt);
@@ -566,6 +646,7 @@ impl Game {
         self.player.dead_t = 2.0;
         for b in &mut self.bears {
             b.aggro_t = 0.0;
+            b.windup = 0.0;
         }
     }
 
@@ -600,7 +681,7 @@ impl Game {
         if !self.player.moving || !hero {
             self.player.angle = face;
         }
-        let dmg = if hero { 2.0 } else { 1.0 };
+        let dmg = (if hero { 2.0 } else { 1.0 }) + self.weapon as f32 * 0.8;
         self.player.attack_cd = if hero { 0.38 } else { 0.5 };
         self.player.swing = 0.0;
         self.push_event([ev::SWING, px, pz, self.player.angle, if hero { 1.0 } else { 0.0 }, reach, 0.0]);
@@ -645,7 +726,10 @@ impl Game {
             b.respawn_t = respawn;
             let (bx, bz, ba) = (b.x, b.z, b.angle);
             self.push_event([ev::BEAR_DIE, bx, bz, ba, 0.0, 0.0, 0.0]);
-            self.meats.push(Meat { x: bx, z: bz, age: 0.0 });
+            self.kills += 1;
+            self.region_kills[self.region as usize] += 1;
+            self.essence += 1 + self.region * 2;
+            for j in 0..(1+self.region) { self.meats.push(Meat { x: bx + j as f32 * 0.3, z: bz, age: 0.0 }); }
         }
     }
 
@@ -756,7 +840,7 @@ impl Game {
         // grinder: 1 meat -> 2 raw slices
         if self.grinder_in > 0 {
             self.grind_t += dt;
-            if self.grind_t >= 0.35 {
+            if self.grind_t >= 0.35 / (1.0 + 0.35 * self.grinder_level as f32) {
                 self.grind_t = 0.0;
                 self.grinder_in -= 1;
                 if self.has_conv1() {
@@ -770,7 +854,7 @@ impl Game {
             self.grind_t = 0.0;
         }
         // conveyors
-        let conv1_speed = 0.9;
+        let conv1_speed = 0.9 + 0.25 * self.pad_level(PadKind::ConveyorA) as f32;
         let mut arrived = 0;
         self.conv1.retain_mut(|t| {
             *t += dt * conv1_speed;
@@ -799,8 +883,9 @@ impl Game {
             self.grill_t = 0.0;
         }
         let mut arrived = 0;
+        let conv2_speed = 0.8 + 0.25 * self.pad_level(PadKind::ConveyorB) as f32;
         self.conv2.retain_mut(|t| {
-            *t += dt * 0.8;
+            *t += dt * conv2_speed;
             if *t >= 1.0 {
                 arrived += 1;
                 false
@@ -809,6 +894,15 @@ impl Game {
             }
         });
         self.counter += arrived;
+        // Porters move stock between machines; higher levels add cashier and hunter.
+        self.helper_t -= dt;
+        if self.helper_level > 0 && self.helper_t <= 0.0 {
+            self.helper_t = 0.7 / self.helper_level as f32;
+            if !self.has_conv1() && self.grinder_out > 0 { self.grinder_out-=1; self.grill_in+=1; }
+            if !self.has_conv2() && self.grill_out > 0 { self.grill_out-=1; self.counter+=1; }
+            if self.helper_level >= 2 && self.cash_pile > 0 { self.cash_pile-=1; self.money+=BILL_VALUE; }
+            if self.helper_level >= 3 && self.grinder_in < 15 { self.grinder_in+=1; }
+        }
     }
 
     fn update_customers(&mut self, dt: f32) {
@@ -883,7 +977,8 @@ impl Game {
             if c.got >= c.want && self.serve_t <= 0.0 {
                 c.state = CState::Leaving;
                 c.leave_step = 0;
-                let bills = c.want * STEAK_PRICE_BILLS;
+                let bills = c.want * (STEAK_PRICE_BILLS + self.tier);
+                self.served += 1;
                 let (cx, cz) = (c.x, c.z);
                 self.cash_pile += bills;
                 self.push_event([ev::HAPPY, cx, cz, bills as f32, 0.0, 0.0, 0.0]);
@@ -982,6 +1077,10 @@ impl Game {
         let conv1 = self.has_conv1();
         let conv2 = self.has_conv2();
         let grill_period = self.grill_period();
+        let region_hp = self.region_hp();
+        let radius = self.camp_radius();
+        let unlocked = self.unlocked_regions();
+        let town_cost = self.town_cost();
         let o = &mut self.out;
         o.clear();
         let p = &self.player;
@@ -1015,7 +1114,7 @@ impl Game {
         let alive = self.bears.iter().filter(|b| b.alive).count();
         o.push(alive as f32);
         for b in self.bears.iter().filter(|b| b.alive) {
-            o.extend_from_slice(&[b.x, b.z, b.angle, b.hp / BEAR_HP, b.flash, b.walk, b.moving as u8 as f32]);
+            o.extend_from_slice(&[b.x, b.z, b.angle, b.hp / region_hp, b.flash, b.walk, b.moving as u8 as f32]);
         }
         o.push(self.meats.len() as f32);
         for m in &self.meats {
@@ -1049,6 +1148,12 @@ impl Game {
         o.push((self.events.len() / 7) as f32);
         o.extend_from_slice(&self.events);
         self.events.clear();
+        // Extension v2. Legacy records above retain their original strides.
+        o.extend_from_slice(&[2.0,self.tier as f32,self.region as f32,unlocked as f32,radius,self.kills as f32,self.served as f32,self.essence as f32,town_cost as f32,alive as f32]);
+        o.extend(self.bears.iter().filter(|b| b.alive).map(|_| self.region as f32));
+        o.extend_from_slice(&[self.enclosure as f32,self.weapon as f32,self.dash_cd,self.grinder_level as f32,self.kitchen_level as f32,self.helper_level as f32]);
+        o.extend(self.bears.iter().filter(|b| b.alive).map(|b| b.windup));
+        o.extend(self.region_kills.iter().map(|n| *n as f32));
         &self.out
     }
 
@@ -1059,20 +1164,38 @@ impl Game {
     // ---- save / load (money + upgrade levels) -----------------------------
 
     pub fn save(&self) -> Vec<u32> {
-        let mut v = vec![1, self.money];
+        let mut v = vec![2, self.money];
         v.extend(self.pads.iter().map(|p| p.level));
+        v.extend_from_slice(&[self.tier,self.region,self.enclosure,self.weapon,self.kills,self.served,self.essence,self.grinder_level,self.kitchen_level,self.helper_level]);
+        v.extend(self.pads.iter().map(|p| p.paid));
+        v.extend_from_slice(&self.region_kills);
         v
     }
 
     pub fn load(&mut self, v: &[u32]) {
-        if v.len() != 2 + self.pads.len() || v[0] != 1 {
-            return;
-        }
-        self.money = v[1];
-        for (i, lvl) in v[2..].iter().enumerate() {
+        let legacy = v.len() == 8 && v.first() == Some(&1);
+        let current = (v.len() == 24 || v.len() == 28) && v.first() == Some(&2);
+        if !legacy && !current { return; }
+        self.money = v[1].min(100_000_000);
+        for (i, lvl) in v[2..8].iter().enumerate() {
             let p = &mut self.pads[i];
             p.level = (*lvl).min(p.costs.len() as u32);
+            p.paid = 0;
         }
+        if current {
+            self.tier=v[8].min(4); self.enclosure=v[10].min(3); self.weapon=v[11].min(3);
+            self.kills=v[12]; self.served=v[13]; self.essence=v[14];
+            self.region_kills=if v.len()==28 { [v[24],v[25],v[26],v[27]] } else {
+                // Existing v2 saves have no regional breakdown. Preserve earned
+                // town mastery, but do not invent mastery of the next frontier.
+                let mut counts=[0;4]; for i in 0..self.tier as usize {counts[i]=3;} counts
+            };
+            self.grinder_level=v[15].min(4); self.kitchen_level=v[16].min(4); self.helper_level=v[17].min(3);
+            let region=v[9].min(self.unlocked_regions()-1);
+            self.travel(region);
+            for (i,p) in self.pads.iter_mut().enumerate() { p.paid=v[18+i].min(p.cost().saturating_sub(1)); }
+        }
+
         // re-apply reveal chain
         let levels: Vec<(PadKind, u32)> = self.pads.iter().map(|p| (p.kind, p.level)).collect();
         for (k, l) in levels {
@@ -1098,7 +1221,7 @@ impl Game {
 // ---------------------------------------------------------------------------
 
 static mut GAME: Option<Game> = None;
-static mut SAVE: [u32; 16] = [0; 16];
+static mut SAVE: [u32; 32] = [0; 32];
 
 #[allow(static_mut_refs)]
 fn game() -> &'static mut Game {
@@ -1112,6 +1235,12 @@ pub extern "C" fn pc_init(seed: u32) {
     }
 }
 
+#[no_mangle]
+pub extern "C" fn pc_upgrade(kind: u32) -> u32 { game().upgrade(kind) as u32 }
+#[no_mangle]
+pub extern "C" fn pc_travel(region: u32) -> u32 { game().travel(region) as u32 }
+#[no_mangle]
+pub extern "C" fn pc_dash() -> u32 { game().dash() as u32 }
 #[no_mangle]
 pub extern "C" fn pc_tick(dt: f32, ix: f32, iz: f32) {
     game().tick(dt, ix, iz);
@@ -1150,18 +1279,18 @@ pub extern "C" fn pc_save_ptr() -> *mut u32 {
 pub extern "C" fn pc_save() -> u32 {
     let v = game().save();
     unsafe {
-        for (i, x) in v.iter().enumerate().take(16) {
+        for (i, x) in v.iter().enumerate().take(32) {
             SAVE[i] = *x;
         }
     }
-    v.len().min(16) as u32
+    v.len().min(32) as u32
 }
 
 /// Loads `len` values previously written into the SAVE buffer by JS.
 #[no_mangle]
 #[allow(static_mut_refs)]
 pub extern "C" fn pc_load(len: u32) {
-    let v: Vec<u32> = unsafe { SAVE[..(len as usize).min(16)].to_vec() };
+    let v: Vec<u32> = unsafe { SAVE[..(len as usize).min(32)].to_vec() };
     game().load(&v);
 }
 
@@ -1262,7 +1391,9 @@ mod tests {
         assert!(g.has_conv1());
         // walking across the backpack pad on the way also spends some money
         let backpack_paid = g.pads.iter().find(|p| p.kind == PadKind::Backpack).unwrap().paid;
-        assert_eq!(g.money + backpack_paid, 860);
+        let conveyor = g.pads.iter().find(|p| p.kind == PadKind::ConveyorA).unwrap();
+        let spent: u32 = conveyor.costs.iter().take(conveyor.level as usize).sum();
+        assert_eq!(g.money + backpack_paid + conveyor.paid + spent, 1000);
         assert!(g.pads.iter().find(|p| p.kind == PadKind::ConveyorB).unwrap().visible);
         // conveyor carries grinder output straight to the grill
         g.grinder_in = 2;
@@ -1284,6 +1415,104 @@ mod tests {
         assert_eq!(h.money, 55);
         assert!(h.has_conv1());
         assert!(h.pads.iter().find(|p| p.kind == PadKind::ConveyorB).unwrap().visible);
+    }
+
+    #[test]
+    fn settlement_requires_hunts_and_unlocks_regions() {
+        let mut g = Game::new(1); g.money=10_000;
+        assert!(!g.travel(1)); assert!(!g.upgrade(6));
+        g.kills=3; g.region_kills[0]=3; assert!(g.upgrade(6)); assert_eq!(g.money,9820);
+        assert!(g.travel(1)); assert_eq!(g.region,1);
+        assert!(g.bears.iter().all(|b| b.hp==5.0));
+        assert!(!g.travel(2));
+        g.kills=40; g.region_kills=[3;4];
+        for _ in 0..3 { assert!(g.upgrade(6)); }
+        assert!(g.travel(3)); assert!(!g.upgrade(6));
+    }
+
+    #[test]
+    fn expansion_and_weapon_have_bounded_levels() {
+        let mut g=Game::new(2); g.money=10_000; g.essence=100;
+        for _ in 0..3 { assert!(g.upgrade(7)); assert!(g.upgrade(8)); }
+        assert_eq!(g.camp_radius(),18.0);
+        assert!(!g.upgrade(7)); assert!(!g.upgrade(8));
+        g.player.x=10.0; g.player.z=0.0;
+        g.tick(0.2,1.0,0.0); assert!(g.player.x>10.0);
+    }
+
+    #[test]
+    fn progression_and_partial_payments_survive_save() {
+        let mut g=Game::new(2); g.tier=3; g.kills=44; g.served=12; g.essence=80;
+        g.enclosure=2; g.weapon=3; g.travel(2); g.pads[1].paid=17;
+        let mut h=Game::new(3); h.load(&g.save());
+        assert_eq!((h.tier,h.region,h.enclosure,h.weapon,h.kills,h.served,h.essence),(3,2,2,3,44,12,80));
+        assert_eq!(h.pads[1].paid,17);
+        h.load(&[1,42,1,0,0,0,0,0]); assert_eq!(h.money,42); assert!(h.has_conv1());
+        let before=h.save(); h.load(&[2,999]); assert_eq!(h.save(),before);
+    }
+
+    #[test]
+    fn dash_has_cooldown_and_finite_duration() {
+        let mut g=Game::new(1); assert!(g.dash()); assert!(!g.dash());
+        for _ in 0..16 {g.tick(0.25,0.0,0.0);}
+        assert_eq!(g.dash_t,0.0); assert!(g.dash());
+    }
+
+    #[test]
+    fn automation_moves_stock_and_collects_revenue() {
+        let mut g=Game::new(1); g.helper_level=2;
+        g.grinder_out=4; g.grill_out=4; g.cash_pile=3;
+        for _ in 0..240 { g.tick(1.0/60.0,0.0,0.0); }
+        assert_eq!(g.grinder_out,0); assert_eq!(g.grill_out,0);
+        assert_eq!(g.cash_pile,0); assert_eq!(g.money,30);
+        assert!(g.counter>0);
+    }
+
+    #[test]
+    fn kitchen_upgrades_increase_actual_throughput() {
+        let mut slow=Game::new(1); let mut fast=Game::new(1);
+        slow.grinder_in=30; fast.grinder_in=30; fast.grinder_level=4;
+        for _ in 0..120 {slow.tick(1.0/60.0,0.0,0.0);fast.tick(1.0/60.0,0.0,0.0);}
+        assert!(fast.grinder_out>slow.grinder_out*2);
+        slow.grill_in=20;fast.grill_in=20;fast.kitchen_level=4;
+        for _ in 0..120 {slow.tick(1.0/60.0,0.0,0.0);fast.tick(1.0/60.0,0.0,0.0);}
+        assert!(fast.grill_out>slow.grill_out);
+    }
+
+    #[test]
+    fn enemy_attacks_telegraph_and_can_be_dodged() {
+        let mut g=Game::new(1); g.travel(0); g.player.x=0.0;g.player.z=-20.0;
+        for b in &mut g.bears { b.alive=false; b.respawn_t=100.0; }
+        let b=&mut g.bears[0];b.alive=true;b.x=0.0;b.z=-21.2;b.aggro_t=4.0;b.attack_cd=0.0;
+        let hp=g.player.hp; g.update_bears(0.1);
+        assert_eq!(g.player.hp,hp); assert!(g.bears[0].windup>0.0);
+        g.player.z=-17.0;
+        for _ in 0..6 {g.update_bears(0.1);}
+        assert_eq!(g.player.hp,hp,"escaping windup must avoid damage");
+        g.bears[0].x=0.0;g.bears[0].z=-18.2;g.bears[0].attack_cd=0.0;g.bears[0].windup=0.1;
+        assert!(g.dash());g.update_bears(0.11);
+        assert_eq!(g.player.hp,hp,"dash must avoid pending impact");
+        g.dash_t=0.0;g.bears[0].windup=0.1;g.update_bears(0.11);
+        assert!(g.player.hp<hp,"undodged telegraph must resolve damage");
+    }
+
+    #[test]
+    fn advanced_weapons_consume_hunting_essence() {
+        let mut g=Game::new(1);g.money=1000;
+        assert!(g.upgrade(8));assert!(!g.upgrade(8));
+        g.essence=8; assert!(g.upgrade(8));assert_eq!(g.essence,0);
+    }
+
+    #[test]
+    fn town_mastery_cannot_be_farmed_in_the_first_region() {
+        let mut g=Game::new(1);g.money=10_000;g.kills=100;g.region_kills=[100,0,0,0];
+        assert!(g.upgrade(6));assert!(!g.upgrade(6));
+        g.region_kills[1]=3;assert!(g.upgrade(6));assert!(!g.upgrade(6));
+        g.region_kills[2]=3;assert!(g.upgrade(6));assert!(!g.upgrade(6));
+        g.region_kills[3]=3;assert!(g.upgrade(6));
+        let mut h=Game::new(2);h.load(&g.save());assert_eq!(h.region_kills,g.region_kills);
+        let mut previous=g.save();previous.truncate(24);h.load(&previous);
+        assert_eq!(h.tier,4);assert_eq!(h.region_kills,[3;4]);
     }
 
     #[test]
