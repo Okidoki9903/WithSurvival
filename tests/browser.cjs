@@ -21,7 +21,8 @@ require('fs').mkdirSync('test-artifacts',{recursive:true});
  await page.click('#build-enclosure');await page.waitForTimeout(220);await page.click('#upgrade-14');await page.waitForTimeout(220);await page.click('#build-enclosure');await page.waitForTimeout(220);await page.click('#upgrade-15');await page.waitForTimeout(220);await page.click('#upgrade-16');await page.waitForTimeout(220);
  await page.click('#build-close');await page.click('#btn-journal');
  for(let region=1;region<4;region++){
-  await page.locator('#route-list .route').nth(region).locator('button').click();await page.waitForTimeout(250);
+  await page.locator('#route-list .route').nth(region).locator('button').click();
+  await page.waitForFunction(r=>window.__withsurvival.state.region===r,region,{timeout:10000});
   assert.equal(await page.evaluate(()=>window.__withsurvival.state.region),region);
   await page.click('#journal-close');await page.waitForTimeout(250);
   await page.screenshot({path:`test-artifacts/region-${region}.png`});await page.click('#btn-journal');

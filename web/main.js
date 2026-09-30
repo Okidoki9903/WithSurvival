@@ -465,10 +465,12 @@ function clearWorldGroup(group) {
 }
 function buildSettlement(tier, radius) {
   clearWorldGroup(settlement);
-  const n = 2 + tier * 2;
+  const campEnd=L.camp.z1+4*Math.round((radius-9)/3);
+  const rows=Math.max(0,1+Math.floor((campEnd-10.4)/3.5));
+  const n = Math.min(2+tier*2,rows*2);
   for (let k=0; k<n; k++) {
     const side = k % 2 ? -1 : 1, row = Math.floor(k/2);
-    const x = side*(radius+5.2), z = -5 + row*4.8;
+    const x = side*(radius-2), z = 9 + row*3.5;
     const h = tier >= 3 ? 3.1 + (row%2)*0.7 : 1.9;
     const house = mesh(merge([
       part(box(2.8,h,2.8), tier>=3 ? '#738da0' : '#947057',x,h/2,z),
@@ -486,13 +488,13 @@ function buildSettlement(tier, radius) {
     const lamp = mesh(merge([part(cyl(.06,.07,2.4,6),'#364b55',x-side*1.7,1.2,z+1.7),part(box(.3,.4,.3),'#ffc56b',x-side*1.7,2.4,z+1.7)]));
     settlement.add(lamp);
   }
-  if(tier>=2) {
+  if(tier>=2 && radius>=15) {
     const tower = mesh(merge([part(cyl(1.1,1.4,4+tier,8),'#869eac',0,(4+tier)/2,L.camp.z1+10),part(cone(1.55,1.6,8),'#375f76',0,4.8+tier,L.camp.z1+10)]));
-    settlement.add(tower);
-    const plaza=texturedBox(7,.09,5.5,0,.04,L.camp.z1+5,pathMaterial,settlement);
-    const fountain=mesh(merge([part(cyl(1.4,1.65,.35,16),'#9baaaa',0,.26,L.camp.z1+5),part(new THREE.TorusGeometry(1.32,.13,6,24),'#bcc6bd',0,.48,L.camp.z1+5,Math.PI/2),part(cyl(.18,.32,1.1,10),'#829a9a',0,.9,L.camp.z1+5),part(cyl(.55,.65,.15,12),'#b4c7c0',0,1.48,L.camp.z1+5)]));settlement.add(fountain);
-    const water=mesh(cyl(1.2,1.2,.025,24),new THREE.MeshStandardMaterial({color:'#71c9cc',roughness:.2,metalness:.25}),false);water.position.set(0,.46,L.camp.z1+5);settlement.add(water);
-    for(const x of [-2.7,2.7])settlement.add(mesh(merge([part(box(.65,.14,1.8),'#ac875f',x,.48,L.camp.z1+5),part(box(.15,.44,1.5),'#627e79',x,.27,L.camp.z1+5)])));
+    tower.position.x=6; tower.visible=radius>=18; settlement.add(tower);
+    const plaza=texturedBox(7,.09,5.5,6,.04,L.camp.z1+5,pathMaterial,settlement);
+    const fountain=mesh(merge([part(cyl(1.4,1.65,.35,16),'#9baaaa',0,.26,L.camp.z1+5),part(new THREE.TorusGeometry(1.32,.13,6,24),'#bcc6bd',0,.48,L.camp.z1+5,Math.PI/2),part(cyl(.18,.32,1.1,10),'#829a9a',0,.9,L.camp.z1+5),part(cyl(.55,.65,.15,12),'#b4c7c0',0,1.48,L.camp.z1+5)]));fountain.position.x=6;settlement.add(fountain);
+    const water=mesh(cyl(1.2,1.2,.025,24),new THREE.MeshStandardMaterial({color:'#71c9cc',roughness:.2,metalness:.25}),false);water.position.set(6,.46,L.camp.z1+5);settlement.add(water);
+    for(const x of [3.3,8.7])settlement.add(mesh(merge([part(box(.65,.14,1.8),'#ac875f',x,.48,L.camp.z1+5),part(box(.15,.44,1.5),'#627e79',x,.27,L.camp.z1+5)])));
   }
 }
 function buildFrontier(radius) {
@@ -503,7 +505,7 @@ function buildFrontier(radius) {
     }
     worldTrees.userData.originalMatrices.forEach((original,k)=>{
       const x=original.elements[12],z=original.elements[14];
-      const cleared=Math.abs(x)<radius+2 && z>L.camp.z0-2 && z<L.camp.z1+5;
+      const cleared=Math.abs(x)<radius+2 && z>L.camp.z0-2 && z<L.camp.z1+4*Math.round((radius-9)/3)+5;
       worldTrees.setMatrixAt(k,cleared?new THREE.Matrix4().makeScale(0,0,0):original);
     });
     worldTrees.instanceMatrix.needsUpdate=true;
@@ -511,7 +513,7 @@ function buildFrontier(radius) {
   clearWorldGroup(frontier);
   // Replace both camp and hunting rails so expansion remains visible.
   originalFenceMeshes.forEach(m=>m.visible=false);
-  const c=L.camp,f=L.field,g=L.gate, segments=[[-radius,c.z0,g.x0,c.z0],[g.x1,c.z0,radius,c.z0],[-radius,c.z0,-radius,c.z1],[radius,c.z0,radius,c.z1],[-radius,c.z1,L.counter.x-2.1,c.z1],[L.counter.x+2.1,c.z1,radius,c.z1],[g.x0,c.z0,g.x0,f.z1],[g.x1,c.z0,g.x1,f.z1],[f.x0,f.z1,g.x0,f.z1],[g.x1,f.z1,f.x1,f.z1],[f.x0,f.z0,f.x1,f.z0],[f.x0,f.z0,f.x0,f.z1],[f.x1,f.z0,f.x1,f.z1]];
+  const c={...L.camp,z1:L.camp.z1+4*Math.round((radius-9)/3)},f=L.field,g=L.gate, segments=[[-radius,c.z0,g.x0,c.z0],[g.x1,c.z0,radius,c.z0],[-radius,c.z0,-radius,c.z1],[radius,c.z0,radius,c.z1],[-radius,c.z1,L.counter.x-2.1,c.z1],[L.counter.x+2.1,c.z1,radius,c.z1],[g.x0,c.z0,g.x0,f.z1],[g.x1,c.z0,g.x1,f.z1],[f.x0,f.z1,g.x0,f.z1],[g.x1,f.z1,f.x1,f.z1],[f.x0,f.z0,f.x1,f.z0],[f.x0,f.z0,f.x0,f.z1],[f.x1,f.z0,f.x1,f.z1]];
   const parts=[];
   for(const [ax,az,bx,bz] of segments){
     const len=Math.hypot(bx-ax,bz-az), angle=-Math.atan2(bz-az,bx-ax);
@@ -519,10 +521,10 @@ function buildFrontier(radius) {
     for(const y of [.43,.89]) parts.push(part(box(len,.12,.1),'#c49d71',(ax+bx)/2,y,(az+bz)/2,0,angle));
   }
   frontier.add(mesh(merge(parts)));
-  const deckGeo=box(radius*2,.045,L.camp.z1-L.camp.z0);
+  const deckGeo=box(radius*2,.045,c.z1-c.z0);
   const uv=deckGeo.attributes.uv;for(let k=0;k<uv.count;k++){uv.setXY(k,uv.getX(k)*radius/2,uv.getY(k)*3.5);}
   const deck=mesh(deckGeo,grassMaterial,false);
-  deck.position.set(0,.0015,(L.camp.z0+L.camp.z1)/2);frontier.add(deck);
+  deck.position.set(0,.0015,(c.z0+c.z1)/2);frontier.add(deck);
   const addPath=(w,d,x,z)=>{const geo=box(w,.01,d),uv=geo.attributes.uv;for(let k=0;k<uv.count;k++)uv.setXY(k,uv.getX(k)*w/1.8,uv.getY(k)*d/1.8);const p=mesh(geo,pathMaterial,false);p.position.set(x,.027,z);frontier.add(p);};
   addPath(2.7,c.z1-c.z0,0,(c.z0+c.z1)/2);
   addPath(radius*2-1.2,2.1,0,-3.2);addPath(radius*2-1.2,1.6,0,2.4);

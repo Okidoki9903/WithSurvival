@@ -353,7 +353,7 @@ impl Game {
     pub fn town_cost(&self) -> u32 { [180, 450, 900, 1600].get(self.tier as usize).copied().unwrap_or(0) }
     pub fn unlocked_regions(&self) -> u32 { (1 + self.tier).min(4) }
     fn region_hp(&self) -> f32 { [3.0, 5.0, 9.0, 15.0][self.region as usize]*(1.0+0.12*(self.contracts_done/5).min(12) as f32) }
-    fn camp(&self) -> Rect { Rect { x0: -self.camp_radius(), x1: self.camp_radius(), ..CAMP } }
+    fn camp(&self) -> Rect { Rect { x0: -self.camp_radius(), x1: self.camp_radius(), z1:6.6+4.0*self.enclosure as f32, ..CAMP } }
     pub fn storage_cap(&self)->u32 { 30+40*self.buildings[4] }
     fn contract_target(&self)->u32 { [12,6,8,10,1][self.contract_kind() as usize]+if self.contract_kind()==4 {0} else {(self.contracts_done/5).min(20)*2} }
     fn contract_reward(&self)->u32 { 120+80*self.buildings[3]+self.contracts_done.min(20)*25 }
@@ -1829,6 +1829,17 @@ mod tests {
         let mut h=Game::new(2);h.load(&g.save());
         assert_eq!((h.grinder_in,h.grinder_out,h.grill_in,h.grill_out,h.counter,h.cash_pile),(3,4,7,6,8,8));
         assert_eq!(h.player.stack,Item::Cooked);assert_eq!(h.player.stack_n,9);
+    }
+
+    #[test]
+    fn expanded_settlement_has_reachable_southern_neighborhoods() {
+        let mut g=Game::new(1);g.enclosure=3;g.player.x=5.0;g.player.z=6.0;
+        for _ in 0..300 {g.tick(0.1,0.0,1.0);}
+        assert!(g.player.z>17.5,"expanded neighborhoods must be walkable");
+        assert!(g.player.z<=18.1,"cannot cross the expanded southern fence");
+        let mut base=Game::new(2);base.player.x=5.0;base.player.z=6.0;
+        for _ in 0..100 {base.tick(0.1,0.0,1.0);}
+        assert!(base.player.z<=6.1);
     }
 
     #[test]

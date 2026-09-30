@@ -84,7 +84,7 @@ function effect(kind,level,s){
  case 4:return `Vitesse de marche : ${(5.2+level+(s.player.hero ? 0.4 : 0)).toFixed(1)} → ${(5.2+n+(s.player.hero ? 0.4 : 0)).toFixed(1)} m/s.`;
  case 5:return 'Cycle de base du grill : 0,45 s → 0,22 s. Se combine avec les niveaux de cuisine.';
  case 6:return `${tiers[Math.min(4,level)]} → ${tiers[Math.min(4,n)]}. Nouveaux quartiers et ouverture du prochain territoire.`;
- case 7:return `Largeur de la colonie : ${18+6*level} m → ${18+6*n} m. Les clôtures reculent et de nouveaux terrains deviennent constructibles.`;
+ case 7:return `Largeur de la colonie : ${18+6*level} m → ${18+6*n} m. La profondeur gagne aussi 4 m. Les clôtures reculent et les quartiers du sud deviennent accessibles.`;
  case 8:return 'Renforce les dégâts des attaques. Les niveaux avancés utilisent les essences gagnées au combat.';
  case 9:return `Vitesse de découpe : ×${(1+.35*level).toFixed(2)} → ×${(1+.35*n).toFixed(2)}. Chaque viande est transformée plus rapidement.`;
  case 10:return `Vitesse de cuisson : ×${(1+.3*level).toFixed(1)} → ×${(1+.3*n).toFixed(1)}. Les voyageurs attendent moins longtemps.`;
