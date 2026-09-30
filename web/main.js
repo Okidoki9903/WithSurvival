@@ -21,7 +21,7 @@ const PAD_INFO = [
 ];
 const SAVE_KEY = 'withsurvival-save-v2';
 
-const wasmBytes = await fetch('game.wasm').then((r) => {
+const wasmBytes = await fetch('game.wasm', { cache: 'no-cache' }).then((r) => {
   if (!r.ok) throw new Error('game.wasm introuvable');
   return r.arrayBuffer();
 });
@@ -77,6 +77,24 @@ function readState() {
     s.grinderLevel = a[i++]; s.kitchenLevel = a[i++]; s.helperLevel = a[i++];
     for (const b of s.bears) b.windup = a[i++] || 0;
     s.regionKills = Array.from(a.subarray(i, i + 4));
+    i += 4;
+    if (a[i++] === 3) {
+      s.collectorLevel = a[i++]; s.guildLevel = a[i++]; s.farmLevel = a[i++];
+      s.tradeLevel = a[i++]; s.warehouseLevel = a[i++]; s.storageCap = a[i++];
+      s.farmProgress = a[i++]; s.contractTarget = a[i++]; s.contractProgress = a[i++];
+      s.contractReward = a[i++]; s.contractsDone = a[i++];
+      n = a[i++]; s.workers = [];
+      for (let k = 0; k < n; k++) {
+        s.workers.push({kind:a[i++],x:a[i++],z:a[i++],angle:a[i++],task:a[i++],carried:a[i++],workProgress:a[i++],level:a[i++]});
+      }
+      n = a[i++]; s.upgrades = [];
+      for (let k = 0; k < n; k++) {
+        s.upgrades.push({kind:a[i++],level:a[i++],max:a[i++],cost:a[i++],requiredTier:a[i++],requiredEnclosure:a[i++],visible:a[i++]>0,canBuy:a[i++]>0,x:a[i++],z:a[i++],essenceCost:a[i++],missingDependency:a[i++]});
+      }
+      s.contractKind = a[i++]; s.contractRegion = a[i++]; s.threatLevel = a[i++];
+      s.eliteAlive = a[i++] > 0; s.eliteHp = a[i++]; s.eliteMaxHp = a[i++];
+      s.eliteAliveIndex = a[i++]; s.farmStock = a[i++];
+    }
   }
   return s;
 }
@@ -92,9 +110,10 @@ function loadSave() {
   try {
     const v = JSON.parse(localStorage.getItem(SAVE_KEY) || localStorage.getItem('polar-camp-save-v1') || 'null');
     if (!Array.isArray(v)) return;
-    const buf = new Uint32Array(W.memory.buffer, W.pc_save_ptr(), 32);
-    v.slice(0, 32).forEach((x, k) => { buf[k] = x >>> 0; });
-    W.pc_load(Math.min(v.length, 32));
+    const capacity = W.pc_save_capacity ? W.pc_save_capacity() : 32;
+    const buf = new Uint32Array(W.memory.buffer, W.pc_save_ptr(), capacity);
+    v.slice(0, capacity).forEach((x, k) => { buf[k] = x >>> 0; });
+    W.pc_load(Math.min(v.length, capacity));
   } catch (_) { /* ignore */ }
 }
 
@@ -202,6 +221,51 @@ function roundRect(ctx, x, y, w, h, r) {
 // ---------------------------------------------------------------------------
 
 let worldGround, worldTrees;
+const regionSurfaceMaps=[];
+const surfaceMaterials={};
+function craftSurface(kind,color){
+  const {tex}=canvasTex(256,256,(ctx,w,h)=>{
+    ctx.fillStyle=color;ctx.fillRect(0,0,w,h);
+    if(kind==='cobble'){
+      for(let row=0;row<8;row++)for(let col=-1;col<8;col++){
+        const x=col*36+(row%2)*18,y=row*32;
+        ctx.fillStyle=['#9b9f96','#b4b7a9','#92978e'][(row+col+9)%3];
+        roundRect(ctx,x+2,y+2,32,28,5);ctx.fill();
+      }
+    }else{
+      for(let k=0;k<1200;k++){ctx.fillStyle=k%2?'rgba(255,255,255,.09)':'rgba(16,32,24,.13)';ctx.fillRect((k*73)%256,(k*137)%256,kind==='wood'?1:3,kind==='wood'?60:2);}
+    }
+  });
+  tex.wrapS=tex.wrapT=THREE.RepeatWrapping;
+  const mat=new THREE.MeshStandardMaterial({color:'#ffffff',map:tex,roughness:.92});surfaceMaterials[kind]=mat;return mat;
+}
+const pathMaterial=craftSurface('cobble','#78817b'),grassMaterial=craftSurface('grass','#638e65'),woodMaterial=craftSurface('wood','#986c48');
+const roofMaterial=craftSurface('roof','#426e78');
+// Load a shared art atlas when available, retaining procedural fallbacks offline.
+new THREE.ImageLoader().load('assets/terrain-atlas.png',img=>{
+  for(const [key,col,row] of [['grass',1,0],['cobble',0,1],['wood',1,1]]){
+    const c=document.createElement('canvas');c.width=c.height=512;
+    c.getContext('2d').drawImage(img,col*img.width/2,row*img.height/2,img.width/2,img.height/2,0,0,512,512);
+    const tex=new THREE.CanvasTexture(c);tex.colorSpace=THREE.SRGBColorSpace;tex.wrapS=tex.wrapT=THREE.RepeatWrapping;tex.anisotropy=4;
+    surfaceMaterials[key].map.dispose();surfaceMaterials[key].map=tex;surfaceMaterials[key].needsUpdate=true;
+  }
+  const snow=document.createElement('canvas');snow.width=snow.height=512;
+  snow.getContext('2d').drawImage(img,0,0,img.width/2,img.height/2,0,0,512,512);
+  const tex=new THREE.CanvasTexture(snow);tex.colorSpace=THREE.SRGBColorSpace;tex.wrapS=tex.wrapT=THREE.RepeatWrapping;tex.repeat.set(34,34);tex.anisotropy=4;
+  regionSurfaceMaps[0]=tex;
+  if(worldGround && visualRegion<=0){worldGround.material.map=tex;worldGround.material.needsUpdate=true;}
+  if(!surfaceMaterials.slate){roofMaterial.map.dispose();roofMaterial.map=surfaceMaterials.wood.map.clone();roofMaterial.map.needsUpdate=true;roofMaterial.color.set('#527c87');}
+},undefined,()=>{});
+new THREE.ImageLoader().load('assets/biome-atlas.png',img=>{
+  for(let quadrant=0;quadrant<4;quadrant++){
+    const c=document.createElement('canvas');c.width=c.height=512;
+    c.getContext('2d').drawImage(img,(quadrant%2)*img.width/2,Math.floor(quadrant/2)*img.height/2,img.width/2,img.height/2,0,0,512,512);
+    const tex=new THREE.CanvasTexture(c);tex.colorSpace=THREE.SRGBColorSpace;tex.wrapS=tex.wrapT=THREE.RepeatWrapping;tex.anisotropy=4;
+    if(quadrant===3){surfaceMaterials.slate=tex;roofMaterial.map=tex;roofMaterial.color.set('#ffffff');roofMaterial.needsUpdate=true;}
+    else{tex.repeat.set(30,30);regionSurfaceMaps[quadrant+1]=tex;}
+  }
+  if(worldGround && visualRegion>0){worldGround.material.map=regionSurfaceMaps[visualRegion];worldGround.material.color.set('#ffffff');worldGround.material.needsUpdate=true;}
+},undefined,()=>{});
 const originalFenceMeshes = [];
 // snow ground with subtle noise
 {
@@ -404,7 +468,7 @@ function buildSettlement(tier, radius) {
   const n = 2 + tier * 2;
   for (let k=0; k<n; k++) {
     const side = k % 2 ? -1 : 1, row = Math.floor(k/2);
-    const x = side*(radius+3.1), z = -5 + row*4.3;
+    const x = side*(radius+5.2), z = -5 + row*4.8;
     const h = tier >= 3 ? 3.1 + (row%2)*0.7 : 1.9;
     const house = mesh(merge([
       part(box(2.8,h,2.8), tier>=3 ? '#738da0' : '#947057',x,h/2,z),
@@ -413,6 +477,8 @@ function buildSettlement(tier, radius) {
       part(box(.35,1,.35),'#6c6462',x+.7,h+.75,z-.4),
     ]));
     settlement.add(house);
+    texturedBox(2.78,h,2.78,x,h/2,z,woodMaterial,settlement);
+    pitchedRoof(x,h+.45,z,3.25,3.25,settlement);
     for (const dx of [-.83,.83]) {
       const windowMesh = mesh(box(.48,.6,.06),warmWindows,false);
       windowMesh.position.set(x+dx,h*.61,z+1.43); settlement.add(windowMesh);
@@ -423,9 +489,25 @@ function buildSettlement(tier, radius) {
   if(tier>=2) {
     const tower = mesh(merge([part(cyl(1.1,1.4,4+tier,8),'#869eac',0,(4+tier)/2,L.camp.z1+10),part(cone(1.55,1.6,8),'#375f76',0,4.8+tier,L.camp.z1+10)]));
     settlement.add(tower);
+    const plaza=texturedBox(7,.09,5.5,0,.04,L.camp.z1+5,pathMaterial,settlement);
+    const fountain=mesh(merge([part(cyl(1.4,1.65,.35,16),'#9baaaa',0,.26,L.camp.z1+5),part(new THREE.TorusGeometry(1.32,.13,6,24),'#bcc6bd',0,.48,L.camp.z1+5,Math.PI/2),part(cyl(.18,.32,1.1,10),'#829a9a',0,.9,L.camp.z1+5),part(cyl(.55,.65,.15,12),'#b4c7c0',0,1.48,L.camp.z1+5)]));settlement.add(fountain);
+    const water=mesh(cyl(1.2,1.2,.025,24),new THREE.MeshStandardMaterial({color:'#71c9cc',roughness:.2,metalness:.25}),false);water.position.set(0,.46,L.camp.z1+5);settlement.add(water);
+    for(const x of [-2.7,2.7])settlement.add(mesh(merge([part(box(.65,.14,1.8),'#ac875f',x,.48,L.camp.z1+5),part(box(.15,.44,1.5),'#627e79',x,.27,L.camp.z1+5)])));
   }
 }
 function buildFrontier(radius) {
+  // Clear expansion parcels instead of leaving trees inside new buildings.
+  if(worldTrees){
+    if(!worldTrees.userData.originalMatrices){
+      worldTrees.userData.originalMatrices=Array.from({length:worldTrees.count},(_,k)=>{const m=new THREE.Matrix4();worldTrees.getMatrixAt(k,m);return m;});
+    }
+    worldTrees.userData.originalMatrices.forEach((original,k)=>{
+      const x=original.elements[12],z=original.elements[14];
+      const cleared=Math.abs(x)<radius+2 && z>L.camp.z0-2 && z<L.camp.z1+5;
+      worldTrees.setMatrixAt(k,cleared?new THREE.Matrix4().makeScale(0,0,0):original);
+    });
+    worldTrees.instanceMatrix.needsUpdate=true;
+  }
   clearWorldGroup(frontier);
   // Replace both camp and hunting rails so expansion remains visible.
   originalFenceMeshes.forEach(m=>m.visible=false);
@@ -437,11 +519,42 @@ function buildFrontier(radius) {
     for(const y of [.43,.89]) parts.push(part(box(len,.12,.1),'#c49d71',(ax+bx)/2,y,(az+bz)/2,0,angle));
   }
   frontier.add(mesh(merge(parts)));
-  const deck=mesh(box(radius*2,.045,L.camp.z1-L.camp.z0),new THREE.MeshStandardMaterial({color:'#ac9682',roughness:1}),false);
-  deck.position.set(0,.025,(L.camp.z0+L.camp.z1)/2);frontier.add(deck);
+  const deckGeo=box(radius*2,.045,L.camp.z1-L.camp.z0);
+  const uv=deckGeo.attributes.uv;for(let k=0;k<uv.count;k++){uv.setXY(k,uv.getX(k)*radius/2,uv.getY(k)*3.5);}
+  const deck=mesh(deckGeo,grassMaterial,false);
+  deck.position.set(0,.0015,(L.camp.z0+L.camp.z1)/2);frontier.add(deck);
+  const addPath=(w,d,x,z)=>{const geo=box(w,.01,d),uv=geo.attributes.uv;for(let k=0;k<uv.count;k++)uv.setXY(k,uv.getX(k)*w/1.8,uv.getY(k)*d/1.8);const p=mesh(geo,pathMaterial,false);p.position.set(x,.027,z);frontier.add(p);};
+  addPath(2.7,c.z1-c.z0,0,(c.z0+c.z1)/2);
+  addPath(radius*2-1.2,2.1,0,-3.2);addPath(radius*2-1.2,1.6,0,2.4);
+  const trim=[];
+  for(let k=0;k<Math.floor(radius)*3;k++){
+    const side=k%2?-1:1,x=side*(radius-.55),z=c.z0+.6+(k%18)*.72;
+    trim.push(part(cone(.13,.28,5),'#83ae65',x,.2,z,.3,k));
+    if(k%3===0)trim.push(part(sph(.065,6),k%2?'#eac688':'#db8f96',x,.32,z));
+  }
+  frontier.add(mesh(merge(trim),vmat,false));
 }
 function buildBiomeLandmarks(region) {
   clearWorldGroup(biomeLandmarks);
+  const f=L.field;
+  // Walkable riverbeds and winding trails divide the arena into readable sectors.
+  const channel=new THREE.Shape(),left=[],right=[];
+  for(let k=0;k<=24;k++){
+    const z=f.z0+(f.z1-f.z0)*k/24;
+    const x=Math.sin(k*.32+region)*3.5;
+    left.push([x-1.05,z]);right.push([x+1.05,z]);
+  }
+  channel.moveTo(...left[0]);for(const point of left.slice(1))channel.lineTo(...point);for(const point of right.reverse())channel.lineTo(...point);channel.closePath();
+  const water=mesh(new THREE.ShapeGeometry(channel),new THREE.MeshStandardMaterial({color:['#9bbecd','#7d5143','#3e9e99','#5b416e'][region],roughness:region===1?.98:.28,metalness:region===1?0:.18,side:THREE.DoubleSide}),false);
+  water.rotation.x=Math.PI/2;water.position.y=.009;biomeLandmarks.add(water);
+  const trail=[];
+  for(let k=0;k<38;k++){
+    const z=f.z0+(f.z1-f.z0)*k/38,x=Math.sin(k*.22+region)*4.6+2.2;
+    trail.push(part(cyl(.45,.45,.025,7),['#d8e6e9','#cba177','#7caaa1','#837197'][region],x,.023,z,0,k,0,1.4,1,.8));
+  }
+  biomeLandmarks.add(mesh(merge(trail),vmat,false));
+  // Ancient expedition platform marks the deepest part of each route.
+  const relic=mesh(merge([part(cyl(1.5,1.7,.18,12),'#a3a7a0',f.x1-3,.11,f.z0+3),part(new THREE.TorusGeometry(1.25,.04,4,32),['#e1f2ff','#ffc993','#94fff0','#dfb5ff'][region],f.x1-3,.24,f.z0+3,Math.PI/2)]));biomeLandmarks.add(relic);
   if(!region)return;
   const parts=[];
   for(let k=0;k<30;k++){
@@ -469,6 +582,85 @@ function buildBiomeLandmarks(region) {
 }
 const industrialDetails = new THREE.Group();
 scene.add(industrialDetails);
+const civicBuildings=new THREE.Group(),logisticsWorkers=new THREE.Group();
+scene.add(civicBuildings,logisticsWorkers);
+let civicSignature='';
+const workerModels=[];
+const townFlags=[];
+const eliteBeacon=new THREE.Group();
+const eliteRing=mesh(new THREE.TorusGeometry(1.4,.065,5,40),new THREE.MeshBasicMaterial({color:'#ffba63',transparent:true,opacity:.85}),false);eliteRing.rotation.x=Math.PI/2;eliteRing.position.y=.07;eliteBeacon.add(eliteRing);
+eliteBeacon.add(mesh(merge([part(cone(.15,.45,5),'#ffe3a1',-.4,2.7,0,0,0,-.3),part(cone(.18,.6,5),'#ffd76c',0,2.82,0),part(cone(.15,.45,5),'#ffe3a1',.4,2.7,0,0,0,.3)]),vmat,false));
+scene.add(eliteBeacon);eliteBeacon.visible=false;
+function texturedBox(w,h,d,x,y,z,mat,group){const m=mesh(box(w,h,d),mat);m.position.set(x,y,z);group.add(m);return m;}
+function pitchedRoof(x,y,z,w,d,group){
+  for(const side of [-1,1]){const m=texturedBox(w*.62,.16,d,x+side*w*.24,y,z,roofMaterial,group);m.rotation.z=-side*.57;}
+  const ridge=mesh(cyl(.075,.075,d,8),woodMaterial);ridge.rotation.x=Math.PI/2;ridge.position.set(x,y+w*.15,z);group.add(ridge);
+}
+function createCivicBuilding(kind,x,z,level){
+  const g=new THREE.Group();g.position.set(x,0,z);civicBuildings.add(g);
+  const h=1.7+Math.min(3,level)*.35,w=kind==='warehouse'?3.9:kind==='farm'?3.6:2.9,d=kind==='farm'?3.9:2.8;
+  texturedBox(w+.8,.12,d+.8,0,.12,0,pathMaterial,g);
+  if(kind==='farm'){
+    for(let row=0;row<4;row++){
+      texturedBox(3.1,.15,.55,0,.27,-1.5+row*.86,woodMaterial,g);
+      for(let k=0;k<6;k++)g.add(mesh(merge([part(cyl(.035,.04,.4,5),'#467a44',-1.25+k*.48,.5,-1.5+row*.86),part(cone(.17,.28,5),'#89bd5e',-1.25+k*.48,.7,-1.5+row*.86),part(sph(.09,6),'#e4b85b',-1.25+k*.48,.75,-1.5+row*.86)])));
+    }
+    g.add(mesh(merge([part(cyl(.12,.14,2.6,8),'#946f4d',1.5,1.4,1.9),part(box(.9,.12,.12),'#946f4d',1.5,2.3,1.9),part(sph(.24,8),'#cbb994',1.5,2.7,1.9),part(cone(.4,.25,8),'#95704c',1.5,2.98,1.9)])));
+  }else{
+    texturedBox(w,h,d,0,h/2+.2,0,woodMaterial,g);
+    pitchedRoof(0,h+.35,0,w+.65,d+.7,g);
+    const frame=[];
+    for(const dx of [-w/2,w/2])for(const dz of [-d/2,d/2])frame.push(part(box(.15,h+.3,.15),'#604a35',dx,(h+.3)/2,dz));
+    frame.push(part(box(w+.15,.16,.14),'#604a35',0,h*.58,d/2+.04));
+    frame.push(part(box(.65,1.25,.08),'#394f50',0,.825,d/2+.06));
+    frame.push(part(sph(.05,6),'#deb96b',.23,.75,d/2+.12));
+    g.add(mesh(merge(frame)));
+    for(const dx of [-.9,.9])texturedBox(.46,.57,.06,dx,h*.65,d/2+.09,warmWindows,g);
+    if(kind==='warehouse'){
+      for(let k=0;k<6;k++)texturedBox(.55,.5,.55,-1.8+(k%3)*.65,.45+Math.floor(k/3)*.53,d/2+.65,woodMaterial,g);
+      texturedBox(w,.15,1.1,0,.43,d/2+.35,pathMaterial,g);
+      g.add(mesh(merge([part(box(1.8,1.2,.1),'#425f66',0,1,d/2+.06),part(box(.12,1.2,.15),'#dab47b',0,1,d/2+.11)])));
+    }else if(kind==='guild'){
+      g.add(mesh(merge([part(cyl(.045,.06,1.3,6),'#d2caaa',-.38,1.9,d/2+.15,0,0,-.55),part(cyl(.045,.06,1.3,6),'#d2caaa',.38,1.9,d/2+.15,0,0,.55),part(sph(.23,8),'#aebcb6',0,2.15,d/2+.2,0,0,0,1,1.25,.4)])));
+      for(const dx of [-1.6,1.6])g.add(mesh(merge([part(cyl(.08,.1,2.2,6),'#795537',dx,1.1,d/2+.3),part(cone(.2,.5,8),'#ffc96a',dx,2.35,d/2+.3)])));
+    }else if(kind==='collector'){
+      for(const dx of [-1.8,1.8])g.add(mesh(merge([part(cyl(.28,.34,.7,10),'#786957',dx,.55,1),part(cyl(.29,.35,.05,10),'#b1aca0',dx,.24,1),part(cyl(.29,.35,.05,10),'#b1aca0',dx,.84,1)])));
+      const cart=mesh(merge([part(box(1.1,.5,.85),'#ba945e',0,.55,2.1),part(cyl(.22,.22,1.4,10),'#485859',0,.25,2.1,0,0,Math.PI/2)]));g.add(cart);
+    }else if(kind==='trade'){
+      const canopy=texturedBox(w+1,.1,1.7,0,2.1,d/2+.4,roofMaterial,g);canopy.rotation.x=-.13;
+      for(const dx of [-1.9,1.9])g.add(mesh(merge([part(cyl(.05,.07,2.25,8),'#d1b27e',dx,1.12,d/2+1),part(box(.4,.3,.4),'#e1ad66',dx,.45,d/2+.7)])));
+      texturedBox(2.7,.7,.65,0,.55,d/2+.85,woodMaterial,g);
+      for(let k=0;k<7;k++)g.add(mesh(part(sph(.12,6),k%2?'#e8b25b':'#a2b964',-.9+k*.3,1,d/2+.85)));
+    }
+  }
+  const banner=mesh(new THREE.PlaneGeometry(.55,.9),new THREE.MeshStandardMaterial({color:{guild:'#cc725d',trade:'#5aa9b1',warehouse:'#deba72',collector:'#759773',farm:'#91ad5f'}[kind],side:THREE.DoubleSide,roughness:1}),false);
+  banner.position.set(w/2+.1,h+.25,d/2+.16);g.add(banner);townFlags.push(banner);
+  if(level>1){const sign=texturedBox(.7,.23,.1,0,h+.16,d/2+.1,warmWindows,g);sign.userData.level=level;}
+}
+function updateCivicVisuals(s){
+  const specs=[['collector',7,-6,s.collectorLevel||0],['guild',10,-4,s.guildLevel||0],['farm',13,3,s.farmLevel||0],['trade',-13,-4,s.tradeLevel||0],['warehouse',-10,1,s.warehouseLevel||0]];
+  const signature=specs.map(v=>v[3]).join(':');
+  if(signature!==civicSignature){civicSignature=signature;clearWorldGroup(civicBuildings);townFlags.length=0;for(const [kind,x,z,l]of specs)if(l)createCivicBuilding(kind,x,z,l);}
+  for(const flag of townFlags)flag.rotation.y=Math.sin(s.time*2+flag.position.x)*.15;
+  const workers=s.workers||[];
+  while(workerModels.length<workers.length){
+    const worker=new THREE.Group();worker.add(mesh(merge([part(cap(.16,.3,8),'#65aeb4',0,.62,0),part(sph(.17,8),'#e0b393',0,1.04,.02),part(cone(.26,.2,8),'#bc9b62',0,1.2,0),part(box(.27,.33,.18),'#8e7252',0,.65,-.24),part(box(.16,.36,.18),'#455b66',-.11,.24,0),part(box(.16,.36,.18),'#455b66',.11,.24,0)])));logisticsWorkers.add(worker);workerModels.push(worker);
+  }
+  for(let k=0;k<workerModels.length;k++){
+    const w=workers[k],m=workerModels[k];m.visible=!!w;if(!w)continue;
+    if(!m.userData.cargo){
+      const cargo=mesh(box(.45,.36,.35),new THREE.MeshStandardMaterial({color:'#b5714d',roughness:.9}));
+      cargo.position.set(0,.72,.38);m.add(cargo);m.userData.cargo=cargo;
+      const tool=mesh(merge([part(cyl(.035,.035,.65,6),'#654536',.25,.53,.12),part(box(.23,.13,.08),'#a3bac1',.28,.86,.12)]));
+      m.add(tool);m.userData.tool=tool;
+    }
+    m.userData.cargo.visible=w.carried>0;
+    m.userData.cargo.scale.setScalar(Math.min(1.2,.7+.08*(w.carried||0)));
+    m.userData.tool.visible=w.kind===1;
+    m.userData.tool.rotation.x=w.task===2?Math.sin(s.time*9)*.8:0;
+    m.position.set(w.x,.04+Math.abs(Math.sin(s.time*8+k))*.04,w.z);m.rotation.y=w.angle||0;
+  }
+}
 let industrySignature = '';
 let workshopDrone = null;
 const machineryGlow = new THREE.MeshStandardMaterial({ color: '#75f4e0', emissive: '#2acbb5', emissiveIntensity: 1.1, roughness: .3, metalness: .45 });
@@ -512,13 +704,17 @@ function updateIndustryVisuals(s) {
   }
 }
 function updateWorldVisuals(s,dt) {
+  const elite=s.eliteAlive?s.bears[s.eliteAliveIndex]:null;eliteBeacon.visible=!!elite;
+  if(elite){eliteBeacon.position.set(elite.x,0,elite.z);eliteRing.scale.setScalar(1+Math.sin(s.time*5)*.08);eliteBeacon.rotation.y=s.time*.3;}
+  updateCivicVisuals(s);
   updateIndustryVisuals(s);
   const region=Math.max(0,Math.min(3,s.region||0)),tier=s.tier||0,radius=s.campRadius||9,palette=biomePalettes[region];
   if(region!==visualRegion){
     visualRegion=region;
     bearBodies.mesh.geometry=monsterBodyGeometries[region];
     bearLegs.mesh.geometry=monsterLegGeometries[region];
-    worldGround.material.color.set(palette.ground); worldTrees.material.color.set(palette.trees);
+    if(regionSurfaceMaps[region]){worldGround.material.map=regionSurfaceMaps[region];worldGround.material.color.set('#ffffff');worldGround.material.needsUpdate=true;}else worldGround.material.color.set(palette.ground);
+    worldTrees.material.color.set(palette.trees);
     scene.background.set(palette.sky);scene.fog.color.set(palette.sky);sun.color.set(palette.sun);
     weather.material.color.set(palette.dust);weather.material.size=region===0?.075:.055;
     buildBiomeLandmarks(region);
@@ -771,6 +967,25 @@ const conveyors = [makeConveyor(L.conv1[0], L.conv1[1]), makeConveyor(L.conv2[0]
 // ---------------------------------------------------------------------------
 
 const pads = new Map();
+const enclosureLabel = canvasTex(512,192,()=>{});
+const enclosureSign = new THREE.Sprite(new THREE.SpriteMaterial({map:enclosureLabel.tex,depthTest:false,transparent:true}));
+enclosureSign.scale.set(4,1.5,1); enclosureSign.renderOrder=12; scene.add(enclosureSign);
+let enclosureSignKey='';
+function updateEnclosureSign(s) {
+  const upgrade=s.upgrades?.find(u=>u.kind===7);
+  enclosureSign.visible=!!upgrade && upgrade.level<upgrade.max && s.player.z>-9 && playing;
+  if(!enclosureSign.visible)return;
+  enclosureSign.position.set(s.campRadius-1,1.8,3.5);
+  const key=`${upgrade.level}/${upgrade.cost}/${upgrade.canBuy}`;
+  if(key===enclosureSignKey)return;enclosureSignKey=key;
+  const ctx=enclosureLabel.ctx;ctx.clearRect(0,0,512,192);
+  ctx.fillStyle=upgrade.canBuy?'#23564d':'#263c43';roundRect(ctx,5,5,502,182,30);ctx.fill();
+  ctx.strokeStyle='#d9b775';ctx.lineWidth=4;ctx.stroke();ctx.textAlign='center';
+  ctx.fillStyle='#fff4d6';ctx.font='bold 33px sans-serif';ctx.fillText('AGRANDIR L’ENCLOS',256,72);
+  ctx.font='28px sans-serif';ctx.fillText(`Niveau ${upgrade.level+1} · ${upgrade.cost} pièces`,256,120);
+  ctx.fillStyle='#abdfcb';ctx.font='23px sans-serif';ctx.fillText('Touchez pour construire',256,158);
+  enclosureLabel.tex.needsUpdate=true;
+}
 function drawPad(p, ctx, w, h, remaining, frac) {
   ctx.clearRect(0, 0, w, h);
   ctx.fillStyle = 'rgba(92,72,58,.82)';
@@ -873,11 +1088,28 @@ const player = { obj: null, hero: null, lastHero: null, bar: null, axe: null };
 function buildPlayer(hero) {
   if (player.obj) scene.remove(player.obj.g);
   player.obj = hero ? makeHuman('#4e7a3c', '#e9e2d0', 1.25, true) : makeHuman('#2c7fd0', '#f2f2f2', 1.0);
+  const expeditionKit=mesh(merge([
+    part(box(.48,.58,.23),'#876447',0,1.02,-.38),
+    part(box(.44,.12,.25),'#bb9670',0,1.31,-.4),
+    part(box(.18,.23,.09),'#ccad78',0,.91,-.53),
+    part(cyl(.1,.1,.53,8),'#496975',0,1.43,-.39,0,0,Math.PI/2),
+    part(box(.055,.56,.035),'#d1a767',-.2,1.08,.31,0,0,.13),
+    part(box(.055,.56,.035),'#d1a767',.2,1.08,.31,0,0,-.13),
+    part(box(.63,.09,.05),'#bf9566',0,.89,.33),
+    part(box(.14,.12,.07),'#e7d89f',0,.89,.38),
+    part(box(.07,.06,.11),'#deb58e',0,1.58,.3),
+    part(box(.16,.025,.025),'#824d3c',0,1.51,.29),
+    part(box(.48,.08,.14),'#415865',0,1.8,.18),
+    part(box(.13,.06,.035),'#a6deec',-.13,1.79,.27),
+    part(box(.13,.06,.035),'#a6deec',.13,1.79,.27),
+  ]));player.obj.g.add(expeditionKit);
   const axe = new THREE.Group();
   axe.add(mesh(merge([
     part(cyl(0.04, 0.05, 1.0, 6), '#7a5236', 0, 0.3, 0),
     part(box(0.08, 0.38, 0.42), hero ? '#c9d3da' : '#9aa7b1', 0, 0.68, 0.18),
     part(box(0.09, 0.4, 0.06), '#e9eef2', 0, 0.68, 0.4),
+    part(cyl(.065,.065,.22,8),'#d7ae78',0,-.09,0),
+    part(box(.1,.11,.07),'#57636b',0,.54,.17),
   ])));
   axe.position.set(0, -0.5, 0.05);
   axe.rotation.x = Math.PI / 2 - 0.3;
@@ -1152,6 +1384,7 @@ document.getElementById('btn-reset').addEventListener('click', () => {
 // ---------------------------------------------------------------------------
 
 const input = { x: 0, z: 0 };
+const menuOpen = () => document.getElementById('journal').open || document.getElementById('build-panel')?.open;
 const joy = { id: null, ox: 0, oy: 0, x: 0, y: 0 };
 const joyEl = document.getElementById('joy'), knobEl = document.getElementById('joy-knob');
 const JOY_R = 50;
@@ -1178,11 +1411,20 @@ const endJoy = (e) => {
 };
 canvas.addEventListener('pointerup', endJoy);
 canvas.addEventListener('pointercancel', endJoy);
+let tapStart=null;
+canvas.addEventListener('pointerdown',e=>{tapStart={x:e.clientX,y:e.clientY};});
+canvas.addEventListener('pointerup',e=>{
+  if(!tapStart || Math.hypot(e.clientX-tapStart.x,e.clientY-tapStart.y)>8 || !enclosureSign.visible || menuOpen())return;
+  tapStart=null;
+  const bounds=canvas.getBoundingClientRect();
+  const ray=new THREE.Raycaster();ray.setFromCamera(new THREE.Vector2((e.clientX-bounds.left)/bounds.width*2-1,-(e.clientY-bounds.top)/bounds.height*2+1),camera);
+  if(ray.intersectObject(enclosureSign).length){if(W.pc_upgrade(7)){saveGame();}else toast('Ouvrez BÂTIR pour voir les conditions de cet agrandissement.',true);}
+});
 const keys = new Set();
 window.addEventListener('keydown', (e) => {
   if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
   keys.add(e.code);
-  if (e.code === 'Space' && !e.repeat && playing && !document.getElementById('journal').open) W.pc_dash();
+  if (e.code === 'Space' && !e.repeat && playing && !menuOpen()) W.pc_dash();
 });
 window.addEventListener('keyup', (e) => keys.delete(e.code));
 window.addEventListener('blur', () => keys.clear());
@@ -1291,9 +1533,10 @@ function guideTarget(s) {
 
 function update(dt) {
   readInput();
-  if (playing && !document.hidden && !document.getElementById('journal').open) W.pc_tick(dt, input.x, input.z);
+  if (playing && !document.hidden && !menuOpen()) W.pc_tick(dt, input.x, input.z);
   const s = readState();
   S = s;
+  updateEnclosureSign(s);
   updateCampaign(s);
   updateWorldVisuals(s, dt);
   const p = s.player;
@@ -1632,7 +1875,7 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) saveG
 initCampaign({
   travel: (region) => { if (!playing) return false; const ok = !!W.pc_travel(region); if (ok) { joy.id = null; joy.x = joy.y = 0; keys.clear(); joyEl.style.display = 'none'; saveGame(); } return ok; },
   upgrade: (kind) => { if (!playing) return false; const ok = !!W.pc_upgrade(kind); if (ok) saveGame(); return ok; },
-  dash: () => playing && !document.getElementById('journal').open && !!W.pc_dash(),
+  dash: () => playing && !menuOpen() && !!W.pc_dash(),
   save: saveGame, toast,
 });
 window.__withsurvival = { get state() { return S; }, guide: () => S && guideTarget(S), layout: L };

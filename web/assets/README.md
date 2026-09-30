@@ -1,0 +1,13 @@
+# Assets ImageGen
+
+Les deux atlas ont été générés avec l’outil intégré ImageGen, puis intégrés dans les matériaux des véritables meshes Three.js. Le rendu ne remplace pas le jeu par une illustration.
+
+## terrain-atlas.png — prompt final
+
+Use case: stylized-concept. Asset type: square terrain material atlas consumed as actual diffuse textures in a 3D mobile survival village game. Generate a 2048x2048 image with exactly four equal square quadrants, no borders or spacing, flat orthographic top-down material surfaces, no objects, no perspective. Top left: soft ivory-blue packed snow with subtle granular frost. Top right: lush moss-green meadow ground with small clover and earthy patches, elegant hand-painted game texture. Bottom left: warm grey irregular cobblestone paving with natural moss in gaps, small-scale stones. Bottom right: rich warm walnut wooden planks with subtle grain, boards perpendicular to top edge. Premium stylized hand-painted 3D game material aesthetic, restrained contrast, soft surface detail, each quadrant uniform material filling its complete tile, tileable edges within each quadrant, no cast shadows, no ambient occlusion baked from objects, no text, no symbols, no lettering, no labels, no characters. This is a production texture atlas not concept scene artwork.
+
+## biome-atlas.png — prompt final
+
+Use case: stylized-concept. Asset type: production diffuse texture atlas for actual 3D game terrain. A square 2048x2048 image containing exactly four equal quadrants with no gaps and no labels. Completely flat orthographic top-down surface materials, each fills entire quadrant, each tile has repeating compatible edges, hand-painted high-quality mobile adventure aesthetic. Top left: rusty terracotta desert earth, small dry cracks and subtle sand grains, warm burnt orange. Top right: dark teal mossy marsh soil, subtle low contrast pebbles and delicate lichen, not literal standing water. Bottom left: deep muted violet slate, fine fractured stone and subtle dim amethyst veins for eerie rift terrain, not bright neon. Bottom right: weathered dark blue-grey stone roof shingles, small regular staggered tiles, subtle worn edges. No objects, no perspective, no text, no lines dividing quadrants, no icons, no labels, no shadows from objects, no characters. Practical low-contrast seamless ground and roof textures that will be mapped on real 3D meshes.
+
+Résolution réellement obtenue : 1254 × 1254 par atlas. Chaque quadrant est extrait à l’exécution pour conserver ses UV et être répété indépendamment. Les textures peuvent être remplacées sans modifier les règles de jeu.

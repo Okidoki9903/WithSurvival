@@ -39,3 +39,11 @@ Le rendu est procédural et stylisé. Il manque encore des assets détaillés, a
 6. Mesures de performances, chauffe et mémoire sur mobiles modestes ; cache hors ligne et sauvegarde complète.
 
 Chaque jalon doit produire des fonctionnalités jouables, tests de progression et essais utilisateurs. Un intitulé AAA ne remplace pas ces validations.
+
+## Reprise de la progression
+
+Les métiers sont maintenant distincts : collecteurs physiques, chasseurs de guilde, fermier, assistants de production, entrepôt et caravanes. Les bâtiments disposent de positions réelles et de fonctions différentes ; les stades de colonie exigent de l’espace et ces services. Une chaîne complète peut fonctionner avec chasse, récupération, transport, transformation, vente et collecte de pièces.
+
+Les contrats tournent entre cinq objectifs, changent de région et font apparaître des élites ; la menace augmente sur plusieurs cycles. Le progrès continue après la citadelle. Les deux atlas ImageGen sont utilisés pour les sols et matériaux 3D, pas comme captures de gameplay.
+
+La cible de quatre heures est une ambition de rythme et de variété. La simulation longue valide seulement les stocks bornés, les entités et le fonctionnement technique. Il reste nécessaire de mesurer en vraie session le temps des déblocages, les trajets, les choix et les moments répétitifs.

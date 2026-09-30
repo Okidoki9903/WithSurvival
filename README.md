@@ -8,11 +8,12 @@ Une aventure 3D mobile : chassez, nourrissez les voyageurs, développez une colo
 - Forêt de givre, canyon des braises, marais de cristal, faille de l’éclipse : ambiances et silhouettes distinctes ; vitesse, résistance, attaque et récompenses différentes.
 - Enclos extensible sur trois niveaux : clôture et surface réellement accessible grandissent.
 - Atelier et cuisine sur quatre niveaux ; convoyeurs et grill turbo sur trois niveaux. Les améliorations changent réellement la cadence.
-- Assistants : porteur, caissier, chasseur. Transport des stocks, encaissement puis ravitaillement automatique.
+- Collecteurs : ramassage de la viande réellement déposée au sol et retour par le portail. Guilde : chasseurs qui poursuivent, frappent et vainquent les créatures. Ferme : récoltes renouvelables transportées par un fermier. Entrepôt : capacité de stockage 30 → 150. Comptoir des caravanes : contrats variés, récompenses et menaces croissantes.
+- Assistants industriels : transport des stocks, caisse puis chasseur supplémentaire. Le ravitaillement ne fait plus apparaître de viande artificiellement.
 - Armes sur trois niveaux, sac, bottes et armure. Les armes avancées consomment les essences du combat.
 - Les monstres anticipent leur frappe : quittez le cercle rouge ou esquivez. Les régions avancées attaquent à vue.
 - Journal de Nora : cinq chapitres, objectifs, achats, voyages. La simulation se met en pause dans le journal.
-- Sauvegarde locale : progression, améliorations et financement partiel des dalles ; anciennes sauvegardes migrées. Les stocks et la position ne sont pas persistés. Aucun gain hors ligne.
+- Sauvegarde locale : progression, améliorations et financement partiel des dalles ; anciennes sauvegardes migrées. Les ressources et travailleurs sont conservés dans la nouvelle sauvegarde. Aucun gain hors ligne.
 
 ## Commandes
 
@@ -38,7 +39,7 @@ Sans éditeur de liens natif, les tests fonctionnent sur wasm32-wasip1 avec Wasm
 
 ## Architecture et publication
 
-core/src/lib.rs : simulation Rust sans dépendances. web/main.js : rendu Three.js, entrée et effets. web/campaign.js : interface narrative dérivée de l’état réel. web/boot.js : reprise du chargement. L’ABI historique reste compatible ; un trailer version 2 ajoute progression et anticipations d’attaque. Sauvegarde : tampon de 32 mots, format actuel de 28 mots.
+core/src/lib.rs : simulation Rust sans dépendances. web/main.js : rendu Three.js, entrée et effets. web/campaign.js : interface narrative dérivée de l’état réel. web/boot.js : reprise du chargement. L’ABI historique reste compatible ; un trailer version 2 ajoute progression et anticipations d’attaque. Sauvegarde : tampon de 32 mots, format v3 étendu ; sa capacité est fournie par le moteur.
 
 Le workflow GitHub Pages teste et compile le moteur. Les branches main, master et claude/** déclenchent la publication ; codex/** permet une revue sans changer le site public.
 
@@ -49,3 +50,11 @@ Projet indépendant, sans affiliation à Century Games ou Whiteout Survival. Mod
 ## Test navigateur reproductible
 
 Démarrez le serveur sur le port 8765, puis lancez `npm install`, `npx playwright install chromium` et `npm run test:browser`. `GAME_URL` permet une autre adresse. Le test crée une sauvegarde de scénario dans un navigateur isolé ; aucun outil de triche n’est ajouté au jeu. Captures dans `test-artifacts/`.
+
+## Nouvelle progression de colonie
+
+Le bouton BÂTIR expose directement l’enclos, les 5 bâtiments spécialisés et les 17 catégories d’améliorations. Les cartes indiquent leurs effets actuels et suivants, coûts et dépendances. L’enclos possède aussi une pancarte cliquable dans le monde. La colonie nécessite des infrastructures concrètes avant de passer au stade suivant.
+
+Les caravanes alternent repas, victoires régionales, collecte, récoltes et prime de champion. Les élites préparent une frappe plus dangereuse. Les textures de terrain, pavés, bois et toitures utilisent deux atlas ImageGen ; les bâtiments et personnages restent de vrais meshes 3D. Prompts et provenance dans web/assets/README.md.
+
+Objectif de conception : soutenir des sessions de quatre heures ou davantage grâce aux métiers, aux choix de développement et aux contrats évolutifs. Un test de quatre heures simulées vérifie la stabilité du moteur ; il ne démontre pas encore quatre heures de plaisir en session utilisateur.
