@@ -1,4 +1,5 @@
 // Story and interface are derived exclusively from the live simulation state.
+import { districtCatalog } from './district-ui.js';
 const tiers = ['Refuge de l’Aurore', 'Hameau des lanternes', 'Village de l’Aurore', 'Cité des quatre routes', 'Citadelle de l’Aurore'];
 const routes = [
  {name:'La forêt de givre',icon:'❄',species:'Ours polaires · le premier ravitaillement',lore:'Les anciens bûcherons y balisaient la route du refuge. Sécurisez la forêt pour que les premiers voyageurs puissent rentrer.',tier:0},
@@ -37,7 +38,15 @@ export function updateCampaign(s,actions) {
  $('campaign-objective').textContent=objective;
  $('village-name').textContent=tiers[tier];
  $('campaign-count').textContent=tier<4?`${Math.min(kills,needed)} / ${needed} · ${cost} ✦`:`${served} voyageurs nourris`;
- const completion=tier===4?1:(Math.min(kills/needed,1)+Math.min(s.money/cost,1)+Math.min(frontierKills/3,1))/3;
+ let completion=tier===4?1:(Math.min(kills/needed,1)+Math.min(s.money/cost,1)+Math.min(frontierKills/3,1))/3;
+ if(s.districts?.length){
+ const opened=s.districts.filter(d=>d.unlocked).length,next=s.districts.find(d=>!d.unlocked);
+ $('campaign-title').textContent=opened?`LA ROUTE DES MÉTIERS · ${opened}/8 QUARTIERS`:'LE REFUGE · PRÉPARER LA ROUTE DU PORT';
+ $('campaign-count').textContent=next?`Prochain : ${districtCatalog[next.id].activity.toLowerCase()}`:'Huit métiers ouverts';
+ if(next?.id===0)completion=(Math.min((s.grinderLevel||0)/4,1)+Math.min((s.kitchenLevel||0)/4,1)+Number(s.conv1On)+Number(s.conv2On)+Math.min(served/20,1))/5;
+ else if(next){const prev=s.districts[next.id-1];completion=(Math.min(prev.sourceLevel/3,1)+Math.min(prev.processorLevel/3,1)+Math.min(prev.finisherLevel/3,1)+Math.min(prev.transportLevel,1)+Math.min(prev.sales/next.unlockNeedSales,1))/5;}
+ else {const target=100+80*Math.min(s.prestige||0,1000);completion=s.districts.reduce((n,d)=>n+(Number(d.mastered)+Math.min(d.sales/target,1))/2,0)/s.districts.length;$('campaign-count').textContent=`Maîtrise ${(s.prestige||0)+1}`;}
+ }
  $('campaign-progress').style.width=`${Math.round(completion*100)}%`;
  const contract=$('contract-line');contract.hidden=!s.tradeLevel;
  if(s.tradeLevel)contract.textContent=`CARAVANE · ${contractDescription(s)} · ${Math.floor(s.contractProgress||0)}/${s.contractTarget||0} · ${s.contractReward||0} ✦ · menace ${s.threatLevel||0}`;
@@ -131,7 +140,27 @@ function updateBuild(s,c,tier){
  }
 }
 function nextObjective(s,c,tier,served,mastery){
- if(served===0)return 'Chassez → atelier → cuisine → comptoir. Nourrissez le premier voyageur.';
+ if(served===0&&!s.districts?.some(d=>d.unlocked))return 'Chassez → atelier → cuisine → comptoir. Nourrissez le premier voyageur.';
+ if(s.districts?.length){
+ const first=s.districts[0];
+ if(!first.unlocked){
+ const collector=s.upgrades?.find(u=>u.kind===12);
+ if(!s.collectorLevel&&tier>=(collector?.requiredTier||0))return 'BÂTIR → cabane des collecteurs. Automatisez le ramassage de viande au sol.';
+ if((s.grinderLevel||0)<4)return 'BÂTIR → atelier niveau 4. Préparez la route du port et son activité de pêche.';
+ if((s.kitchenLevel||0)<4)return 'BÂTIR → cuisine niveau 4. Le refuge doit maîtriser sa première production.';
+ if(!s.conv1On||!s.conv2On)return 'Installez les deux convoyeurs du refuge avant d’ouvrir le port.';
+ if(served<20)return `Nourrissez les voyageurs : ${served}/20. La route du port se débloque ensuite dans EXPANSION.`;
+ return 'EXPANSION → ouvrez le port. Pêchez, préparez les filets et fumez le poisson.';
+ }
+ const carry=s.districtCarry||{district:s.carryDistrict,kind:s.carryKind,n:s.carryN};
+ if(carry.n>0&&districtCatalog[carry.district]){const entry=districtCatalog[carry.district];return carry.kind===1?`Apportez ${carry.n} ${entry.raw.toLowerCase()} à l’entrée de ${entry.processor.toLowerCase()}.`:carry.kind===2?`Apportez ${carry.n} ${entry.mid.toLowerCase()} à l’entrée de ${entry.finisher.toLowerCase()}.`:`Livrez ${carry.n} ${entry.finished.toLowerCase()} au marché de ${entry.name.toLowerCase()}.`;}
+ const next=s.districts.find(d=>!d.unlocked);
+ const active=s.districts.find(d=>d.id===s.currentDistrict&&d.unlocked);
+ if(active&&next&&active.crewLevel===0){const entry=districtCatalog[active.id];if(active.finishedOut>0&&active.transportLevel<2)return `Récupérez ${entry.finished.toLowerCase()} à la sortie de ${entry.finisher.toLowerCase()}, puis livrez au marché.`;if(active.midOut>0&&active.transportLevel<1)return `Récupérez ${entry.mid.toLowerCase()} à la sortie de ${entry.processor.toLowerCase()}, puis apportez à ${entry.finisher.toLowerCase()}.`;return `${entry.source}. Transformez ${entry.raw.toLowerCase()} en ${entry.finished.toLowerCase()} ; EXPANSION permet ensuite d’automatiser ce métier.`;}
+ if(next){const prev=s.districts[next.id-1];if(prev.sourceLevel<3||prev.processorLevel<3||prev.finisherLevel<3||prev.transportLevel<1)return `EXPANSION → maîtrisez ${districtCatalog[prev.id].name.toLowerCase()} : récolte et machines 3, convoyeur 1.`;if(prev.sales<next.unlockNeedSales)return `${districtCatalog[prev.id].finished} : ${prev.sales}/${next.unlockNeedSales} ventes. La prochaine route mène à ${districtCatalog[next.id].name.toLowerCase()}.`;return `EXPANSION → ouvrez ${districtCatalog[next.id].name.toLowerCase()}. Une nouvelle ressource vous attend.`;}
+ const target=100+80*Math.min(s.prestige||0,1000),incomplete=s.districts.find(d=>!d.mastered||d.sales<target);
+ return incomplete?`Maîtrise ${(s.prestige||0)+1} : ${districtCatalog[incomplete.id].name}, ${Math.min(incomplete.sales,target)}/${target} ventes ; récolte et machines 3, convoyeur 1 dans chaque quartier.`:`Les huit quartiers remplissent le palier de maîtrise ${(s.prestige||0)+1}. La production valide automatiquement la prochaine étape.`;
+ }
  const collector=s.upgrades?.find(u=>u.kind===12);
  if(!s.collectorLevel&&tier>=(collector?.requiredTier||0))return 'BÂTIR → cabane des collecteurs. Automatisez le ramassage de viande au sol.';
  if(tier>=1&&!c.enclosure)return 'BÂTIR → enclos niveau 1. Ouvrez du terrain pour les nouveaux bâtiments.';
@@ -154,7 +183,11 @@ function contractDescription(s){
 const roadmap=document.createElement('div');roadmap.className='roadmap';roadmap.id='campaign-roadmap';
 const roadmapTitle=document.createElement('h3');roadmapTitle.textContent='La route de votre colonie';$('journal-objective').after(roadmapTitle,roadmap);
 function updateRoadmap(s){
- const steps=[
+ const allOpened=s.districts?.length&&s.districts.every(d=>d.unlocked),target=100+80*Math.min(s.prestige||0,1000);
+ const steps=s.districts?.length?[
+ ['Maîtriser le refuge','Atelier et cuisine niveau 4, deux convoyeurs et 20 voyageurs nourris.',Boolean(s.districts[0].unlocked)],
+ ...s.districts.map(d=>[districtCatalog[d.id].name,`${districtCatalog[d.id].raw} → ${districtCatalog[d.id].mid} → ${districtCatalog[d.id].finished}. ${d.unlocked?`${d.sales}${allOpened?`/${target}`:''} ventes réelles ; ${d.mastered?'métier maîtrisé':'machines à développer'}.`:'Nouvelle dalle à ouvrir après le quartier précédent.'}`,Boolean(allOpened?d.mastered&&d.sales>=target:d.unlocked)]),
+ ]:[
  ['Rallumer le refuge','Chasse, transformation, cuisson et premier voyageur.',(s.served||0)>0],
  ['Organiser le ramassage','Les collecteurs vont jusqu’aux carcasses et ramènent la viande.',(s.collectorLevel||0)>0],
  ['Installer les métiers','Enclos, guilde des chasseurs et entrepôt.',(s.guildLevel||0)>0&&(s.warehouseLevel||0)>0],

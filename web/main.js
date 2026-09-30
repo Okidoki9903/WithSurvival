@@ -4,6 +4,8 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { initCampaign, updateCampaign } from './campaign.js';
+import { initDistrictWorld, updateDistrictWorld, pickDistrictUnlock } from './district-world.js';
+import { initDistrictUI, updateDistrictUI } from './district-ui.js';
 
 // ---------------------------------------------------------------------------
 // WebAssembly core
@@ -96,6 +98,21 @@ function readState() {
       s.eliteAliveIndex = a[i++]; s.farmStock = a[i++];
     }
   }
+  if (a[i++] === 4) {
+    s.worldTime=a[i++];s.currentDistrict=a[i++];s.carryDistrict=a[i++];s.carryKind=a[i++];s.carryN=a[i++];s.prestige=a[i++];
+    s.districtCarry={district:s.carryDistrict,kind:s.carryKind,n:s.carryN};
+    const fields=['id','unlocked','theme','x0','x1','z0','z1','sourceX','sourceZ','processorX','processorZ','finisherX','finisherZ','marketX','marketZ','tileX','tileZ','sourceLevel','processorLevel','finisherLevel','transportLevel','crewLevel','storageLevel','directLootLevel','marketLevel','rawOut','processorIn','midOut','finisherIn','finishedOut','marketIn','cap','harvestProgress','processorProgress','finisherProgress','sales','sourceReserve','sourceTimer','rawNeed','midYield','midNeed','finishedYield','price','unlockNeedSales','unlockCost','mastered'];
+    n=a[i++];s.districts=[];
+    for(let k=0;k<n;k++){const d={};for(const name of fields)d[name]=a[i++];d.unlocked=!!d.unlocked;d.mastered=!!d.mastered;s.districts.push(d);}
+    n=a[i++];s.districtWorkers=[];
+    for(let k=0;k<n;k++){const w={};for(const name of ['district','role','x','z','angle','task','carryKind','carryN','progress','level'])w[name]=a[i++];s.districtWorkers.push(w);}
+    n=a[i++];s.districtLoot=[];
+    for(let k=0;k<n;k++){const q={};for(const name of ['district','x','z','n','age'])q[name]=a[i++];s.districtLoot.push(q);}
+    n=a[i++];s.districtMonsters=[];
+    for(let k=0;k<n;k++){const b={};for(const name of ['district','x','z','hpFraction','windup','alive','angle','flash','kind','maxHp'])b[name]=a[i++];s.districtMonsters.push(b);}
+    n=a[i++];s.districtUpgrades=[];
+    for(let k=0;k<n;k++){const u={};for(const name of ['district','kind','level','max','cost','canBuy','missingPrereqCode','needSales','x','z','unlocked','requiredLevel'])u[name]=a[i++];u.canBuy=!!u.canBuy;u.unlocked=!!u.unlocked;s.districtUpgrades.push(u);}
+  }
   return s;
 }
 
@@ -104,6 +121,7 @@ function saveGame() {
     const n = W.pc_save();
     const v = Array.from(new Uint32Array(W.memory.buffer, W.pc_save_ptr(), n));
     localStorage.setItem(SAVE_KEY, JSON.stringify(v));
+    if(W.pc_world_save){const size=W.pc_world_save();const data=Array.from(new Uint32Array(W.memory.buffer,W.pc_world_save_ptr(),size));localStorage.setItem('withsurvival-world-v4',JSON.stringify(data));}
   } catch (_) { /* storage unavailable */ }
 }
 function loadSave() {
@@ -114,6 +132,7 @@ function loadSave() {
     const buf = new Uint32Array(W.memory.buffer, W.pc_save_ptr(), capacity);
     v.slice(0, capacity).forEach((x, k) => { buf[k] = x >>> 0; });
     W.pc_load(Math.min(v.length, capacity));
+    if(W.pc_world_load){const world=JSON.parse(localStorage.getItem('withsurvival-world-v4')||'null');if(Array.isArray(world)&&world.length<=4096){const buffer=new Uint32Array(W.memory.buffer,W.pc_world_save_ptr(),4096);buffer.set(world);W.pc_world_load(world.length);}}
   } catch (_) { /* ignore */ }
 }
 
@@ -1378,6 +1397,7 @@ document.getElementById('btn-sound').addEventListener('click', (e) => {
 document.getElementById('btn-reset').addEventListener('click', () => {
   if (!confirm('Recommencer une nouvelle partie ?')) return;
   try { localStorage.removeItem(SAVE_KEY); localStorage.removeItem('polar-camp-save-v1'); } catch (_) { /* ignore */ }
+  try { localStorage.removeItem('withsurvival-world-v4'); } catch (_) {}
   location.reload();
 });
 
@@ -1386,7 +1406,7 @@ document.getElementById('btn-reset').addEventListener('click', () => {
 // ---------------------------------------------------------------------------
 
 const input = { x: 0, z: 0 };
-const menuOpen = () => document.getElementById('journal').open || document.getElementById('build-panel')?.open;
+const menuOpen = () => document.getElementById('journal').open || document.getElementById('build-panel')?.open || document.getElementById('district-panel')?.open;
 const joy = { id: null, ox: 0, oy: 0, x: 0, y: 0 };
 const joyEl = document.getElementById('joy'), knobEl = document.getElementById('joy-knob');
 const JOY_R = 50;
@@ -1416,11 +1436,13 @@ canvas.addEventListener('pointercancel', endJoy);
 let tapStart=null;
 canvas.addEventListener('pointerdown',e=>{tapStart={x:e.clientX,y:e.clientY};});
 canvas.addEventListener('pointerup',e=>{
-  if(!tapStart || Math.hypot(e.clientX-tapStart.x,e.clientY-tapStart.y)>8 || !enclosureSign.visible || menuOpen())return;
+  if(!tapStart || Math.hypot(e.clientX-tapStart.x,e.clientY-tapStart.y)>8 || menuOpen())return;
   tapStart=null;
   const bounds=canvas.getBoundingClientRect();
   const ray=new THREE.Raycaster();ray.setFromCamera(new THREE.Vector2((e.clientX-bounds.left)/bounds.width*2-1,-(e.clientY-bounds.top)/bounds.height*2+1),camera);
-  if(ray.intersectObject(enclosureSign).length){if(W.pc_upgrade(7)){saveGame();}else toast('Ouvrez BÂTIR pour voir les conditions de cet agrandissement.',true);}
+  const district=pickDistrictUnlock(ray);
+  if(district!==null){if(W.pc_district_upgrade?.(district,0)){saveGame();toast('Nouveau quartier ouvert !');}else toast('Ouvrez EXPANSION pour voir les conditions de ce quartier.',true);return;}
+  if(enclosureSign.visible && ray.intersectObject(enclosureSign).length){if(W.pc_upgrade(7)){saveGame();}else toast('Ouvrez BÂTIR pour voir les conditions de cet agrandissement.',true);}
 });
 const keys = new Set();
 window.addEventListener('keydown', (e) => {
@@ -1514,9 +1536,18 @@ function handleEvents(s) {
   }
 }
 
+let districtGuide=null;
 function guideTarget(s) {
   const p = s.player;
   if (p.dead > 0) return null;
+  if(districtGuide){if(Math.hypot(p.x-districtGuide.x,p.z-districtGuide.z)>1.5)return {...districtGuide,hint:districtGuide.label};districtGuide=null;}
+  const d=s.districts?.find(q=>q.id===s.currentDistrict&&q.unlocked);
+  if(d){
+    if(s.carryN>0){const kind=s.carryKind;return {x:kind===1?d.processorX:kind===2?d.finisherX:d.marketX,z:kind===1?d.processorZ-2.5:kind===2?d.finisherZ-2.5:d.marketZ-2.5,hint:kind===1?'Déposez la récolte dans la première machine':kind===2?'Apportez la production à la machine de finition':'Livrez les produits au marché'};}
+    if(!d.transportLevel&&d.finishedOut>0)return{x:d.finisherX,z:d.finisherZ+2.5,hint:'Récupérez les produits finis'};
+    if(!d.transportLevel&&d.midOut>0)return{x:d.processorX,z:d.processorZ+2.5,hint:'Récupérez les produits transformés'};
+    return{x:d.sourceX,z:d.sourceZ,hint:d.id===4||d.id===6?'Affrontez les créatures du quartier':'Approchez de la ressource pour récolter'};
+  }
   const inField = p.z < L.camp.z0 - 1;
   const full = p.stackN >= p.cap;
   if (p.stack === ITEM.MEAT && (full || !inField)) return { ...L.grinderIn, hint: full ? 'Sac plein ! Apporte la viande au hachoir' : 'Dépose la viande dans le hachoir' };
@@ -1538,8 +1569,10 @@ function update(dt) {
   if (playing && !document.hidden && !menuOpen()) W.pc_tick(dt, input.x, input.z);
   const s = readState();
   S = s;
+  updateDistrictWorld(s,dt);
   updateEnclosureSign(s);
   updateCampaign(s);
+  updateDistrictUI(s);
   updateWorldVisuals(s, dt);
   const p = s.player;
 
@@ -1558,7 +1591,7 @@ function update(dt) {
   const walkT = s.time * 11;
   const sw = p.moving ? Math.sin(walkT) * 0.6 : 0;
   po.legs[0].rotation.x = sw; po.legs[1].rotation.x = -sw;
-  po.armL.rotation.x = -sw * 0.6 + (p.stackN > 0 ? -0.9 : 0);
+  po.armL.rotation.x = -sw * 0.6 + (p.stackN > 0 || s.carryN > 0 ? -0.9 : 0);
   if (p.swing >= 0) {
     const t = p.swing;
     po.armR.rotation.x = t < 0.35 ? -2.4 * (t / 0.35) : -2.4 + 3.2 * ((t - 0.35) / 0.65);
@@ -1817,7 +1850,7 @@ function update(dt) {
   sun.position.set(camTarget.x - 8, 20, camTarget.z + 10);
   sun.target.position.set(camTarget.x, 0, camTarget.z);
   snow.position.set(camTarget.x, 0, camTarget.z);
-  snow.visible = (s.region || 0) === 0;
+  snow.visible = (s.region || 0) === 0 && (s.currentDistrict ?? -1) < 0 && p.z < 20;
   const sp = snow.geometry.attributes.position;
   for (let k = 0; k < sp.count; k++) {
     let y = sp.getY(k) - dt * (1.2 + (k % 5) * 0.2);
@@ -1855,12 +1888,18 @@ const snow = (() => {
 
 let last = performance.now();
 function frame(now) {
-  const dt = Math.min(0.1, (now - last) / 1000);
+  const dt = Math.max(0, Math.min(0.1, (now - last) / 1000));
   last = now;
   update(dt);
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }
+initDistrictWorld({THREE,scene,materials:{path:pathMaterial,grass:grassMaterial,wood:woodMaterial,roof:roofMaterial,biomes:regionSurfaceMaps}});
+initDistrictUI({
+  upgrade:(district,kind)=>{if(!playing)return false;const ok=!!W.pc_district_upgrade?.(district,kind);if(ok)saveGame();return ok;},
+  focus:target=>{districtGuide=target;joy.id=null;joy.x=joy.y=0;keys.clear();joyEl.style.display='none';},
+  toast,
+});
 requestAnimationFrame(frame);
 
 const playBtn = document.getElementById('play');

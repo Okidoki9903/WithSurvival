@@ -9,6 +9,7 @@
 //!   -> counter -> customers pay -> collect cash -> buy upgrades on floor pads.
 
 use std::f32::consts::PI;
+mod districts;
 
 // ---------------------------------------------------------------------------
 // Layout (world units, x = right, z = towards the camera / south)
@@ -219,6 +220,7 @@ pub struct Worker {
 }
 
 pub struct Game {
+    pub world:districts::World,
     pub buildings:[u32;5],
     pub workers:Vec<Worker>,
     farm_t:f32,
@@ -274,6 +276,7 @@ impl Game {
     pub fn new(seed: u32) -> Game {
         let mut g = Game {
             rng: Rng(seed.max(1)),
+            world:districts::World::new(),
             buildings:[0;5],workers:Vec::new(),farm_t:0.0,farm_stock:0,contract_progress:0,contracts_done:0,build_pad_t:0.0,
             tier: 0, region: 0, enclosure: 0, weapon: 0, grinder_level: 0, kitchen_level: 0, helper_level: 0, helper_t: 0.0, kills: 0, region_kills: [0;4], served: 0, essence: 0, dash_t: 0.0, dash_cd: 0.0,
             time: 0.0,
@@ -531,6 +534,19 @@ impl Game {
         self.dash_t = (self.dash_t-dt).max(0.0);
         self.dash_cd = (self.dash_cd-dt).max(0.0);
         self.update_player(dt, ix, iz);
+        self.world.base_mastered=self.grinder_level>=4&&self.kitchen_level>=4&&self.has_conv1()&&self.has_conv2()&&self.served>=20;
+        let carry_cap=self.capacity().saturating_sub(self.player.stack_n);
+        self.world.player_power=(if self.hero() {2.0} else {1.0})+0.8*self.weapon as f32;
+        let district_hurt=self.world.tick(dt,self.player.x,self.player.z,carry_cap,&mut self.money,self.player.dead_t<=0.0,self.dash_t>0.0);
+        if self.world.player_attack_fired {
+            self.player.swing=0.0;self.player.angle=self.world.player_attack_angle;
+            self.push_event([ev::SWING,self.player.x,self.player.z,self.player.angle,if self.hero(){1.0}else{0.0},2.7,0.0]);
+        }
+        if district_hurt>0.0 {
+            self.player.hp-=district_hurt;self.player.since_hurt=0.0;
+            self.push_event([ev::HURT,district_hurt,self.player.x,self.player.z,0.0,0.0,0.0]);
+            if self.player.hp<=0.0 {self.kill_player();}
+        }
         self.update_bears(dt);
         self.update_combat(dt);
         self.update_meat_pickup(dt);
@@ -570,12 +586,12 @@ impl Game {
         if p.moving {
             let nx = p.x + dx * sp * dt;
             let nz = p.z + dz * sp * dt;
-            if camp.contains(nx,nz,0.5) || Game::walkable(nx, nz) {
+            if camp.contains(nx,nz,0.5) || Game::walkable(nx, nz) || self.world.walkable(nx,nz) {
                 p.x = nx;
                 p.z = nz;
-            } else if camp.contains(nx,p.z,0.5) || Game::walkable(nx, p.z) {
+            } else if camp.contains(nx,p.z,0.5) || Game::walkable(nx, p.z) || self.world.walkable(nx,p.z) {
                 p.x = nx;
-            } else if camp.contains(p.x,nz,0.5) || Game::walkable(p.x, nz) {
+            } else if camp.contains(p.x,nz,0.5) || Game::walkable(p.x, nz) || self.world.walkable(p.x,nz) {
                 p.z = nz;
             }
             let face = dx.atan2(dz);
@@ -819,7 +835,11 @@ impl Game {
             self.region_kills[self.region as usize] += 1;
             if self.region==self.contract_region() {self.contract_add(if elite {4} else {1},1);}
             self.essence += 1 + self.region * 2;
-            for j in 0..(1+self.region) { self.meats.push(Meat { x: bx + j as f32 * 0.3, z: bz, age: 0.0 }); }
+            let amount=1+self.region;
+            let direct=if self.world.base_direct_loot()&&self.has_conv1() {amount.min(self.storage_cap().saturating_sub(self.grinder_in))} else {0};
+            self.grinder_in+=direct;
+            if direct>0 {self.fly(Item::Meat,bx,bz,GRINDER_IN.0,GRINDER_IN.1,false);}
+            for j in 0..amount-direct {self.meats.push(Meat{x:bx+j as f32*0.3,z:bz,age:0.0});}
         }
     }
 
@@ -834,7 +854,7 @@ impl Game {
             let m = &self.meats[i];
             let can = alive
                 && (self.player.stack == Item::None || self.player.stack == Item::Meat)
-                && self.player.stack_n < cap
+                && self.player.stack_n + self.world.carry_n < cap
                 && m.age > 0.35;
             if can && dist(px, pz, m.x, m.z) < 2.6 {
                 let (mx, mz) = (m.x, m.z);
@@ -866,7 +886,7 @@ impl Game {
 
     fn give_to_player(&mut self, kind: Item) -> bool {
         let p = &self.player;
-        if (p.stack == Item::None || p.stack == kind) && p.stack_n < self.capacity() {
+        if (p.stack == Item::None || p.stack == kind) && p.stack_n+self.world.carry_n < self.capacity() {
             self.player.stack = kind;
             self.player.stack_n += 1;
             true
@@ -1052,7 +1072,9 @@ impl Game {
                         if b.hp<=0.0 {
                             b.alive=false;b.respawn_t=8.0;let elite=b.elite;b.elite=false;self.kills+=1;
                             if self.region==self.contract_region() {self.contract_add(if elite {4} else {1},1);}
-                            for j in 0..1+self.region {self.meats.push(Meat{x:x+j as f32*0.3,z,age:0.0});}
+                            let amount=1+self.region;
+                            let direct=if self.world.base_direct_loot()&&self.has_conv1() {amount.min(self.storage_cap().saturating_sub(self.grinder_in))} else {0};self.grinder_in+=direct;
+                            for j in 0..amount-direct {self.meats.push(Meat{x:x+j as f32*0.3,z,age:0.0});}
                             self.push_event([ev::BEAR_DIE,x,z,0.0,0.0,0.0,0.0]);
                         }
                     }
@@ -1164,7 +1186,7 @@ impl Game {
         self.pay_t -= dt;
         self.build_pad_t=(self.build_pad_t-dt).max(0.0);
         if self.build_pad_t<=0.0 && self.player.dead_t<=0.0 {
-            for kind in [7,12,13,14,15,16] {
+            for kind in [12,13,14,15,16] {
                 let (_,_,_,_,x,z)=self.upgrade_spec(kind).unwrap();
                 if dist(self.player.x,self.player.z,x,z)<1.1 && self.upgrade(kind) {self.build_pad_t=3.0;break;}
             }
@@ -1259,6 +1281,7 @@ impl Game {
         let radius = self.camp_radius();
         let unlocked = self.unlocked_regions();
         let town_cost = self.town_cost();
+        let district_export=self.world.export(self.player.x,self.player.z,self.money);
         let upgrade_records:Vec<f32>=(0..=16).flat_map(|kind|{
             let (level,costs,tier,enclosure,x,z)=self.upgrade_spec(kind).unwrap();
             let mut cost=costs.get(level as usize).copied().unwrap_or(0);
@@ -1345,6 +1368,7 @@ impl Game {
         for w in &self.workers {o.extend_from_slice(&[w.kind as f32,w.x,w.z,w.angle,w.task as f32,w.carried as f32,w.timer,w.level as f32]);}
         o.push(17.0);o.extend_from_slice(&upgrade_records);
         o.extend_from_slice(&[contract_kind as f32,contract_region as f32,(self.contracts_done/5) as f32,(elite.0>=0.0) as u8 as f32,elite.1,region_hp*4.0,elite.0,self.farm_stock as f32]);
+        o.extend_from_slice(&district_export);
         &self.out
     }
 
@@ -1412,7 +1436,7 @@ impl Game {
             self.grinder_in=stock[0].min(cap);self.grinder_out=stock[1].min(cap);self.grill_in=stock[2].min(cap);self.grill_out=stock[3].min(cap);self.counter=stock[4].min(cap);self.cash_pile=stock[5].min(1_000_000);self.conv1.clear();self.conv2.clear();
             self.player.stack=match stock[6] {1=>Item::Meat,2=>Item::Raw,3=>Item::Cooked,4=>Item::Cash,_=>Item::None};
             self.player.stack_n=stock[7].min(self.capacity());if self.player.stack==Item::None {self.player.stack_n=0;}
-            let x=f32::from_bits(stock[8]);let z=f32::from_bits(stock[9]);if x.is_finite() && z.is_finite() && (self.camp().contains(x,z,0.5) || Self::walkable(x,z)) {self.player.x=x;self.player.z=z;}
+            let x=f32::from_bits(stock[8]);let z=f32::from_bits(stock[9]);if x.is_finite() && z.is_finite() && (self.camp().contains(x,z,0.5) || Self::walkable(x,z) || (x.abs()<18.0&&(20.0..=194.0).contains(&z))) {self.player.x=x;self.player.z=z;}
         }
         self.ensure_elite();
         // re-apply reveal chain
@@ -1441,6 +1465,7 @@ impl Game {
 
 static mut GAME: Option<Game> = None;
 static mut SAVE: [u32; 128] = [0; 128];
+static mut WORLD_SAVE:[u32;4096]=[0;4096];
 
 #[allow(static_mut_refs)]
 fn game() -> &'static mut Game {
@@ -1452,6 +1477,28 @@ pub extern "C" fn pc_init(seed: u32) {
     unsafe {
         GAME = Some(Game::new(seed));
     }
+}
+
+#[no_mangle]
+pub extern "C" fn pc_district_upgrade(id:u32,kind:u32)->u32 {
+    let g=game();g.world.base_mastered=g.grinder_level>=4&&g.kitchen_level>=4&&g.has_conv1()&&g.has_conv2()&&g.served>=20;
+    g.world.upgrade(id as usize,kind,&mut g.money) as u32
+}
+#[no_mangle]
+pub extern "C" fn pc_world_save_capacity()->u32 {4096}
+#[no_mangle]
+#[allow(static_mut_refs)]
+pub extern "C" fn pc_world_save_ptr()->*mut u32 {unsafe {WORLD_SAVE.as_mut_ptr()}}
+#[no_mangle]
+#[allow(static_mut_refs)]
+pub extern "C" fn pc_world_save()->u32 {
+    let v=game().world.save();unsafe {for (i,x) in v.iter().enumerate().take(4096) {WORLD_SAVE[i]=*x;}}v.len().min(4096) as u32
+}
+#[no_mangle]
+#[allow(static_mut_refs)]
+pub extern "C" fn pc_world_load(len:u32)->u32 {
+    let v=unsafe {WORLD_SAVE[..(len as usize).min(4096)].to_vec()};let g=game();
+    let result=g.world.load(&v);g.world.carry_n=g.world.carry_n.min(g.capacity().saturating_sub(g.player.stack_n));g.world.base_mastered=g.grinder_level>=4&&g.kitchen_level>=4&&g.has_conv1()&&g.has_conv2()&&g.served>=20;result as u32
 }
 
 #[no_mangle]
@@ -1840,6 +1887,34 @@ mod tests {
         let mut base=Game::new(2);base.player.x=5.0;base.player.z=6.0;
         for _ in 0..100 {base.tick(0.1,0.0,1.0);}
         assert!(base.player.z<=6.1);
+    }
+
+    #[test]
+    fn original_food_chain_direct_loot_uses_actual_kills_and_bounded_input() {
+        let mut g=Game::new(1);g.world.districts[0].unlocked=true;g.world.districts[0].levels[6]=1;g.pads[0].level=1;
+        g.player.x=0.0;g.player.z=-20.0;for b in &mut g.bears {b.alive=false;}
+        g.bears[0].alive=true;g.bears[0].hp=0.5;g.bears[0].x=0.0;g.bears[0].z=-21.3;
+        g.update_combat(0.1);assert_eq!(g.grinder_in,1);assert_eq!(g.meats.len(),0);
+        g.grinder_in=g.storage_cap();g.bears[0].alive=true;g.bears[0].hp=0.5;g.player.attack_cd=0.0;
+        g.update_combat(0.1);assert_eq!(g.grinder_in,g.storage_cap());assert_eq!(g.meats.len(),1);
+    }
+
+    #[test]
+    fn district_and_original_carry_share_backpack_capacity() {
+        let mut g=Game::new(1);g.world.carry_n=g.capacity();assert!(!g.give_to_player(Item::Raw));
+        g.world.carry_n-=1;assert!(g.give_to_player(Item::Raw));assert!(!g.give_to_player(Item::Raw));
+    }
+
+    #[test]
+    fn district_combat_uses_weapon_and_emits_existing_animation_events() {
+        let mut weak=Game::new(1);weak.world.districts[4].unlocked=true;weak.player.x=-10.0;weak.player.z=113.0;
+        let mut strong=Game::new(1);strong.world.districts[4].unlocked=true;strong.player.x=-10.0;strong.player.z=113.0;strong.weapon=3;strong.pads[4].level=1;
+        weak.tick(0.1,0.0,0.0);strong.tick(0.1,0.0,0.0);
+        let weak_hp=weak.world.monsters.iter().map(|m|m.hp).sum::<f32>();let strong_hp=strong.world.monsters.iter().map(|m|m.hp).sum::<f32>();
+        assert!(strong_hp<weak_hp);assert!(strong.player.swing>=0.0);
+        assert!(strong.events.chunks_exact(7).any(|e|e[0]==ev::SWING));
+        let m=&mut weak.world.monsters[0];m.x=weak.player.x;m.z=weak.player.z-1.5;m.windup=0.01;
+        weak.tick(0.1,0.0,0.0);assert!(weak.events.chunks_exact(7).any(|e|e[0]==ev::HURT));
     }
 
     #[test]

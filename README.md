@@ -1,25 +1,27 @@
 # WithSurvival — Les Terres oubliées
 
-Une aventure 3D mobile : chassez, nourrissez les voyageurs, développez une colonie et rouvrez quatre territoires. Cette version étend le prototype original ; elle ne constitue pas une production AAA achevée.
+Une aventure 3D mobile : chassez, nourrissez les voyageurs, développez une colonie, rouvrez quatre territoires de chasse et construisez huit quartiers de production. Cette version étend le prototype original ; elle ne constitue pas une production AAA achevée.
 
 ## Progression jouable
 
 - Refuge → hameau → village → cité → citadelle. Les constructions demandent des pièces, des victoires et trois victoires dans le dernier territoire ouvert.
 - Forêt de givre, canyon des braises, marais de cristal, faille de l’éclipse : ambiances et silhouettes distinctes ; vitesse, résistance, attaque et récompenses différentes.
-- Enclos extensible sur trois niveaux : clôture et surface réellement accessible grandissent.
+- Enclos extensible sur trois niveaux : clôture et surface réellement accessible grandissent. Les expansions productives se débloquent ensuite sur des dalles successives, en maîtrisant les machines et les ventes du quartier précédent.
+- Huit chaînes : poissons → filets → poissons fumés ; blé → farine → pains ; fruits → jus → confitures ; minerai → lingots → outils ; bêtes → peaux → cuir ; cristaux → essences → potions ; vestiges → reliques → artefacts ; minerai rare → alliages → couronnes.
+- Chaque quartier possède ses propres récoltes, transformation, finition, convoyeurs, équipes, stockage, collecte directe et marché. Les améliorations sont calculées dans le moteur Rust ; les stocks restent physiques et limités.
 - Atelier et cuisine sur quatre niveaux ; convoyeurs et grill turbo sur trois niveaux. Les améliorations changent réellement la cadence.
 - Collecteurs : ramassage de la viande réellement déposée au sol et retour par le portail. Guilde : chasseurs qui poursuivent, frappent et vainquent les créatures. Ferme : récoltes renouvelables transportées par un fermier. Entrepôt : capacité de stockage 30 → 150. Comptoir des caravanes : contrats variés, récompenses et menaces croissantes.
 - Assistants industriels : transport des stocks, caisse puis chasseur supplémentaire. Le ravitaillement ne fait plus apparaître de viande artificiellement.
 - Armes sur trois niveaux, sac, bottes et armure. Les armes avancées consomment les essences du combat.
 - Les monstres anticipent leur frappe : quittez le cercle rouge ou esquivez. Les régions avancées attaquent à vue.
-- Journal de Nora : cinq chapitres, objectifs, achats, voyages. La simulation se met en pause dans le journal.
+- Journal de Nora : cinq chapitres, objectifs, achats, voyages. La simulation se met en pause dans le journal, BÂTIR et EXPANSION.
 - Sauvegarde locale : progression, améliorations et financement partiel des dalles ; anciennes sauvegardes migrées. Les ressources et travailleurs sont conservés dans la nouvelle sauvegarde. Aucun gain hors ligne.
 
 ## Commandes
 
 Mobile : glissez sur le monde pour marcher ; utilisez le bouton Esquive et le journal en haut à droite. Clavier : ZQSD, WASD ou flèches ; Espace pour esquiver. Approchez les créatures pour attaquer automatiquement et les zones des machines pour transférer les ressources. Restez sur les dalles pour les financer.
 
-Chaîne de production : chasse → atelier → cuisine → comptoir → pièces. La flèche indique l’action suivante. Le journal affiche les conditions de développement et les routes disponibles.
+Chaîne de départ : chasse → atelier → cuisine → comptoir → pièces. EXPANSION affiche les nouvelles chaînes, leurs ressources, leurs conditions et leurs machines. Ses boutons indiquent le chemin vers une source, une entrée ou une sortie de machine, le marché ou la prochaine dalle. La flèche indique l’action suivante. Le journal affiche les conditions de développement et les routes disponibles.
 
 ## Lancer et vérifier
 
