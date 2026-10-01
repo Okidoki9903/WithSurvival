@@ -221,13 +221,13 @@ pub struct Worker {
 
 pub struct Game {
     pub world:districts::World,
+    fund_target:i32, fund_block:i32, fund_hold:f32, fund_credit:f32,
     pub buildings:[u32;5],
     pub workers:Vec<Worker>,
     farm_t:f32,
     pub farm_stock:u32,
     pub contract_progress:u32,
     pub contracts_done:u32,
-    build_pad_t:f32,
     pub tier: u32,
     pub region: u32,
     pub enclosure: u32,
@@ -263,7 +263,6 @@ pub struct Game {
     pub conv1: Vec<f32>,
     pub conv2: Vec<f32>,
     pub pads: Vec<Pad>,
-    pay_t: f32,
     events: Vec<f32>,
     out: Vec<f32>,
     layout: Vec<f32>,
@@ -276,8 +275,8 @@ impl Game {
     pub fn new(seed: u32) -> Game {
         let mut g = Game {
             rng: Rng(seed.max(1)),
-            world:districts::World::new(),
-            buildings:[0;5],workers:Vec::new(),farm_t:0.0,farm_stock:0,contract_progress:0,contracts_done:0,build_pad_t:0.0,
+            world:districts::World::new(),fund_target:-1,fund_block:-1,fund_hold:0.0,fund_credit:0.0,
+            buildings:[0;5],workers:Vec::new(),farm_t:0.0,farm_stock:0,contract_progress:0,contracts_done:0,
             tier: 0, region: 0, enclosure: 0, weapon: 0, grinder_level: 0, kitchen_level: 0, helper_level: 0, helper_t: 0.0, kills: 0, region_kills: [0;4], served: 0, essence: 0, dash_t: 0.0, dash_cd: 0.0,
             time: 0.0,
             money: 0,
@@ -312,14 +311,13 @@ impl Game {
             conv1: Vec::new(),
             conv2: Vec::new(),
             pads: vec![
-                Pad { kind: PadKind::ConveyorA, x: 3.0, z: -4.6, costs: &[140,300,650], level: 0, paid: 0, visible: true },
-                Pad { kind: PadKind::Backpack, x: 1.2, z: -0.8, costs: &[60, 220, 550], level: 0, paid: 0, visible: true },
-                Pad { kind: PadKind::ConveyorB, x: 5.8, z: -1.6, costs: &[200,420,850], level: 0, paid: 0, visible: false },
-                Pad { kind: PadKind::Boots, x: -2.0, z: 1.8, costs: &[150, 450], level: 0, paid: 0, visible: false },
-                Pad { kind: PadKind::Hero, x: 5.8, z: 2.2, costs: &[400], level: 0, paid: 0, visible: false },
+                Pad { kind: PadKind::ConveyorA, x: 3.0, z: -5.5, costs: &[140,300,650], level: 0, paid: 0, visible: true },
+                Pad { kind: PadKind::Backpack, x: 0.0, z: 1.5, costs: &[60, 220, 550], level: 0, paid: 0, visible: true },
+                Pad { kind: PadKind::ConveyorB, x: 6.0, z: -5.5, costs: &[200,420,850], level: 0, paid: 0, visible: false },
+                Pad { kind: PadKind::Boots, x: 3.0, z: 1.5, costs: &[150, 450], level: 0, paid: 0, visible: false },
+                Pad { kind: PadKind::Hero, x: 6.0, z: 1.5, costs: &[400], level: 0, paid: 0, visible: false },
                 Pad { kind: PadKind::Grill2, x: -1.0, z: -3.2, costs: &[350,700,1200], level: 0, paid: 0, visible: false },
             ],
-            pay_t: 0.0,
             events: Vec::new(),
             out: Vec::new(),
             layout: Vec::new(),
@@ -382,13 +380,13 @@ impl Game {
             return Some((p.level,p.costs,0,0,p.x,p.z));
         }
         Some(match kind {
-            6=>(self.tier,&[180,450,900,1600],0,0,0.0,0.0),
-            7=>(self.enclosure,&[100,280,650],0,0,7.3,4.3),
-            8=>(self.weapon,&[90,240,600],0,0,5.8,2.2),
-            9=>(self.grinder_level,&[80,220,550,1000],0,0,3.0,-4.6),
-            10=>(self.kitchen_level,&[100,260,650,1200],0,0,-1.0,-3.2),
-            11=>(self.helper_level,&[200,500,1100],0,0,5.8,-1.6),
-            12=>(self.buildings[0],&[80,420,900],0,0,7.0,-6.0),
+            6=>(self.tier,&[180,450,900,1600],0,0,0.0,-1.5),
+            7=>(self.enclosure,&[100,280,650],0,0,6.0,4.5),
+            8=>(self.weapon,&[90,240,600],0,0,6.0,-2.0),
+            9=>(self.grinder_level,&[80,220,550,1000],0,0,0.0,-5.5),
+            10=>(self.kitchen_level,&[100,260,650,1200],0,0,-1.0,3.7),
+            11=>(self.helper_level,&[200,500,1100],0,0,3.0,-2.0),
+            12=>(self.buildings[0],&[60,420,900],0,0,7.5,-7.0),
             13=>(self.buildings[1],&[260,600,1200],1,1,10.0,-4.0),
             14=>(self.buildings[2],&[320,750,1400],2,2,13.0,3.0),
             15=>(self.buildings[3],&[450,1000,1800],3,3,-13.0,-4.0),
@@ -406,10 +404,40 @@ impl Game {
             _=>0,
         }
     }
+    fn pad_paid(&self,kind:u32)->u32 {
+        if kind<=5 {self.pads.iter().find(|p|p.kind as u32==kind).unwrap().paid} else {self.world.base_paid[kind as usize]}
+    }
+    fn set_pad_paid(&mut self,kind:u32,n:u32) {
+        if kind<=5 {self.pads.iter_mut().find(|p|p.kind as u32==kind).unwrap().paid=n;}
+        self.world.base_paid[kind as usize]=n;
+    }
+    fn pad_missing(&self,kind:u32)->u32 {
+        let Some((level,costs,tier,enclosure,_,_))=self.upgrade_spec(kind) else{return 99;};
+        if level>=costs.len() as u32 {return 99;}
+        if kind<=5 && !self.pads.iter().find(|p|p.kind as u32==kind).unwrap().visible {
+            return match kind {1|4=>100,2=>101,5=>102,_=>99};
+        }
+        if self.tier<tier {return 6;}if self.enclosure<enclosure {return 7;}
+        let dep=self.missing_dependency(kind);if dep>0{return dep;}
+        if kind==6&&(self.kills<[3,10,22,40][level as usize]||self.region_kills[level as usize]<3) {return 18;}
+        if kind==8&&self.essence<[0,8,20][level as usize] {return 19;}
+        0
+    }
+    pub fn fund_pad(&mut self,kind:u32)->u32 {
+        if kind>16||self.pad_missing(kind)!=0||self.player.dead_t>0.0 {return 0;}
+        let (level,costs,_,_,x,z)=self.upgrade_spec(kind).unwrap();
+        if dist(self.player.x,self.player.z,x,z)>2.2 {return 0;}
+        let cost=costs[level as usize];let n=(cost/5).max(8).min(cost.saturating_sub(self.pad_paid(kind))).min(self.money);
+        if n==0 {return 0;}
+        if self.fund_block==kind as i32 {self.fund_block=-1;}
+        self.money-=n;self.set_pad_paid(kind,self.pad_paid(kind)+n);
+        self.fly(Item::Cash,self.player.x,self.player.z,x,z,false);
+        if self.pad_paid(kind)>=cost&&self.upgrade(kind) {2} else {1}
+    }
     fn can_upgrade(&self,kind:u32)->bool {
         let Some((level,costs,tier,enclosure,_,_))=self.upgrade_spec(kind) else{return false;};
         let Some(&cost)=costs.get(level as usize) else{return false;};
-        (kind>5 || self.pads.iter().find(|p|p.kind as u32==kind).unwrap().visible) && self.money>=if kind<=5 {cost-self.pads.iter().find(|p|p.kind as u32==kind).unwrap().paid} else {cost} && self.tier>=tier && self.enclosure>=enclosure
+        (kind>5 || self.pads.iter().find(|p|p.kind as u32==kind).unwrap().visible) && self.money>=cost.saturating_sub(self.pad_paid(kind)) && self.tier>=tier && self.enclosure>=enclosure
         && self.missing_dependency(kind)==0
         && (kind!=6 || (self.kills>=[3,10,22,40][level as usize] && self.region_kills[level as usize]>=3))
         && (kind!=8 || self.essence>=[0,8,20][level as usize])
@@ -419,15 +447,16 @@ impl Game {
         let (level,costs,_,_,x,z)=self.upgrade_spec(kind).unwrap();
         if kind<=5 {
             let p=self.pads.iter_mut().find(|p|p.kind as u32==kind).unwrap();
-            self.money-=costs[level as usize]-p.paid;p.paid=0;p.level+=1;
+            self.money-=costs[level as usize].saturating_sub(p.paid);p.paid=0;p.level+=1;self.world.base_paid[kind as usize]=0;
             match kind {
                 0=>{let n=self.grinder_out.min(self.storage_cap().saturating_sub(self.grill_in+self.conv1.len() as u32));self.grill_in+=n;self.grinder_out-=n;self.reveal(PadKind::ConveyorB);self.reveal(PadKind::Boots);},
                 1=>{let n=self.grill_out.min(self.storage_cap().saturating_sub(self.counter+self.conv2.len() as u32));self.counter+=n;self.grill_out-=n;self.reveal(PadKind::Hero);},
                 2=>{self.player.hp=self.max_hp();self.reveal(PadKind::Grill2);},_=>{},
             }
+            if dist(self.player.x,self.player.z,x,z)<=1.5 {self.fund_block=kind as i32;}
             self.push_event([ev::PURCHASE,kind as f32,x,z,0.0,0.0,0.0]);return true;
         }
-        self.money-=costs[level as usize];
+        self.money-=costs[level as usize].saturating_sub(self.pad_paid(kind));self.set_pad_paid(kind,0);
         if kind==8 {self.essence-=[0,8,20][level as usize];}
         match kind {
             6=>{self.tier+=1;self.player.hp=self.max_hp();},7=>self.enclosure+=1,
@@ -436,6 +465,7 @@ impl Game {
         }
         self.sync_workers();
         self.ensure_elite();
+        if dist(self.player.x,self.player.z,x,z)<=1.5 {self.fund_block=kind as i32;}
         self.push_event([ev::PURCHASE,kind as f32,x,z,0.0,0.0,0.0]);
         true
     }
@@ -902,6 +932,11 @@ impl Game {
         }
         let (px, pz) = (self.player.x, self.player.z);
         let period = 0.055;
+        // Finished food from the harbor, bakery, and orchard feeds real travelers.
+        if self.near(COUNTER_IN)&&self.counter<self.storage_cap()&&self.world.carry_district<=2&&self.world.carry_stage==3&&self.world.carry_n>0 {
+            self.world.carry_n-=1;if self.world.carry_n==0 {self.world.carry_stage=0;}self.counter+=1;
+            self.fly(Item::Cooked,px,pz,COUNTER.0-0.6,COUNTER.1-0.3,false);self.player.transfer_cd=period;return;
+        }
         // drop meat in grinder
         if self.near(GRINDER_IN) && self.grinder_in < self.storage_cap() && self.take_from_player(Item::Meat) {
             self.grinder_in += 1;
@@ -1182,68 +1217,48 @@ impl Game {
         }
     }
 
-    fn update_pads(&mut self, dt: f32) {
-        self.pay_t -= dt;
-        self.build_pad_t=(self.build_pad_t-dt).max(0.0);
-        if self.build_pad_t<=0.0 && self.player.dead_t<=0.0 {
-            for kind in [12,13,14,15,16] {
-                let (_,_,_,_,x,z)=self.upgrade_spec(kind).unwrap();
-                if dist(self.player.x,self.player.z,x,z)<1.1 && self.upgrade(kind) {self.build_pad_t=3.0;break;}
-            }
+    fn init_fund_latch(&mut self) {
+        self.fund_block=-1;let mut best=1.5;
+        for kind in 0..17 {
+            let (level,_,_,_,x,z)=self.upgrade_spec(kind).unwrap();let distance=dist(self.player.x,self.player.z,x,z);
+            if level>0&&self.pad_paid(kind)==0&&distance<best {best=distance;self.fund_block=kind as i32;}
         }
-        if self.player.dead_t > 0.0 {
-            return;
+        self.world.init_fund_latch(self.player.x,self.player.z);
+    }
+    pub fn act(&mut self)->u32 {
+        if self.player.dead_t>0.0 {return 0;}
+        let result=self.world.act(self.player.x,self.player.z,self.capacity().saturating_sub(self.player.stack_n));if result>0 {return result;}
+        let before=(self.money,self.player.stack_n,self.world.carry_n,self.grinder_in,self.grill_in,self.counter);
+        self.player.transfer_cd=0.0;self.update_transfers(0.0);self.update_meat_pickup(0.0);
+        if before!=(self.money,self.player.stack_n,self.world.carry_n,self.grinder_in,self.grill_in,self.counter) {return 1;}
+        let before=self.events.len();self.update_combat(0.0);
+        if self.events.len()>before {3} else {0}
+    }
+    fn update_pads(&mut self,dt:f32) {
+        if self.fund_block>=0 {
+            let (_,_,_,_,x,z)=self.upgrade_spec(self.fund_block as u32).unwrap();
+            if dist(self.player.x,self.player.z,x,z)>1.5 {self.fund_block=-1;}
         }
-        let (px, pz) = (self.player.x, self.player.z);
-        let mut bought: Option<usize> = None;
-        for (i, pad) in self.pads.iter_mut().enumerate() {
-            if !pad.visible || pad.maxed() {
-                continue;
-            }
-            if dist(px, pz, pad.x, pad.z) > 1.3 {
-                continue;
-            }
-            if self.money == 0 || self.pay_t > 0.0 {
-                break;
-            }
-            let cost = pad.cost();
-            let chunk = (cost / 30).max(2).min(cost - pad.paid).min(self.money);
-            pad.paid += chunk;
-            self.money -= chunk;
-            self.pay_t = 0.03;
-            self.events.extend_from_slice(&[ev::FLY, Item::Cash as u8 as f32, px, pz, pad.x, pad.z, 0.0]);
-            if pad.paid >= cost {
-                pad.level += 1;
-                pad.paid = 0;
-                bought = Some(i);
-            }
-            break;
+        let mut target=-1;
+        if self.player.dead_t<=0.0 {for kind in 0..17 {
+            if self.pad_missing(kind)!=0||kind as i32==self.fund_block {continue;}
+            let (_,_,_,_,x,z)=self.upgrade_spec(kind).unwrap();
+            if dist(self.player.x,self.player.z,x,z)<0.95 {target=kind as i32;break;}
+        }}
+        if target!=self.fund_target {self.fund_target=target;self.fund_hold=0.0;self.fund_credit=0.0;}
+        if target<0 {return;}
+        self.fund_hold+=dt;
+        if self.fund_hold<0.55 {return;}
+        let kind=target as u32;let (level,costs,_,_,x,z)=self.upgrade_spec(kind).unwrap();let cost=costs[level as usize];
+        if self.money==0 {self.fund_credit=0.0;return;}
+        self.fund_credit+=dt*(cost as f32/3.0).max(8.0);
+        let n=(self.fund_credit as u32).min(cost.saturating_sub(self.pad_paid(kind))).min(self.money);
+        self.fund_credit-=n as f32;
+        if n>0 {
+            self.money-=n;self.set_pad_paid(kind,self.pad_paid(kind)+n);
+            self.fly(Item::Cash,self.player.x,self.player.z,x,z,false);
         }
-        if let Some(i) = bought {
-            let (k, x, z) = (self.pads[i].kind, self.pads[i].x, self.pads[i].z);
-            self.push_event([ev::PURCHASE, k as u8 as f32, x, z, 0.0, 0.0, 0.0]);
-            match k {
-                PadKind::ConveyorA => {
-                    // anything waiting at the grinder output rides the new belt
-                    let n = self.grinder_out.min(self.storage_cap().saturating_sub(self.grill_in+self.conv1.len() as u32));
-                    self.grinder_out -= n;
-                    self.grill_in += n;
-                    self.reveal(PadKind::ConveyorB);
-                    self.reveal(PadKind::Boots);
-                }
-                PadKind::ConveyorB => {
-                    let n = self.grill_out.min(self.storage_cap().saturating_sub(self.counter+self.conv2.len() as u32));
-                    self.grill_out -= n;
-                    self.counter += n;
-                    self.reveal(PadKind::Hero);
-                }
-                PadKind::Hero => {
-                    self.player.hp = self.max_hp();
-                    self.reveal(PadKind::Grill2);
-                }
-                _ => {}
-            }
-        }
+        if self.pad_paid(kind)>=cost&&self.upgrade(kind) {self.fund_hold=0.0;self.fund_credit=0.0;}
     }
 
     fn reveal(&mut self, k: PadKind) {
@@ -1285,12 +1300,18 @@ impl Game {
         let upgrade_records:Vec<f32>=(0..=16).flat_map(|kind|{
             let (level,costs,tier,enclosure,x,z)=self.upgrade_spec(kind).unwrap();
             let mut cost=costs.get(level as usize).copied().unwrap_or(0);
-            if kind<=5 {cost=cost.saturating_sub(self.pads.iter().find(|p|p.kind as u32==kind).unwrap().paid);}
+            cost=cost.saturating_sub(self.pad_paid(kind));
             [kind as f32,level as f32,costs.len() as f32,cost as f32,tier as f32,enclosure as f32,(level<costs.len() as u32 && (kind>5 || self.pads.iter().find(|p|p.kind as u32==kind).unwrap().visible)) as u8 as f32,self.can_upgrade(kind) as u8 as f32,x,z,if kind==8 && level<3 {[0.0,8.0,20.0][level as usize]} else {0.0},self.missing_dependency(kind) as f32]
         }).collect();
         let storage_cap=self.storage_cap();let contract_target=self.contract_target();let contract_reward=self.contract_reward();
         let contract_kind=self.contract_kind();let contract_region=self.contract_region();
         let elite=self.bears.iter().filter(|b|b.alive).enumerate().find(|(_,b)|b.elite).map(|(i,b)|(i as f32,b.hp)).unwrap_or((-1.0,0.0));
+        let mut pad_records=Vec::new();
+        for kind in 0..17 {
+            let (level,costs,_,_,x,z)=self.upgrade_spec(kind).unwrap();let total=costs.get(level as usize).copied().unwrap_or(0);let paid=self.pad_paid(kind).min(total);let missing=self.pad_missing(kind);
+            pad_records.extend_from_slice(&[0.0,0.0,kind as f32,x,z,total as f32,paid as f32,total.saturating_sub(paid) as f32,level as f32,costs.len() as f32,(missing==0) as u8 as f32,missing as f32]);
+        }
+        pad_records.extend_from_slice(&self.world.pad_records());
         let o = &mut self.out;
         o.clear();
         let p = &self.player;
@@ -1369,6 +1390,7 @@ impl Game {
         o.push(17.0);o.extend_from_slice(&upgrade_records);
         o.extend_from_slice(&[contract_kind as f32,contract_region as f32,(self.contracts_done/5) as f32,(elite.0>=0.0) as u8 as f32,elite.1,region_hp*4.0,elite.0,self.farm_stock as f32]);
         o.extend_from_slice(&district_export);
+        o.extend_from_slice(&[5.0,89.0]);o.extend_from_slice(&pad_records);
         &self.out
     }
 
@@ -1456,6 +1478,7 @@ impl Game {
             }
         }
         self.player.hp = self.max_hp();
+        self.init_fund_latch();
     }
 }
 
@@ -1480,9 +1503,22 @@ pub extern "C" fn pc_init(seed: u32) {
 }
 
 #[no_mangle]
+pub extern "C" fn pc_act()->u32 {game().act()}
+
+#[no_mangle]
+pub extern "C" fn pc_fund_pad(scope:u32,district:u32,kind:u32)->u32 {
+    let g=game();if g.player.dead_t>0.0 {return 0;}if scope==0 {g.fund_pad(kind)} else if scope==1 {
+        g.world.base_mastered=g.grinder_level>=4&&g.kitchen_level>=4&&g.has_conv1()&&g.has_conv2()&&g.served>=20;
+        g.world.fund_pad(district as usize,kind,g.player.x,g.player.z,&mut g.money)
+    } else {0}
+}
+
+#[no_mangle]
 pub extern "C" fn pc_district_upgrade(id:u32,kind:u32)->u32 {
     let g=game();g.world.base_mastered=g.grinder_level>=4&&g.kitchen_level>=4&&g.has_conv1()&&g.has_conv2()&&g.served>=20;
-    g.world.upgrade(id as usize,kind,&mut g.money) as u32
+    let result=g.world.upgrade(id as usize,kind,&mut g.money);
+    if result {let (x,z)=districts::World::pad(id as usize,kind);if dist(g.player.x,g.player.z,x,z)<=1.5 {g.world.block_pad(id as usize,kind);}}
+    result as u32
 }
 #[no_mangle]
 pub extern "C" fn pc_world_save_capacity()->u32 {4096}
@@ -1492,13 +1528,17 @@ pub extern "C" fn pc_world_save_ptr()->*mut u32 {unsafe {WORLD_SAVE.as_mut_ptr()
 #[no_mangle]
 #[allow(static_mut_refs)]
 pub extern "C" fn pc_world_save()->u32 {
-    let v=game().world.save();unsafe {for (i,x) in v.iter().enumerate().take(4096) {WORLD_SAVE[i]=*x;}}v.len().min(4096) as u32
+    let g=game();for p in &g.pads {g.world.base_paid[p.kind as usize]=p.paid;}
+    let v=g.world.save();unsafe {for (i,x) in v.iter().enumerate().take(4096) {WORLD_SAVE[i]=*x;}}v.len().min(4096) as u32
 }
 #[no_mangle]
 #[allow(static_mut_refs)]
 pub extern "C" fn pc_world_load(len:u32)->u32 {
     let v=unsafe {WORLD_SAVE[..(len as usize).min(4096)].to_vec()};let g=game();
-    let result=g.world.load(&v);g.world.carry_n=g.world.carry_n.min(g.capacity().saturating_sub(g.player.stack_n));g.world.base_mastered=g.grinder_level>=4&&g.kitchen_level>=4&&g.has_conv1()&&g.has_conv2()&&g.served>=20;result as u32
+    let result=g.world.load(&v);
+    if result && v.first()==Some(&2) {for p in &mut g.pads {p.paid=g.world.base_paid[p.kind as usize].min(p.cost());}}
+    if result {g.init_fund_latch();}
+    g.world.carry_n=g.world.carry_n.min(g.capacity().saturating_sub(g.player.stack_n));g.world.base_mastered=g.grinder_level>=4&&g.kitchen_level>=4&&g.has_conv1()&&g.has_conv2()&&g.served>=20;result as u32
 }
 
 #[no_mangle]
@@ -1654,8 +1694,9 @@ mod tests {
     fn pads_unlock_upgrades() {
         let mut g = Game::new(9);
         g.money = 1000;
-        walk_to(&mut g, 3.0, -4.6, 10.0);
-        for _ in 0..200 {
+        let (x,z)=(g.pads[0].x,g.pads[0].z);
+        walk_to(&mut g,x,z,10.0);
+        for _ in 0..240 {
             g.tick(1.0 / 60.0, 0.0, 0.0);
         }
         assert!(g.has_conv1());
@@ -1915,6 +1956,70 @@ mod tests {
         assert!(strong.events.chunks_exact(7).any(|e|e[0]==ev::SWING));
         let m=&mut weak.world.monsters[0];m.x=weak.player.x;m.z=weak.player.z-1.5;m.windup=0.01;
         weak.tick(0.1,0.0,0.0);assert!(weak.events.chunks_exact(7).any(|e|e[0]==ev::HURT));
+    }
+
+    #[test]
+    fn starter_collector_is_built_from_a_floor_pad_and_works_without_manual_transfers() {
+        let mut g=Game::new(2);g.money=60;g.player.x=7.5;g.player.z=-7.0;
+        for _ in 0..40 {g.tick(0.1,0.0,0.0);}
+        assert_eq!(g.buildings[0],1);assert_eq!(g.money,0);
+        for j in 0..6 {g.meats.push(Meat{x:j as f32*0.1,z:-17.0,age:1.0});}
+        for _ in 0..300 {g.tick(0.1,0.0,0.0);}
+        assert!(g.grinder_in+g.grinder_out/2>=6);assert_eq!(g.meats.len(),0);
+    }
+
+    #[test]
+    fn base_partial_build_funding_survives_world_save_without_double_debit() {
+        let mut g=Game::new(1);g.tier=1;g.enclosure=1;g.money=40;g.player.x=-10.0;g.player.z=1.0;
+        assert_eq!(g.fund_pad(16),1);assert_eq!(g.fund_pad(16),1);assert_eq!(g.money,0);assert_eq!(g.world.base_paid[16],40);
+        let mut restored=Game::new(2);restored.load(&g.save());assert!(restored.world.load(&g.world.save()));
+        restored.money=140;assert!(restored.upgrade(16));assert_eq!(restored.money,0);assert_eq!(restored.buildings[4],1);
+    }
+
+    #[test]
+    fn all_base_purchase_pads_are_separate_and_complete_abi_records_exist() {
+        let mut g=Game::new(1);
+        for i in 0..17 {let (_,_,_,_,x,z)=g.upgrade_spec(i).unwrap();for j in i+1..17 {let (_,_,_,_,xx,zz)=g.upgrade_spec(j).unwrap();assert!(dist(x,z,xx,zz)>1.9,"funding pads must not overlap");}}
+        let o=g.export();let start=o.len()-2-89*12;assert_eq!(&o[start..start+2],&[5.0,89.0]);
+        let records=&o[start+2..];assert_eq!(records[10],1.0);assert_eq!(records[16*12+2],16.0);
+    }
+
+    #[test]
+    fn completed_floor_purchase_latches_until_exit_and_after_reload() {
+        let mut g=Game::new(1);g.money=600;g.player.x=7.5;g.player.z=-7.0;
+        for _ in 0..60 {g.tick(0.1,0.0,0.0);}
+        assert_eq!(g.buildings[0],1);assert_eq!(g.money,540);assert_eq!(g.pad_paid(12),0);
+        let mut reloaded=Game::new(2);reloaded.load(&g.save());assert!(reloaded.world.load(&g.world.save()));
+        for _ in 0..60 {reloaded.tick(0.1,0.0,0.0);}
+        assert_eq!(reloaded.money,540);assert_eq!(reloaded.pad_paid(12),0);
+        reloaded.player.x=4.5;reloaded.tick(0.1,0.0,0.0);reloaded.player.x=7.5;
+        for _ in 0..20 {reloaded.tick(0.1,0.0,0.0);}
+        assert!(reloaded.money<540);assert!(reloaded.pad_paid(12)>0);
+        assert_eq!(g.fund_pad(12),1,"explicit click permits next-level funding in place");
+        for _ in 0..10 {g.tick(0.1,0.0,0.0);}
+        assert!(g.pad_paid(12)>84);
+    }
+
+    #[test]
+    fn finished_district_food_serves_real_base_customers_without_conjuring_stock() {
+        for id in 0..3 {
+            let mut g=Game::new(1);g.player.x=COUNTER_IN.0;g.player.z=COUNTER_IN.1;
+            g.world.carry_district=id;g.world.carry_stage=3;g.world.carry_n=3;
+            assert_eq!(g.act(),1);assert_eq!(g.counter,1);assert_eq!(g.world.carry_n,2);
+            for _ in 0..10 {g.tick(0.1,0.0,0.0);}
+            assert_eq!(g.counter,3);assert_eq!(g.world.carry_n,0);assert_eq!(g.world.carry_stage,0);
+        }
+        let mut g=Game::new(1);g.player.x=COUNTER_IN.0;g.player.z=COUNTER_IN.1;g.world.carry_district=3;g.world.carry_stage=3;g.world.carry_n=4;
+        assert_eq!(g.act(),0);for _ in 0..10 {g.tick(0.1,0.0,0.0);}assert_eq!(g.counter,0);assert_eq!(g.world.carry_n,4);
+        g.world.carry_district=0;g.counter=g.storage_cap();assert_eq!(g.act(),0);assert_eq!(g.world.carry_n,4);
+    }
+
+    #[test]
+    fn contextual_base_hunting_attack_respects_cooldown() {
+        let mut g=Game::new(1);g.player.x=0.0;g.player.z=-20.0;for b in &mut g.bears {b.alive=false;}
+        g.bears[0].alive=true;g.bears[0].x=0.0;g.bears[0].z=-21.3;g.bears[0].hp=10.0;
+        assert_eq!(g.act(),3);let hp=g.bears[0].hp;assert!(hp<10.0);assert_eq!(g.act(),0);assert_eq!(g.bears[0].hp,hp);
+        assert!(g.events.chunks_exact(7).any(|e|e[0]==ev::SWING));
     }
 
     #[test]

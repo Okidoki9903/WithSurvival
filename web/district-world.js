@@ -4,6 +4,8 @@ let biomeSources=[];
 const floorTextureCache=new Map();
 const districtSignatures=[];
 const unlockObjects=[];
+let selectedContext=null;
+export function setSelectedDistrictContext(record){selectedContext=record;}
 let workerBatch,beastBatch,giantBatch,attackBatch,lootBatch,cargoBatch;
 let monsterHPBack,monsterHPFill;
 const playerResourceStacks=[];
@@ -57,7 +59,13 @@ function block(g,w,h,d,x,y,z,mat){
 }
 function textPlane(g,text,x,y,z,color='#ecf6ed',width=3.3){
   const c=document.createElement('canvas');c.width=768;c.height=144;const ctx=c.getContext('2d');ctx.fillStyle='#223a42';ctx.fillRect(0,0,768,144);ctx.strokeStyle=color;ctx.lineWidth=8;ctx.strokeRect(4,4,760,136);ctx.fillStyle=color;ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='bold 46px system-ui';ctx.fillText(text,384,72,730);
-  const tex=new T.CanvasTexture(c);tex.colorSpace=T.SRGBColorSpace;const m=mesh(new T.PlaneGeometry(width,width*144/768),new T.MeshBasicMaterial({map:tex,side:T.DoubleSide,transparent:false}),false);m.position.set(x,y,z);m.rotation.x=-.18;g.add(m);return m;
+  const tex=new T.CanvasTexture(c);tex.colorSpace=T.SRGBColorSpace;const m=mesh(new T.PlaneGeometry(width,width*144/768),new T.MeshBasicMaterial({map:tex,side:T.DoubleSide,transparent:false}),false);m.position.set(x,y,z);m.rotation.x=-.18;m.userData.contextLabel={text,canvas:c,ctx,color,width,mode:null};g.add(m);return m;
+}
+function updateContextLabel(m,distance,showText,icon){
+  m.visible=distance<=8;if(!m.visible)return;
+  const data=m.userData.contextLabel,mode=showText?'text':'icon';if(data.mode===mode)return;data.mode=mode;
+  const ctx=data.ctx;ctx.clearRect(0,0,768,144);ctx.fillStyle='#223a42';ctx.fillRect(0,0,768,144);ctx.fillStyle=data.color;ctx.textAlign='center';ctx.textBaseline='middle';ctx.font=showText?'bold 46px system-ui':'bold 85px "Segoe UI Emoji",system-ui';ctx.fillText(showText?data.text:icon,384,72,730);m.material.map.needsUpdate=true;
+  m.scale.set(showText?1:.33,showText?1:1.8,1);
 }
 function roof(g,x,y,z,w,d){for(const side of[-1,1]){const m=block(g,w*.64,.12,d,x+side*w*.23,y,z,mats.roof);m.rotation.z=-side*.55;}}
 function resourceGeometry(kind,stage=0){
@@ -78,6 +86,11 @@ function station(g,def,stage,x,z,level){
       block(g,3,.09,3,x,.012,z,mats.water);block(g,1.25,.12,3.4,x,.16,z,mats.wood);
       for(const side of[-1,1]){parts.push(part(cyl(.055,1.9,6),'#bb9671',x+side*.5,1.08,z-1.3,0,0,side*.18));parts.push(part(box(.6,.07,.2),'#759db0',x+side*.5,1.5,z-1.3));}
       parts.push(part(cyl(.43,.8,10),'#6d5745',x+.8,.5,z+.65));
+      if(level>=1){
+        for(let k=0;k<7;k++){parts.push(part(box(2,.025,.025),'#d6d8c7',x,.22,z+.15+k*.25));parts.push(part(box(.025,.025,1.5),'#d6d8c7',x-1+k*.33,.22,z+.9));}
+        parts.push(part(sphere(.08),'#f0b987',x-.95,.25,z+.2));parts.push(part(sphere(.08),'#f0b987',x+.95,.25,z+1.6));
+      }
+      if(level>=2){parts.push(part(cyl(.32,.8,12),'#80a6ae',x+.9,.75,z-.75,0,0,Math.PI/2));parts.push(part(box(.65,.14,.7),'#536e78',x+.9,.35,z-.75));parts.push(part(new T.TorusGeometry(.29,.045,5,16),'#dac791',x+1.34,.75,z-.75,0,Math.PI/2));}
     }else if(kind==='grain'){
       block(g,3,.13,3,x,.08,z,mats.wood);
       for(let i=0;i<36;i++)parts.push(part(cone(.1,.55+(i%3)*.1,5),'#dcc172',x-1.2+(i%6)*.48,.42,z-1.2+Math.floor(i/6)*.48));
@@ -86,7 +99,9 @@ function station(g,def,stage,x,z,level){
     }else if(kind==='ranch'){
       for(const dx of[-1.4,1.4])for(const dz of[-1.2,1.2])parts.push(part(cyl(.07,.9,6),'#a18b67',x+dx,.45,z+dz));
       parts.push(part(box(3,.09,.09),'#c5ab7a',x,.65,z-1.2));parts.push(part(box(3,.09,.09),'#c5ab7a',x,.65,z+1.2));
-      parts.push(part(sphere(.6),'#a5a495',x,1,z,0,0,0,1.4,.9,1));parts.push(part(sphere(.34),'#c5bfac',x,1.2,z+.7));parts.push(part(cone(.12,.55,5),'#d7c7a1',x-.24,1.55,z+.7,0,0,-.4));parts.push(part(cone(.12,.55,5),'#d7c7a1',x+.24,1.55,z+.7,0,0,.4));
+      parts.push(part(box(1.1,.08,.75),'#aa8b68',x,.7,z));
+      parts.push(part(sphere(.24),'#e0d0af',x,1.2,z-.8,0,0,0,.8,1,.5));parts.push(part(cone(.08,.4,5),'#d7c7a1',x-.15,1.48,z-.8,0,0,-.5));parts.push(part(cone(.08,.4,5),'#d7c7a1',x+.15,1.48,z-.8,0,0,.5));
+      parts.push(part(cyl(.05,1.4,6),'#856b4c',x+.65,.75,z,0,0,.3));
     }else if(kind==='relic'){
       parts.push(part(cyl(1.1,.2,10),'#9d9aad',x,.12,z));
       parts.push(part(box(.75,def.short==='CITADELLE'?3.4:2.5,.7),'#a19bb0',x,def.short==='CITADELLE'?1.8:1.4,z));
@@ -121,8 +136,8 @@ function station(g,def,stage,x,z,level){
   }
   combine(parts,g);
   // Level bulbs and auxiliary copper tanks show machinery upgrades physically.
-  if(level>0)combine([part(cyl(.18,.9,8),'#c6a277',x+1.1,.65,z-.5),part(cyl(.1,.8,6),'#93a8a3',x+1.1,1.38,z-.5),part(sphere(.09),'#ade1c7',x+1.1,1.85,z-.5)],g);
-  textPlane(g,def.chain[stage]+' · '+level,x,stage===0?2.55:3.6,z-.85,def.color,2.8);
+  if(level>0&&!(kind==='fish'&&stage===0))combine([part(cyl(.18,.9,8),'#c6a277',x+1.1,.65,z-.5),part(cyl(.1,.8,6),'#93a8a3',x+1.1,1.38,z-.5),part(sphere(.09),'#ade1c7',x+1.1,1.85,z-.5)],g);
+  const label=textPlane(g,def.chain[stage]+' · '+level,x,stage===0?1.9:2.3,z-.65,def.color,2.3);label.userData.stationStage=stage;
 }
 function dispose(group){group.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material?.map&&o.material.type==='MeshBasicMaterial'){o.material.map.dispose();o.material.dispose();}});for(const mat of group.userData.ownedMaterials||[])mat.dispose();root.remove(group);}
 function districtLayout(d,index){const z0=d.z0??20+22*index,z1=d.z1??z0+20;return {x:((d.x0??-18)+(d.x1??18))/2,z:(z0+z1)/2,tileX:d.tileX??0,tileZ:d.tileZ??(index?z0-4:4.3)};}
@@ -144,14 +159,18 @@ function createDistrict(d,index){
   g.userData.ownedMaterials=unlocked?[terrain]:[];
   if(unlocked)terrain.color.set(['#a8bec0','#e1d495','#c8d7ac','#c7a185','#bdc599','#a1c5b6','#b9b0c2','#c7beaa'][index]||'#ffffff');
   if(unlocked){const tex=districtFloorTexture(index);if(tex){terrain.map=tex;if([3,5,6,7].includes(index))terrain.color.set('#ffffff');}}
+  if(unlocked){
+    const calmColors=['#90b6b0','#d9c6a0','#a4bb95','#bd9c87','#adae97','#90b8ae','#a198b4','#b6b4aa'],c=new T.Color(calmColors[index]);
+    terrain.onBeforeCompile=shader=>{shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>',`#include <map_fragment>\n diffuseColor.rgb = mix(diffuseColor.rgb, vec3(${c.r.toFixed(4)},${c.g.toFixed(4)},${c.b.toFixed(4)}), 0.55);`);};terrain.customProgramCacheKey=()=>`district-calm-${index}`;
+  }
   block(g,w,.025,h,0,.006,0,terrain);
   const frame=[];for(const side of[-1,1]){frame.push(part(box(w,.07,.07),unlocked?def.color:'#879b9c',0,.09,side*h/2));frame.push(part(box(.07,.07,h),unlocked?def.color:'#879b9c',side*w/2,.09,0));}
   combine(frame,g);
-  const titleY=unlocked?3:2.1;
-  textPlane(g,unlocked?def.name:'VERROUILLÉ · '+def.short,0,titleY,-h/2+.2,def.color,8.5);
-  combine([part(box(.18,titleY,.18),'#8e7859',-4.45,titleY/2,-h/2+.2),part(box(.18,titleY,.18),'#8e7859',4.45,titleY/2,-h/2+.2),part(box(9,.15,.2),'#b1a17d',0,titleY+.87,-h/2+.2)],g);
+  const titleY=2.5;
+  const title=textPlane(g,def.short,0,titleY,-h/2+.2,def.color,4.2);title.userData.districtTitle=true;
+  combine([part(box(.15,titleY,.15),'#8e7859',-2.3,titleY/2,-h/2+.2),part(box(.15,titleY,.15),'#8e7859',2.3,titleY/2,-h/2+.2),part(box(4.8,.12,.16),'#b1a17d',0,titleY+.43,-h/2+.2)],g);
   const tile=block(g,2.5,.12,2.5,p.tileX-p.x,.07,p.tileZ-p.z,unlocked?mats.path:mats.belt);tile.userData.districtIndex=index;unlockObjects.push(tile);
-  const price=d.unlockCost??d.cost??0;textPlane(g,unlocked?'Quartier ouvert':`Ouvrir · ${price} pièces`,p.tileX-p.x,1.1,p.tileZ-p.z+.2,unlocked?'#bce7c8':'#edcc8d',3.4);
+  // Payment and prerequisite feedback belongs to authoritative floor pads.
   const stations=d.stationLevels||d.levels||[d.sourceLevel||0,d.processorLevel||0,d.finisherLevel||0,d.marketLevel||0];
   const locations=[[d.sourceX??-10,d.sourceZ??p.z-5],[d.processorX??-3,d.processorZ??p.z-5],[d.finisherX??4,d.finisherZ??p.z-5],[d.marketX??11,d.marketZ??p.z-5]].map(([x,z])=>[x-p.x,z-p.z]);
   if(unlocked){
@@ -170,9 +189,8 @@ function createDistrict(d,index){
     }
   }else{
     const ghosts=[];for(const[x,z]of locations)ghosts.push(part(box(2.2,1.2,1.8),'#899e9d',x,.6,z));const ghost=mesh(mergeGeometries(ghosts,false),mats.locked,false);g.add(ghost);
-    textPlane(g,d.requirementText||`${d.unlockNeedSales||0} ventes du quartier précédent`,0,.85,h/2-.4,'#b9cccb',7);
   }
-  const goods=new T.InstancedMesh(resourceGeometry(def.kind),mats.vertex,9);goods.count=0;goods.userData.unlocked=unlocked;goods.castShadow=true;goods.frustumCulled=false;g.add(goods);g.userData.goods=goods;g.userData.locations=locations;g.userData.data=d;return g;
+  const goods=new T.InstancedMesh(resourceGeometry(def.kind),mats.vertex,64);goods.count=0;goods.userData.unlocked=unlocked;goods.castShadow=true;goods.frustumCulled=false;g.add(goods);g.userData.goods=goods;g.userData.locations=locations;g.userData.data=d;return g;
 }
 export function updateDistrictWorld(s,dt){
   if(!root)return;
@@ -208,10 +226,24 @@ export function updateDistrictWorld(s,dt){
   for(const batch of[beastBatch,giantBatch,attackBatch]){batch.instanceMatrix.needsUpdate=true;if(batch.instanceColor)batch.instanceColor.needsUpdate=true;}
   const loot=s.districtLoot||[];lootBatch.count=Math.min(128,loot.length);q.identity();for(let k=0;k<lootBatch.count;k++){const l=loot[k];matrix.compose(new T.Vector3(l.x,.2+Math.sin(time*2+k)*.04,l.z),q,new T.Vector3(1,1,1));lootBatch.setMatrixAt(k,matrix);}lootBatch.instanceMatrix.needsUpdate=true;
   for(let i=0;i<groups.length;i++){
-    const g=groups[i],d=districts[i],goods=g.userData.goods,locations=g.userData.locations;if(!g.visible)continue;g.traverse(o=>{if(o.userData.rotate)o.rotation.z=time*(.7+(d.processorLevel||0)*.1);});
+    const g=groups[i],d=districts[i],goods=g.userData.goods,locations=g.userData.locations;if(!g.visible)continue;g.traverse(o=>{
+      if(o.userData.rotate)o.rotation.z=time*(.7+(d.processorLevel||0)*.1);
+      if(o.userData.contextLabel){
+        const distance=Math.hypot(g.position.x+o.position.x-s.player.x,g.position.z+o.position.z-s.player.z),stage=o.userData.stationStage;
+        const selected=selectedContext?.district===i&&(selectedContext.kind===[1,2,3,8][stage]||selectedContext.category===['raw','mid','finished','market'][stage]);
+        const icon=o.userData.districtTitle?'⌂':stage===0?['🐟','🌾','🍎','🪨','🥩','💎','🏺','🪨'][i]:['','⚙','♨','●'][stage];
+        updateContextLabel(o,distance,o.userData.districtTitle||selected&&distance<=4,icon);
+      }
+    });
     if(!goods.userData.unlocked)continue;
-    const stocks=[d.rawOut||0,d.midOut||0,d.finishedOut||0];let count=0;
-    for(let segment=0;segment<3;segment++)for(let k=0;k<Math.min(3,stocks[segment]);k++){const a=locations[segment],b=locations[segment+1],automated=segment===1?d.transportLevel>=1:segment===2?d.transportLevel>=2:false,t=automated?(time*.16+k/3)%1:.08+k*.08;matrix.compose(new T.Vector3(T.MathUtils.lerp(a[0],b[0],t),.43+Math.sin(time*3+k)*.025,T.MathUtils.lerp(a[1],b[1],t)),q,new T.Vector3(1,1,1));goods.setMatrixAt(count++,matrix);}goods.count=count;goods.instanceMatrix.needsUpdate=true;
+    const stocks=[d.rawOut||0,d.midOut||0,d.finishedOut||0,d.marketIn||0];let count=0;
+    for(let segment=0;segment<4;segment++)for(let k=0;k<Math.min(16,stocks[segment]);k++){
+      const a=locations[segment],b=locations[Math.min(3,segment+1)],automated=segment===1?d.transportLevel>=1:segment===2?d.transportLevel>=2:false;
+      let x=a[0]+(k%4-.5)*.23,z=a[1]+(segment===0?1.6:2.5)+Math.floor(k%8/4)*.22,y=.3+Math.floor(k/8)*.27;
+      if(automated&&k<2){const t=(time*.16+k*.5)%1;x=T.MathUtils.lerp(a[0],b[0],t);z=T.MathUtils.lerp(a[1],b[1],t);y=.43;}
+      matrix.compose(new T.Vector3(x,y,z),q,new T.Vector3(1.35,1.35,1.35));goods.setMatrixAt(count++,matrix);
+    }
+    goods.count=count;goods.instanceMatrix.needsUpdate=true;
   }
 }
 export function pickDistrictUnlock(raycaster){const hit=raycaster.intersectObjects(unlockObjects.filter(o=>o.parent.visible),false)[0];return hit?hit.object.userData.districtIndex:null;}

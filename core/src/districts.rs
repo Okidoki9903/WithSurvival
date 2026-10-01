@@ -38,12 +38,16 @@ pub struct Monster {pub district:usize,pub x:f32,pub z:f32,pub hp:f32,pub max_hp
 pub struct World {
     pub districts:[District;N],pub workers:Vec<Worker>,pub loot:Vec<Loot>,pub monsters:Vec<Monster>,
     pub time:f32,pub carry_district:usize,pub carry_stage:u32,pub carry_n:u32,pub prestige:u32,
-    pub base_mastered:bool,pub player_power:f32,pub player_attack_fired:bool,pub player_attack_angle:f32,transfer_t:f32,attack_t:f32,pad_t:f32,
+    pub base_paid:[u32;17],pub paid:[[u32;9];8],fund_target:i32,fund_block:i32,just_loaded:bool,fund_hold:f32,fund_credit:f32,act_t:f32,pub base_mastered:bool,pub player_power:f32,pub player_attack_fired:bool,pub player_attack_angle:f32,transfer_t:f32,attack_t:f32,pad_t:f32,
 }
 impl World {
-    pub fn new()->Self {Self{districts:std::array::from_fn(|_|District::new()),workers:Vec::new(),loot:Vec::new(),monsters:Vec::new(),time:0.0,carry_district:0,carry_stage:0,carry_n:0,prestige:0,base_mastered:false,player_power:1.0,player_attack_fired:false,player_attack_angle:0.0,transfer_t:0.0,attack_t:0.0,pad_t:0.0}}
+    pub fn new()->Self {Self{districts:std::array::from_fn(|_|District::new()),workers:Vec::new(),loot:Vec::new(),monsters:Vec::new(),time:0.0,carry_district:0,carry_stage:0,carry_n:0,prestige:0,base_paid:[0;17],paid:[[0;9];8],fund_target:-1,fund_block:-1,just_loaded:false,fund_hold:0.0,fund_credit:0.0,act_t:0.0,base_mastered:false,player_power:1.0,player_attack_fired:false,player_attack_angle:0.0,transfer_t:0.0,attack_t:0.0,pad_t:0.0}}
     pub fn z0(id:usize)->f32 {20.0+id as f32*22.0}
-    pub fn tile(id:usize)->(f32,f32) {if id==0 {(7.3,4.3)} else {(0.0,Self::z0(id-1)+18.0)}}
+    pub fn tile(id:usize)->(f32,f32) {if id==0 {(-7.0,5.3)} else {(0.0,Self::z0(id-1)+18.0)}}
+    pub fn pad(id:usize,kind:u32)->(f32,f32) {
+        if kind==0 {return Self::tile(id);}
+        let k=(kind-1) as usize;([-10.0,-3.0,4.0,11.0][k%4],Self::z0(id)+11.0+4.0*(k/4) as f32)
+    }
     fn source(id:usize)->(f32,f32) {(-10.0,Self::z0(id)+5.0)}
     fn station(id:usize,stage:usize)->(f32,f32) {([-10.0,-3.0,4.0,11.0][stage],Self::z0(id)+5.0)}
     fn point(id:usize,stock:usize)->(f32,f32) {
@@ -75,13 +79,33 @@ impl World {
     pub fn can_upgrade(&self,id:usize,kind:u32,money:u32)->bool {
         if id>=N||kind>8||self.missing(id,kind)!=0 {return false;}
         let level=if kind==0 {self.districts[id].unlocked as u32} else {self.districts[id].levels[(kind-1) as usize]};
-        level<Self::max_level(kind)&&money>=self.cost(id,kind)
+        level<Self::max_level(kind)&&money>=self.cost(id,kind).saturating_sub(self.paid[id][kind as usize])
     }
     pub fn upgrade(&mut self,id:usize,kind:u32,money:&mut u32)->bool {
         if !self.can_upgrade(id,kind,*money) {return false;}
-        *money-=self.cost(id,kind);
+        *money-=self.cost(id,kind).saturating_sub(self.paid[id][kind as usize]);self.paid[id][kind as usize]=0;
         if kind==0 {self.districts[id].unlocked=true;} else {self.districts[id].levels[(kind-1) as usize]+=1;}
         self.sync();true
+    }
+    pub fn block_pad(&mut self,id:usize,kind:u32) {
+        self.fund_block=(id*9+kind as usize) as i32;self.fund_hold=0.0;self.fund_credit=0.0;
+    }
+    pub fn init_fund_latch(&mut self,px:f32,pz:f32) {
+        self.fund_block=-1;self.just_loaded=false;let mut best=1.5;
+        for id in 0..8 {for kind in 0..9 {
+            let level=if kind==0 {self.districts[id].unlocked as u32} else {self.districts[id].levels[(kind-1) as usize]};
+            let (x,z)=Self::pad(id,kind);let distance=dist(px,pz,x,z);
+            if level>0&&self.paid[id][kind as usize]==0&&distance<best {best=distance;self.fund_block=(id*9+kind as usize) as i32;}
+        }}
+    }
+    pub fn fund_pad(&mut self,id:usize,kind:u32,px:f32,pz:f32,money:&mut u32)->u32 {
+        if id>=8||kind>8||self.missing(id,kind)!=0 {return 0;}
+        let level=if kind==0 {self.districts[id].unlocked as u32} else {self.districts[id].levels[(kind-1) as usize]};
+        if level>=Self::max_level(kind) {return 0;}
+        let (x,z)=Self::pad(id,kind);if dist(px,pz,x,z)>2.2 {return 0;}
+        let cost=self.cost(id,kind);let n=(cost/5).max(8).min(cost.saturating_sub(self.paid[id][kind as usize])).min(*money);
+        if n==0 {return 0;}if self.fund_block==(id*9+kind as usize) as i32 {self.fund_block=-1;}*money-=n;self.paid[id][kind as usize]+=n;
+        if self.paid[id][kind as usize]>=cost&&self.upgrade(id,kind,money) {self.block_pad(id,kind);2} else {1}
     }
     pub fn base_direct_loot(&self)->bool {self.districts[0].unlocked&&self.districts[0].levels[6]>0}
     fn sync(&mut self) {
@@ -160,12 +184,35 @@ impl World {
         self.workers=workers;
     }
     pub fn tick(&mut self,dt:f32,px:f32,pz:f32,carry_cap:u32,money:&mut u32,alive:bool,dashing:bool)->f32 {
+        if self.just_loaded {self.init_fund_latch(px,pz);}
+        if self.fund_block>=0 {
+            let (x,z)=Self::pad(self.fund_block as usize/9,(self.fund_block as usize%9) as u32);
+            if dist(px,pz,x,z)>1.5 {self.fund_block=-1;}
+        }
+        self.act_t=(self.act_t-dt).max(0.0);
         self.player_attack_fired=false;
         self.time+=dt;self.transfer_t=(self.transfer_t-dt).max(0.0);self.attack_t=(self.attack_t-dt).max(0.0);self.pad_t=(self.pad_t-dt).max(0.0);
         self.sync();let mut damage=0.0;
-        // Unlock pads reside in the prior mastered district. They are genuine purchase targets.
-        if alive&&self.pad_t==0.0 {
-            for id in 0..N {let (x,z)=Self::tile(id);if dist(px,pz,x,z)<1.2&&self.upgrade(id,0,money) {self.pad_t=2.0;break;}}
+        // Funding starts only after an intentional pause on a separate floor tile.
+        let mut target=-1;
+        if alive {for id in 0..N {for kind in 0..9 {
+            let level=if kind==0 {self.districts[id].unlocked as u32} else {self.districts[id].levels[(kind-1) as usize]};
+            if self.missing(id,kind)==0&&level<Self::max_level(kind)&&(id*9+kind as usize) as i32!=self.fund_block {
+                let (x,z)=Self::pad(id,kind);if dist(px,pz,x,z)<0.95 {target=(id*9+kind as usize) as i32;break;}
+            }
+        }if target>=0 {break;}}}
+        if target!=self.fund_target {self.fund_target=target;self.fund_hold=0.0;self.fund_credit=0.0;}
+        if target>=0 {
+            self.fund_hold+=dt;
+            if self.fund_hold>=0.55 {
+                let id=target as usize/9;let kind=(target as usize%9) as u32;let cost=self.cost(id,kind);
+                if *money>0 {
+                    self.fund_credit+=dt*(cost as f32/3.0).max(8.0);
+                    let n=(self.fund_credit as u32).min(cost.saturating_sub(self.paid[id][kind as usize])).min(*money);
+                    self.fund_credit-=n as f32;*money-=n;self.paid[id][kind as usize]+=n;
+                    if self.paid[id][kind as usize]>=cost {self.upgrade(id,kind,money);self.block_pad(id,kind);}
+                } else {self.fund_credit=0.0;}
+            }
         }
         for id in 0..N {
             if !self.districts[id].unlocked {continue;}
@@ -241,19 +288,50 @@ impl World {
         o.push(self.loot.len() as f32);for l in &self.loot {o.extend_from_slice(&[l.district as f32,l.x,l.z,l.n as f32,l.age]);}
         o.push(self.monsters.len() as f32);for m in &self.monsters {o.extend_from_slice(&[m.district as f32,m.x,m.z,(m.hp/m.max_hp).max(0.0),m.windup,m.alive as u8 as f32,m.angle,m.flash,if m.district==4 {0.0} else {1.0},m.max_hp]);}
         o.push(72.0);
-        for id in 0..N {for kind in 0..9 {let d=&self.districts[id];let level=if kind==0 {d.unlocked as u32} else {d.levels[(kind-1) as usize]};let (x,z)=if kind==0 {Self::tile(id)} else {Self::station(id,match kind {1|5|7=>0,2|6=>1,3|4=>2,_=>3})};o.extend_from_slice(&[id as f32,kind as f32,level as f32,Self::max_level(kind) as f32,self.cost(id,kind) as f32,self.can_upgrade(id,kind,money) as u8 as f32,self.missing(id,kind) as f32,Self::needed_sales(id) as f32,x,z,d.unlocked as u8 as f32,3.0]);}}
+        for id in 0..N {for kind in 0..9 {let d=&self.districts[id];let level=if kind==0 {d.unlocked as u32} else {d.levels[(kind-1) as usize]};let (x,z)=Self::pad(id,kind);o.extend_from_slice(&[id as f32,kind as f32,level as f32,Self::max_level(kind) as f32,self.cost(id,kind).saturating_sub(self.paid[id][kind as usize]) as f32,self.can_upgrade(id,kind,money) as u8 as f32,self.missing(id,kind) as f32,Self::needed_sales(id) as f32,x,z,d.unlocked as u8 as f32,3.0]);}}
         o
     }
+    pub fn act(&mut self,px:f32,pz:f32,carry_cap:u32)->u32 {
+        if self.act_t>0.0 {return 0;}
+        for id in 0..8 {
+            if !self.districts[id].unlocked {continue;}
+            for stock in 0..6 {
+                let (x,z)=Self::point(id,stock);if dist(px,pz,x,z)>1.6 {continue;}
+                let d=&mut self.districts[id];
+                if stock%2==0 {
+                    let stage=1+stock as u32/2;
+                    if d.stocks[stock]>0&&self.carry_n<carry_cap&&(self.carry_n==0||(self.carry_district==id&&self.carry_stage==stage)) {
+                        d.stocks[stock]-=1;self.carry_district=id;self.carry_stage=stage;self.carry_n+=1;self.act_t=0.25;return 1;
+                    }
+                } else if self.carry_district==id&&self.carry_stage==(stock as u32+1)/2&&self.carry_n>0&&d.stocks[stock]<d.cap() {
+                    d.stocks[stock]+=1;self.carry_n-=1;if self.carry_n==0 {self.carry_stage=0;}self.act_t=0.25;return 2;
+                }
+            }
+            let (x,z)=Self::source(id);
+            if dist(px,pz,x,z)<1.7&&id!=4&&id!=6&&self.districts[id].reserve>0 {
+                self.districts[id].timers[0]=self.source_period(id);self.harvest(id,0.0,true);self.act_t=self.source_period(id);return 4;
+            }
+        }
+        0
+    }
+    pub fn pad_records(&self)->Vec<f32> {
+        let mut v=Vec::new();
+        for id in 0..8 {for kind in 0..9 {
+            let d=&self.districts[id];let level=if kind==0 {d.unlocked as u32} else {d.levels[(kind-1) as usize]};let max=Self::max_level(kind);let cost=if level<max {self.cost(id,kind)} else {0};let paid=self.paid[id][kind as usize].min(cost);let (x,z)=Self::pad(id,kind);
+            v.extend_from_slice(&[1.0,id as f32,kind as f32,x,z,cost as f32,paid as f32,cost.saturating_sub(paid) as f32,level as f32,max as f32,(self.missing(id,kind)==0&&level<max) as u8 as f32,self.missing(id,kind) as f32]);
+        }}v
+    }
     pub fn save(&self)->Vec<u32> {
-        let mut v=vec![1,self.time.to_bits(),self.carry_district as u32,self.carry_stage,self.carry_n,self.prestige];
+        let mut v=vec![2,self.time.to_bits(),self.carry_district as u32,self.carry_stage,self.carry_n,self.prestige];
         for d in &self.districts {v.push(d.unlocked as u32);v.extend_from_slice(&d.levels);v.extend_from_slice(&d.stocks);v.extend(d.timers.iter().map(|t|t.to_bits()));v.extend_from_slice(&[d.sales,d.reserve]);}
         v.push(self.workers.len() as u32);for w in &self.workers {v.extend_from_slice(&[w.district as u32,w.role,w.x.to_bits(),w.z.to_bits(),w.angle.to_bits(),w.task,w.stage,w.carried,w.timer.to_bits()]);}
         v.push(self.loot.len() as u32);for l in &self.loot {v.extend_from_slice(&[l.district as u32,l.x.to_bits(),l.z.to_bits(),l.n,l.age.to_bits()]);}
         v.push(self.monsters.len() as u32);for m in &self.monsters {v.extend_from_slice(&[m.district as u32,m.x.to_bits(),m.z.to_bits(),m.hp.to_bits(),m.max_hp.to_bits(),m.windup.to_bits(),m.alive as u32,m.angle.to_bits(),m.flash.to_bits(),m.timer.to_bits()]);}
+        v.extend_from_slice(&self.base_paid);for paid in &self.paid {v.extend_from_slice(paid);}
         v
     }
     pub fn load(&mut self,v:&[u32])->bool {
-        if v.len()<177||v[0]!=1 {return false;}
+        if v.len()<177||(v[0]!=1&&v[0]!=2) {return false;}
         let f=|x:u32|->Option<f32>{let x=f32::from_bits(x);if x.is_finite() {Some(x)} else {None}};
         let Some(time)=f(v[1]) else{return false;};let mut w=Self::new();w.time=time.max(0.0);w.carry_district=v[2].min(7) as usize;w.carry_stage=v[3].min(3);w.carry_n=v[4].min(100);w.prestige=v[5].min(1000);
         let mut cursor=6;
@@ -262,7 +340,12 @@ impl World {
         let n=count!(9,24);for _ in 0..n {let r=&v[cursor..cursor+9];cursor+=9;let Some(x)=f(r[2]) else{return false;};let Some(z)=f(r[3]) else{return false;};let Some(a)=f(r[4]) else{return false;};let Some(t)=f(r[8]) else{return false;};if r[0]>=8||r[1]>=3||x.abs()>18.0||z<Self::z0(r[0] as usize)||z>Self::z0(r[0] as usize)+20.0{return false;}w.workers.push(Worker{district:r[0] as usize,role:r[1],x,z,angle:a,task:r[5].min(4),stage:r[6].min(3),carried:r[7].min(10),timer:t.clamp(0.0,10.0)});}
         let n=count!(5,300);for _ in 0..n {let r=&v[cursor..cursor+5];cursor+=5;let (Some(x),Some(z),Some(age))=(f(r[1]),f(r[2]),f(r[4])) else{return false;};if r[0]>=8||x.abs()>18.0||z<Self::z0(r[0] as usize)||z>Self::z0(r[0] as usize)+20.0{return false;}w.loot.push(Loot{district:r[0] as usize,x,z,n:r[3].min(12),age:age.clamp(0.0,180.0)});}
         let n=count!(10,8);for _ in 0..n {let r=&v[cursor..cursor+10];cursor+=10;let (Some(x),Some(z),Some(hp),Some(max_hp),Some(windup),Some(angle),Some(flash),Some(timer))=(f(r[1]),f(r[2]),f(r[3]),f(r[4]),f(r[5]),f(r[7]),f(r[8]),f(r[9])) else{return false;};if (r[0]!=4&&r[0]!=6)||x.abs()>18.0||z<Self::z0(r[0] as usize)||z>Self::z0(r[0] as usize)+20.0{return false;}w.monsters.push(Monster{district:r[0] as usize,x,z,hp:hp.clamp(0.0,max_hp.clamp(1.0,500.0)),max_hp:max_hp.clamp(1.0,500.0),windup:windup.clamp(0.0,2.0),alive:r[6]==1,angle,flash,timer:timer.clamp(0.0,30.0)});}
-        if cursor!=v.len(){return false;}w.sync();*self=w;true
+        if v[0]==2 {
+            if cursor+89!=v.len(){return false;}
+            for i in 0..17 {w.base_paid[i]=v[cursor].min(100_000);cursor+=1;}
+            for id in 0..8 {for kind in 0..9 {w.paid[id][kind]=v[cursor].min(w.cost(id,kind as u32));cursor+=1;}}
+        }
+        if cursor!=v.len(){return false;}w.sync();w.just_loaded=true;*self=w;true
     }
 }
 
@@ -334,6 +417,44 @@ mod tests {
         }
         assert!(complete_at>0.0,"campaign should remain economically completable without external income");
         println!("Ideal district campaign after base mastery: {:.1} minutes; final earned cash {}",complete_at/60.0,cash);
+    }
+    #[test] fn floor_funding_is_partial_saved_and_direct_purchase_only_pays_remaining() {
+        let mut w=World::new();w.base_mastered=true;let mut cash=1000;
+        for _ in 0..10 {w.tick(0.1,-7.0,5.3,14,&mut cash,true,false);}
+        assert!(!w.districts[0].unlocked);assert!(w.paid[0][0]>0);assert_eq!(cash+w.paid[0][0],1000);
+        let mut restored=World::new();assert!(restored.load(&w.save()));restored.base_mastered=true;
+        assert_eq!(restored.paid,w.paid);assert!(restored.upgrade(0,0,&mut cash));assert_eq!(cash,600);assert_eq!(restored.paid[0][0],0);
+        let mut previous=w.save();previous.truncate(previous.len()-89);previous[0]=1;
+        assert!(restored.load(&previous));assert_eq!(restored.paid,[[0;9];8]);
+    }
+    #[test] fn physical_pad_hold_avoids_accidental_station_funding_and_is_time_based() {
+        let mut a=World::new();a.districts[0].unlocked=true;let mut b=World::new();assert!(b.load(&a.save()));
+        let mut ca=1000;let mut cb=1000;
+        for _ in 0..20 {a.tick(0.1,-10.0,31.0,14,&mut ca,true,false);}
+        for _ in 0..40 {b.tick(0.05,-10.0,31.0,14,&mut cb,true,false);}
+        assert!(a.paid[0][1]>0);assert!(a.paid[0][1].abs_diff(b.paid[0][1])<=2);
+        let before=a.paid;
+        for _ in 0..20 {a.tick(0.1,-3.0,22.5,14,&mut ca,true,false);}
+        assert_eq!(a.paid,before,"station input is separate from every funding pad");
+        assert_eq!(a.fund_pad(0,1,0.0,0.0,&mut ca),0);
+        for id in 0..8 {for kind in 1..9 {let (x,z)=World::pad(id,kind);assert!(x.abs()<18.0);assert!(z>=World::z0(id)+11.0&&z<=World::z0(id)+15.0);}}
+    }
+    #[test] fn context_action_moves_real_resources_without_advancing_world_time() {
+        let mut w=World::new();w.districts[0].unlocked=true;w.districts[0].stocks[0]=2;let time=w.time;
+        assert_eq!(w.act(-10.0,25.0,14),1);assert_eq!(w.carry_n,1);assert_eq!(w.districts[0].stocks[0],1);assert_eq!(w.time,time);
+        assert_eq!(w.act(-10.0,25.0,14),0);w.act_t=0.0;
+        assert_eq!(w.act(-3.0,22.5,14),2);assert_eq!(w.carry_n,0);assert_eq!(w.districts[0].stocks[1],1);
+    }
+    #[test] fn district_pad_purchase_latches_and_reload_preserves_the_pause() {
+        let mut w=World::new();w.districts[0].unlocked=true;let mut cash=1000;
+        for _ in 0..60 {w.tick(0.1,-10.0,31.0,14,&mut cash,true,false);}
+        assert_eq!(w.districts[0].levels[0],1);assert_eq!(cash,930);assert_eq!(w.paid[0][1],0);
+        let mut reloaded=World::new();assert!(reloaded.load(&w.save()));
+        for _ in 0..60 {reloaded.tick(0.1,-10.0,31.0,14,&mut cash,true,false);}
+        assert_eq!(cash,930);assert_eq!(reloaded.paid[0][1],0);
+        reloaded.tick(0.1,-7.0,31.0,14,&mut cash,true,false);
+        for _ in 0..20 {reloaded.tick(0.1,-10.0,31.0,14,&mut cash,true,false);}
+        assert!(cash<930);assert!(reloaded.paid[0][1]>0);
     }
     #[test] fn beasts_and_giants_drop_actual_tier_resources() {
         let mut w=World::new();w.districts[4].unlocked=true;w.districts[6].unlocked=true;w.sync();let index=w.monsters.iter().position(|m|m.district==6).unwrap();w.hit_monster(index,1000.0);assert_eq!(w.loot[0].n,12);assert!(!w.monsters[index].alive);
