@@ -4,8 +4,11 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { initCampaign, updateCampaign } from './campaign.js';
-import { initDistrictWorld, updateDistrictWorld, pickDistrictUnlock } from './district-world.js';
+import { initDistrictWorld, updateDistrictWorld, pickDistrictUnlock, setSelectedDistrictContext } from './district-world.js';
 import { initDistrictUI, updateDistrictUI } from './district-ui.js';
+import { initMobileHUD, updateMobileHUD, isMobileMenuOpen } from './mobile-hud.js';
+import { initWorldAffordances, updateWorldAffordances, pickWorldAffordance, setSelectedWorldAffordance } from './world-affordances.js';
+import { chooseContext, preferredBuild, padAction, selectAtWorldPoint, resourceTargets } from './context-actions.js';
 
 // ---------------------------------------------------------------------------
 // WebAssembly core
@@ -113,6 +116,10 @@ function readState() {
     n=a[i++];s.districtUpgrades=[];
     for(let k=0;k<n;k++){const u={};for(const name of ['district','kind','level','max','cost','canBuy','missingPrereqCode','needSales','x','z','unlocked','requiredLevel'])u[name]=a[i++];u.canBuy=!!u.canBuy;u.unlocked=!!u.unlocked;s.districtUpgrades.push(u);}
   }
+  if(a[i++]===5){
+    n=a[i++];s.worldPads=[];
+    for(let k=0;k<n;k++){const q={};for(const name of ['scope','district','kind','x','z','totalCost','paid','remaining','level','max','available','missingPrereq'])q[name]=a[i++];q.available=!!q.available;s.worldPads.push(q);}
+  }
   return s;
 }
 
@@ -155,13 +162,13 @@ scene.background = new THREE.Color('#e3edf5');
 scene.fog = new THREE.Fog('#e3edf5', 75, 140);
 
 const camera = new THREE.PerspectiveCamera(38, 1, 0.5, 200);
-const CAM_OFFSET = new THREE.Vector3(0, 21, 13.5);
+const CAM_OFFSET = new THREE.Vector3(15, 23, 18);
 let camZoom = 1;
 function resize() {
   const w = window.innerWidth, h = window.innerHeight;
   renderer.setSize(w, h, false);
   camera.aspect = w / h;
-  camZoom = w < h ? Math.min(3.0, 1.12 * h / w) : 1.0;
+  camZoom = w < h ? Math.min(1.65, Math.max(1.1, 0.66 * h / w)) : 0.95;
   camera.updateProjectionMatrix();
 }
 window.addEventListener('resize', resize);
@@ -1406,12 +1413,13 @@ document.getElementById('btn-reset').addEventListener('click', () => {
 // ---------------------------------------------------------------------------
 
 const input = { x: 0, z: 0 };
-const menuOpen = () => document.getElementById('journal').open || document.getElementById('build-panel')?.open || document.getElementById('district-panel')?.open;
+const menuOpen = () => isMobileMenuOpen();
 const joy = { id: null, ox: 0, oy: 0, x: 0, y: 0 };
 const joyEl = document.getElementById('joy'), knobEl = document.getElementById('joy-knob');
 const JOY_R = 50;
 canvas.addEventListener('pointerdown', (e) => {
-  if (joy.id !== null) return;
+  if (!playing || menuOpen() || joy.id !== null) return;
+  autoWalk=null;
   joy.id = e.pointerId; joy.ox = e.clientX; joy.oy = e.clientY; joy.x = 0; joy.y = 0;
   joyEl.style.display = 'block';
   joyEl.style.left = e.clientX + 'px'; joyEl.style.top = e.clientY + 'px';
@@ -1434,20 +1442,25 @@ const endJoy = (e) => {
 canvas.addEventListener('pointerup', endJoy);
 canvas.addEventListener('pointercancel', endJoy);
 let tapStart=null;
-canvas.addEventListener('pointerdown',e=>{tapStart={x:e.clientX,y:e.clientY};});
+canvas.addEventListener('pointerdown',e=>{tapStart=playing&&!menuOpen()?{x:e.clientX,y:e.clientY}:null;});
 canvas.addEventListener('pointerup',e=>{
-  if(!tapStart || Math.hypot(e.clientX-tapStart.x,e.clientY-tapStart.y)>8 || menuOpen())return;
-  tapStart=null;
-  const bounds=canvas.getBoundingClientRect();
-  const ray=new THREE.Raycaster();ray.setFromCamera(new THREE.Vector2((e.clientX-bounds.left)/bounds.width*2-1,-(e.clientY-bounds.top)/bounds.height*2+1),camera);
-  const district=pickDistrictUnlock(ray);
-  if(district!==null){if(W.pc_district_upgrade?.(district,0)){saveGame();toast('Nouveau quartier ouvert !');}else toast('Ouvrez EXPANSION pour voir les conditions de ce quartier.',true);return;}
-  if(enclosureSign.visible && ray.intersectObject(enclosureSign).length){if(W.pc_upgrade(7)){saveGame();}else toast('Ouvrez BÂTIR pour voir les conditions de cet agrandissement.',true);}
+  const start=tapStart;tapStart=null;
+  if(!start||Math.hypot(e.clientX-start.x,e.clientY-start.y)>8||!playing||menuOpen()||!S)return;
+  const bounds=canvas.getBoundingClientRect(),ray=new THREE.Raycaster();
+  ray.setFromCamera(new THREE.Vector2((e.clientX-bounds.left)/bounds.width*2-1,-(e.clientY-bounds.top)/bounds.height*2+1),camera);
+  const picked=pickWorldAffordance(ray);
+  let action=null;
+  if(picked){action=picked.scope!==undefined?padAction(S,picked):selectAtWorldPoint(S,L,picked);}
+  const point=new THREE.Vector3();
+  if(!action&&ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0,1,0),0),point))action=selectAtWorldPoint(S,L,point);
+  if(action){selectContext(action);if(action.near)performContext(action);return;}
+  if(ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0,1,0),0),point)&&clientWalkable(S,point))startWalk({x:point.x,z:point.z,label:'ALLER',id:'ground',type:'ground'});
 });
 const keys = new Set();
 window.addEventListener('keydown', (e) => {
   if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
   keys.add(e.code);
+  if(['KeyW','KeyA','KeyS','KeyD','KeyZ','KeyQ','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))autoWalk=null;
   if (e.code === 'Space' && !e.repeat && playing && !menuOpen()) W.pc_dash();
 });
 window.addEventListener('keyup', (e) => keys.delete(e.code));
@@ -1462,7 +1475,23 @@ function readInput() {
   if (window.__polarInput) { x = window.__polarInput.x; z = window.__polarInput.z; }
   const l = Math.hypot(x, z);
   if (l > 1) { x /= l; z /= l; }
-  input.x = x; input.z = z;
+  const angle=Math.atan2(CAM_OFFSET.x,CAM_OFFSET.z),ca=Math.cos(angle),sa=Math.sin(angle);
+  input.x=x*ca+z*sa;input.z=-x*sa+z*ca;
+  if(autoWalk&&S&&!menuOpen()&&playing){
+    const target=autoWalk.waypoints[autoWalk.index];
+    const following=autoWalk.type==='animal'&&autoWalk.index===autoWalk.waypoints.length-1;
+    if(following){
+      const live=S.contextAction;
+      if(S.player.stackN||S.carryN||live?.id!==autoWalk.actionId){autoWalk=null;input.x=input.z=0;return;}
+      target.x=live.x;target.z=live.z;
+    }
+    if(target){
+      const dx=target.x-S.player.x,dz=target.z-S.player.z,d=Math.hypot(dx,dz);
+      if(following&&d<1.4){input.x=input.z=0;return;}
+      if(d<0.5){autoWalk.index++;if(autoWalk.index>=autoWalk.waypoints.length)autoWalk=null;input.x=input.z=0;}
+      else{input.x=dx/d;input.z=dz/d;}
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1537,10 +1566,40 @@ function handleEvents(s) {
 }
 
 let districtGuide=null;
+let selectedContext=null,autoWalk=null;
+function selectContext(action){selectedContext=action.type==='destination'?{...action}:{id:action.id,type:action.type};districtGuide={x:action.x,z:action.z,label:action.detail||action.label};setSelectedWorldAffordance(action);setSelectedDistrictContext(action);}
+function clientWalkable(s,q){
+  const inside=(r,m=.5)=>q.x>=r.x0+m&&q.x<=r.x1-m&&q.z>=r.z0+m&&q.z<=r.z1-m;
+  if(inside({...L.camp,x0:-s.campRadius,x1:s.campRadius,z1:6.6+4*(s.enclosure||0)})||inside(L.gate)||inside(L.field))return true;
+  return(s.districts||[]).some(d=>d.unlocked&&((Math.abs(q.x)<=17.5&&q.z>=d.z0+.5&&q.z<=d.z1-.5)||(Math.abs(q.x)<=2&&q.z>=6&&q.z<=d.z1)));
+}
+function startWalk(action){
+  if(!S||!playing)return;
+  const p=S.player,points=[];
+  if(p.z<-10&&action.z>-9)points.push({x:0,z:-14},{x:0,z:-7});
+  else if(p.z>-9&&action.z<-10)points.push({x:0,z:-7},{x:0,z:-14});
+  const current=S.currentDistrict??-1;
+  const targetDistrict=S.districts?.find(d=>d.unlocked&&action.z>=d.z0&&action.z<=d.z1)?.id??-1;
+  if((p.z>=20||action.z>=20)&&current!==targetDistrict){
+    points.push({x:0,z:p.z>=20?p.z:Math.min(5,p.z)},{x:0,z:action.z});
+  }
+  points.push({x:action.x,z:action.z});
+  autoWalk={waypoints:points,index:0,actionId:action.id,type:action.type};joy.x=joy.y=0;keys.clear();
+}
+function performContext(action){
+  if(!playing||menuOpen()||!action?.enabled)return;
+  if(!action.near){selectContext(action);startWalk(action);return;}
+  if(action.type==='pad'){
+    const result=W.pc_fund_pad?.(action.scope,action.district,action.kind)||0;
+    if(result){saveGame();if(result===2){toast('Construction terminée');selectedContext=null;districtGuide=null;}}
+  }else if(action.type==='animal'&&action.windup>0){W.pc_dash();}
+  else{W.pc_act?.();}
+}
 function guideTarget(s) {
   const p = s.player;
   if (p.dead > 0) return null;
   if(districtGuide){if(Math.hypot(p.x-districtGuide.x,p.z-districtGuide.z)>1.5)return {...districtGuide,hint:districtGuide.label};districtGuide=null;}
+  if(s.contextAction)return{x:s.contextAction.x,z:s.contextAction.z,hint:s.contextAction.detail||s.contextAction.label};
   const d=s.districts?.find(q=>q.id===s.currentDistrict&&q.unlocked);
   if(d){
     if(s.carryN>0){const kind=s.carryKind;return {x:kind===1?d.processorX:kind===2?d.finisherX:d.marketX,z:kind===1?d.processorZ-2.5:kind===2?d.finisherZ-2.5:d.marketZ-2.5,hint:kind===1?'Déposez la récolte dans la première machine':kind===2?'Apportez la production à la machine de finition':'Livrez les produits au marché'};}
@@ -1569,8 +1628,16 @@ function update(dt) {
   if (playing && !document.hidden && !menuOpen()) W.pc_tick(dt, input.x, input.z);
   const s = readState();
   S = s;
+  if((s.player.stackN||s.carryN)&&selectedContext?.type!=='pad')selectedContext=null;
+  s.contextAction=chooseContext(s,L,selectedContext);
+  if(selectedContext&&s.contextAction?.id!==selectedContext.id)selectedContext=null;
+  if(autoWalk&&s.player.dead>0)autoWalk=null;
+  if(s.contextAction?.type==='animal'&&s.contextAction.windup>0&&s.contextAction.distance<3){s.contextAction.label='ESQUIVER';s.contextAction.icon='⚡';}
+  setSelectedWorldAffordance(s.contextAction);
+  setSelectedDistrictContext(s.contextAction);
+  updateWorldAffordances(s);
   updateDistrictWorld(s,dt);
-  updateEnclosureSign(s);
+  enclosureSign.visible=false;
   updateCampaign(s);
   updateDistrictUI(s);
   updateWorldVisuals(s, dt);
@@ -1770,7 +1837,7 @@ function update(dt) {
   items[ITEM.COOKED].end();
 
   // --- pads -------------------------------------------------------------------
-  syncPads(s.pads);
+  for(const pad of pads.values())pad.m.visible=false;
 
   // --- guide ----------------------------------------------------------------------
   const target = playing ? guideTarget(s) : null;
@@ -1786,7 +1853,7 @@ function update(dt) {
       groundArrowPivot.rotation.y = Math.atan2(-(target.x - p.x), -(target.z - p.z));
     }
   }
-  hintEl.textContent = target ? target.hint : '';
+  hintEl.textContent = '';
 
   // --- effects ----------------------------------------------------------------
   particleBatch.begin();
@@ -1862,6 +1929,7 @@ function update(dt) {
 
   saveTimer += dt;
   if (saveTimer > 5) { saveTimer = 0; saveGame(); }
+  updateMobileHUD(s);
 }
 
 // snowfall
@@ -1895,9 +1963,16 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 initDistrictWorld({THREE,scene,materials:{path:pathMaterial,grass:grassMaterial,wood:woodMaterial,roof:roofMaterial,biomes:regionSurfaceMaps}});
+initWorldAffordances({THREE,scene,camera,layout:L});
+initMobileHUD({
+  interact:performContext,
+  guideBuild:()=>{if(!S)return;const action=preferredBuild(S);if(action){selectContext(action);startWalk(action);}else toast('Aucune construction disponible ici.');},
+  focus:target=>{const action=selectAtWorldPoint(S,L,target);if(action)selectContext(action);else districtGuide={...target,label:target.label||'Explorer'};startWalk(target);},
+  toast,
+});
 initDistrictUI({
   upgrade:(district,kind)=>{if(!playing)return false;const ok=!!W.pc_district_upgrade?.(district,kind);if(ok)saveGame();return ok;},
-  focus:target=>{districtGuide=target;joy.id=null;joy.x=joy.y=0;keys.clear();joyEl.style.display='none';},
+  focus:target=>{let action;if(target.station==='unlock'){const pad=S.worldPads?.find(p=>p.scope===1&&p.district===target.district&&p.kind===0);action=pad&&padAction(S,pad);}else action={...target,id:`station:${target.district}:${target.station}`,type:'destination',label:'ALLER',icon:'➜',detail:target.label,enabled:true,distance:Math.hypot(S.player.x-target.x,S.player.z-target.z),near:false};if(action)selectContext(action);else districtGuide=target;joy.id=null;joy.x=joy.y=0;keys.clear();joyEl.style.display='none';startWalk(target);},
   toast,
 });
 requestAnimationFrame(frame);
@@ -1913,11 +1988,12 @@ playBtn.addEventListener('click', () => {
   } catch (_) { actx = null; }
 });
 document.addEventListener('visibilitychange', () => { if (document.hidden) saveGame(); });
+for(const id of ['btn-pause','btn-menu','nav-inventory','nav-expeditions'])document.getElementById(id)?.addEventListener('click',saveGame);
 initCampaign({
   travel: (region) => { if (!playing) return false; const ok = !!W.pc_travel(region); if (ok) { joy.id = null; joy.x = joy.y = 0; keys.clear(); joyEl.style.display = 'none'; saveGame(); } return ok; },
   upgrade: (kind) => { if (!playing) return false; const ok = !!W.pc_upgrade(kind); if (ok) saveGame(); return ok; },
   dash: () => playing && !menuOpen() && !!W.pc_dash(),
   save: saveGame, toast,
 });
-window.__withsurvival = { get state() { return S; }, guide: () => S && guideTarget(S), layout: L };
+window.__withsurvival = { get state() { return S; }, guide: () => S && guideTarget(S), layout: L,worldToScreen:({x,z,y=0})=>{const v=new THREE.Vector3(x,y,z).project(camera);return{x:(v.x+1)*innerWidth/2,y:(1-v.y)*innerHeight/2};} };
 window.__polar = window.__withsurvival;

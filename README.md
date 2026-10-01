@@ -2,6 +2,12 @@
 
 Une aventure 3D mobile : chassez, nourrissez les voyageurs, développez une colonie, rouvrez quatre territoires de chasse et construisez huit quartiers de production. Cette version étend le prototype original ; elle ne constitue pas une production AAA achevée.
 
+## Interface et interactions mobiles
+
+Le joueur construit dans le monde : chaque amélioration possède sa dalle. Après un bref arrêt, les pièces financent progressivement les travaux ; le reste à payer et les paiements partiels sont sauvegardés. Toucher une dalle la sélectionne ; l’unique action contextuelle permet de s’y rendre puis de financer. Les catalogues restent disponibles comme outils facultatifs.
+
+Le HUD comporte un état des ressources compact, un seul objectif court, une action contextuelle et trois entrées : Construire, Inventaire, Expéditions. Le premier lancement révèle progressivement les commandes après une véritable récolte. Le déplacement fonctionne au joystick ou en touchant le terrain, avec une caméra adaptée au portrait. Inventaire, menus, pause et expéditions suspendent la simulation.
+
 ## Progression jouable
 
 - Refuge → hameau → village → cité → citadelle. Les constructions demandent des pièces, des victoires et trois victoires dans le dernier territoire ouvert.
@@ -15,13 +21,13 @@ Une aventure 3D mobile : chassez, nourrissez les voyageurs, développez une colo
 - Armes sur trois niveaux, sac, bottes et armure. Les armes avancées consomment les essences du combat.
 - Les monstres anticipent leur frappe : quittez le cercle rouge ou esquivez. Les régions avancées attaquent à vue.
 - Journal de Nora : cinq chapitres, objectifs, achats, voyages. La simulation se met en pause dans le journal, BÂTIR et EXPANSION.
-- Sauvegarde locale : progression, améliorations et financement partiel des dalles ; anciennes sauvegardes migrées. Les ressources et travailleurs sont conservés dans la nouvelle sauvegarde. Aucun gain hors ligne.
+- Sauvegarde locale : progression, améliorations et financement partiel des dalles ; anciennes sauvegardes migrées. Les ressources et travailleurs sont conservés dans la nouvelle sauvegarde. Aucun gain hors ligne. Les aliments finis du port, des champs et du verger peuvent aussi alimenter le comptoir du refuge.
 
 ## Commandes
 
-Mobile : glissez sur le monde pour marcher ; utilisez le bouton Esquive et le journal en haut à droite. Clavier : ZQSD, WASD ou flèches ; Espace pour esquiver. Approchez les créatures pour attaquer automatiquement et les zones des machines pour transférer les ressources. Restez sur les dalles pour les financer.
+Mobile : glissez sur le monde pour marcher ; utilisez le bouton Esquive et Expéditions dans la navigation basse. Clavier : ZQSD, WASD ou flèches ; Espace pour esquiver. Approchez les créatures pour attaquer automatiquement et les zones des machines pour transférer les ressources. Restez sur les dalles pour les financer. Après une construction, il faut quitter puis revenir sur la dalle pour commencer automatiquement le niveau suivant, ou le demander explicitement avec le bouton contextuel.
 
-Chaîne de départ : chasse → atelier → cuisine → comptoir → pièces. EXPANSION affiche les nouvelles chaînes, leurs ressources, leurs conditions et leurs machines. Ses boutons indiquent le chemin vers une source, une entrée ou une sortie de machine, le marché ou la prochaine dalle. La flèche indique l’action suivante. Le journal affiche les conditions de développement et les routes disponibles.
+Chaîne de départ : chasse → atelier → cuisine → comptoir → pièces. EXPANSION affiche les nouvelles chaînes, leurs ressources, leurs conditions et leurs machines. Ses boutons indiquent le chemin vers une source, une entrée ou une sortie de machine, le marché ou la prochaine dalle. Le HUD affiche une seule action contextuelle ; Construire mène directement vers une dalle, sans imposer ce catalogue. La flèche indique l’action suivante. Le journal affiche les conditions de développement et les routes disponibles.
 
 ## Lancer et vérifier
 
@@ -60,3 +66,7 @@ Le bouton BÂTIR expose directement l’enclos, les 5 bâtiments spécialisés e
 Les caravanes alternent repas, victoires régionales, collecte, récoltes et prime de champion. Les élites préparent une frappe plus dangereuse. Les textures de terrain, pavés, bois et toitures utilisent deux atlas ImageGen ; les bâtiments et personnages restent de vrais meshes 3D. Prompts et provenance dans web/assets/README.md.
 
 Objectif de conception : soutenir des sessions de quatre heures ou davantage grâce aux métiers, aux choix de développement et aux contrats évolutifs. Un test de quatre heures simulées vérifie la stabilité du moteur ; il ne démontre pas encore quatre heures de plaisir en session utilisateur.
+
+## Références de gameplay
+
+La refonte mobile s’appuie sur les dix vidéos fournies : achats progressifs sur des dalles, collecte et transport visibles, machines implantées dans le monde et automatisation par étapes. Les fichiers vidéo restent privés sur le disque de l’utilisateur ; ils ne sont pas inclus dans le dépôt. Les créations graphiques et les règles de jeu restent celles de WithSurvival.

@@ -3,7 +3,11 @@
   "private": true,
   "scripts": {
     "test:browser": "node tests/browser.cjs",
-    "test:districts": "node tests/district-browser.cjs"
+    "test:districts": "node tests/district-browser.cjs",
+    "test:hud": "node tests/mobile-hud.cjs",
+    "test:world": "node tests/physical-world.cjs",
+    "test:context": "node tests/context-actions.mjs",
+    "test:onboarding": "node tests/onboarding.cjs"
   },
   "devDependencies": {
     "playwright": "1.63.0"
