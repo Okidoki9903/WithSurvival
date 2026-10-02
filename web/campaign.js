@@ -1,5 +1,5 @@
 // Story and interface are derived exclusively from the live simulation state.
-import { districtCatalog } from './district-ui.js';
+import { districtCatalog } from './district-ui.js?v=reference-v6';
 const tiers = ['Refuge de l’Aurore', 'Hameau des lanternes', 'Village de l’Aurore', 'Cité des quatre routes', 'Citadelle de l’Aurore'];
 const routes = [
  {name:'La forêt de givre',icon:'❄',species:'Ours polaires · le premier ravitaillement',lore:'Les anciens bûcherons y balisaient la route du refuge. Sécurisez la forêt pour que les premiers voyageurs puissent rentrer.',tier:0},

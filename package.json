@@ -2,12 +2,13 @@
   "name": "withsurvival-dev",
   "private": true,
   "scripts": {
-    "test:browser": "node tests/browser.cjs",
-    "test:districts": "node tests/district-browser.cjs",
-    "test:hud": "node tests/mobile-hud.cjs",
+    "test:browser": "node tests/reference-hud.cjs",
+    "test:districts": "node tests/reference-expansion.cjs",
+    "test:hud": "node tests/reference-hud.cjs",
     "test:world": "node tests/physical-world.cjs",
     "test:context": "node tests/context-actions.mjs",
-    "test:onboarding": "node tests/onboarding.cjs"
+    "test:onboarding": "node tests/reference-onboarding.cjs",
+    "test:wood": "node tests/reference-wood.cjs"
   },
   "devDependencies": {
     "playwright": "1.63.0"

@@ -1,13 +1,101 @@
 // District production interface. All stocks, unlocks and purchases come from WASM.
 const CATALOG=[
- {name:'Le port des brumes',symbol:'≈',activity:'PÊCHE',source:'Pêcher au quai',raw:'Poissons',mid:'Filets',finished:'Poissons fumés',processor:'Fileterie',finisher:'Fumoir',story:'Les barques reviennent. Le port donne au refuge une seconde manière de nourrir les voyageurs.'},
- {name:'Les champs dorés',symbol:'♧',activity:'AGRICULTURE',source:'Récolter le blé',raw:'Blé',mid:'Farine',finished:'Pains',processor:'Moulin',finisher:'Boulangerie',story:'Le pain des champs permet aux caravanes de repartir avec des provisions.'},
- {name:'Le verger des sources',symbol:'❧',activity:'ARBORICULTURE',source:'Cueillir les fruits',raw:'Fruits',mid:'Jus',finished:'Confitures',processor:'Pressoir',finisher:'Conserverie',story:'Les anciens vergers reprennent vie et ouvrent une production que la chasse ne pouvait fournir.'},
- {name:'La mine de cuivre',symbol:'◇',activity:'EXTRACTION',source:'Extraire le minerai',raw:'Minerai',mid:'Lingots',finished:'Outils',processor:'Fonderie',finisher:'Forge',story:'Les outils des mineurs donnent aux artisans les moyens de reconstruire les routes.'},
- {name:'Les terres du ranch',symbol:'♞',activity:'CHASSE AU RANCH',source:'Affronter les bêtes',raw:'Bêtes',mid:'Peaux',finished:'Cuir',processor:'Atelier des peaux',finisher:'Tannerie',story:'Des bêtes défendent les pâturages. Le cuir équipe les voyageurs pour les terres difficiles.'},
- {name:'Le jardin alchimique',symbol:'✧',activity:'ALCHIMIE',source:'Extraire les cristaux',raw:'Cristaux',mid:'Essences',finished:'Potions',processor:'Extracteur',finisher:'Laboratoire',story:'Les cristaux alimentent une industrie nouvelle : les potions du jardin alchimique.'},
- {name:'Les ruines des géants',symbol:'☷',activity:'EXPÉDITION',source:'Affronter les géants',raw:'Vestiges',mid:'Reliques',finished:'Artefacts',processor:'Atelier des reliques',finisher:'Conservatoire',story:'Les géants gardent les vestiges. Les expéditions rapportent les fragments d’un monde oublié.'},
- {name:'Le quartier de la citadelle',symbol:'♜',activity:'ARTISANAT ROYAL',source:'Extraire le minerai rare',raw:'Minerai rare',mid:'Alliages',finished:'Couronnes',processor:'Haut fourneau',finisher:'Orfèvrerie',story:'Au bout de la route, la citadelle rassemble les savoir-faire accumulés par la colonie.'},
+ {
+  "name": "La pêche",
+  "symbol": "≈",
+  "activity": "PÊCHE",
+  "source": "Pêcher au quai",
+  "raw": "Poissons",
+  "mid": "Filets",
+  "finished": "Poissons fumés",
+  "processor": "Découpeuse",
+  "finisher": "Fumoir",
+  "story": "Le quai ouvre une nouvelle chaîne de repas."
+ },
+ {
+  "name": "Les cultures",
+  "symbol": "♧",
+  "activity": "AGRICULTURE",
+  "source": "Récolter le blé",
+  "raw": "Blé",
+  "mid": "Farine",
+  "finished": "Pains",
+  "processor": "Moulin",
+  "finisher": "Four à pain",
+  "story": "Les champs alimentent le village."
+ },
+ {
+  "name": "Le verger",
+  "symbol": "❧",
+  "activity": "FRUITS",
+  "source": "Cueillir les fruits",
+  "raw": "Fruits",
+  "mid": "Jus",
+  "finished": "Confitures",
+  "processor": "Pressoir",
+  "finisher": "Cuiseur",
+  "story": "Le verger fournit une autre récolte."
+ },
+ {
+  "name": "La scierie",
+  "symbol": "♧",
+  "activity": "BOIS",
+  "source": "Couper les arbres",
+  "raw": "Bûches",
+  "mid": "Planches",
+  "finished": "Meubles",
+  "processor": "Scie mécanique",
+  "finisher": "Établi",
+  "story": "Coupez, transportez et transformez le bois."
+ },
+ {
+  "name": "Le grand enclos",
+  "symbol": "♞",
+  "activity": "ANIMAUX",
+  "source": "Chasser les grandes bêtes",
+  "raw": "Prises",
+  "mid": "Découpes",
+  "finished": "Repas",
+  "processor": "Broyeur",
+  "finisher": "Grill",
+  "story": "Une nouvelle clôture donne accès à de plus grandes bêtes."
+ },
+ {
+  "name": "La carrière",
+  "symbol": "◇",
+  "activity": "MINERAIS",
+  "source": "Extraire le minerai",
+  "raw": "Minerai",
+  "mid": "Lingots",
+  "finished": "Outils",
+  "processor": "Fonderie",
+  "finisher": "Forge",
+  "story": "Les outils viennent des matériaux récoltés."
+ },
+ {
+  "name": "L’enclos supérieur",
+  "symbol": "☷",
+  "activity": "GRANDS ANIMAUX",
+  "source": "Chasser les géants",
+  "raw": "Viande",
+  "mid": "Vivres",
+  "finished": "Repas",
+  "processor": "Broyeur renforcé",
+  "finisher": "Cuisine collective",
+  "story": "Les animaux plus résistants demandent une meilleure équipe."
+ },
+ {
+  "name": "L’atelier",
+  "symbol": "⚒",
+  "activity": "ARTISANAT",
+  "source": "Récolter le fer",
+  "raw": "Fer",
+  "mid": "Pièces",
+  "finished": "Équipements",
+  "processor": "Presse",
+  "finisher": "Assemblage",
+  "story": "L’atelier transforme les matières en équipements."
+ }
 ];
 export const districtCatalog=CATALOG;
 let actions={},live=null,lastPaint=-Infinity,initialized=false,knownUnlocked=null;
@@ -38,9 +126,9 @@ export function initDistrictUI(callbacks={}){
 function missingText(u,d,previous){
  if(!u)return 'Informations de construction en cours de chargement.';
  if(u.level>=u.max)return 'Amélioration achevée.';
- const reason={1:'Refuge requis : atelier 4, cuisine 4, les deux convoyeurs installés et 20 voyageurs nourris.',2:'Quartier précédent : récolte, transformation et finition au niveau 3, convoyeur au niveau 1.',3:`Vendez ${u.needSales} produits dans le quartier précédent.`,4:'Déverrouillez d’abord ce quartier.'}[u.missingPrereqCode]||'';
+ const reason={1:'Installez les deux convoyeurs et nourrissez cinq voyageurs.',2:'Quartier précédent : récolte, transformation et finition au niveau 2, convoyeur au niveau 1.',3:`Vendez ${u.needSales} produits dans le quartier précédent.`,4:'Déverrouillez d’abord ce quartier.'}[u.missingPrereqCode]||'';
  const details=[];if(reason)details.push(reason);
- if(u.kind===0&&previous){if(previous.sales<d.unlockNeedSales)details.push(`${previous.sales}/${d.unlockNeedSales} ventes dans ${CATALOG[previous.id].name.toLowerCase()}.`);if(previous.sourceLevel<3||previous.processorLevel<3||previous.finisherLevel<3||previous.transportLevel<1)details.push(`Niveaux précédents : récolte ${previous.sourceLevel}/3, transformation ${previous.processorLevel}/3, finition ${previous.finisherLevel}/3, convoyeur ${previous.transportLevel}/1.`);}
+ if(u.kind===0&&previous){if(previous.sales<d.unlockNeedSales)details.push(`${previous.sales}/${d.unlockNeedSales} ventes dans ${CATALOG[previous.id].name.toLowerCase()}.`);if(previous.sourceLevel<2||previous.processorLevel<2||previous.finisherLevel<2||previous.transportLevel<1)details.push(`Niveaux précédents : récolte ${previous.sourceLevel}/2, transformation ${previous.processorLevel}/2, finition ${previous.finisherLevel}/2, convoyeur ${previous.transportLevel}/1.`);}
  if(live.money<u.cost)details.push(`${Math.ceil(u.cost-live.money)} pièces manquantes.`);
  return details.join(' ')||'Prérequis remplis.';
 }
@@ -93,7 +181,7 @@ export function updateDistrictUI(s){
  $('district-resources').textContent=`${Math.floor(s.money)} pièces ✦ · ${count}/${districts.length} quartiers ouverts · maîtrise ${s.prestige||0}`;
  const next=districts.find(d=>!d.unlocked);
  if(next){const previous=districts.find(d=>d.id===next.id-1),u=upgrades.find(u=>u.district===next.id&&u.kind===0);nextNodes.title.textContent=`PROCHAINE ROUTE · ${CATALOG[next.id].name}`;nextNodes.text.textContent=`${CATALOG[next.id].story} ${missingText(u,next,previous)}`;nextNodes.open.textContent=`Ouvrir · ${u?.cost??next.unlockCost} ✦`;nextNodes.open.disabled=!u?.canBuy;nextNodes.controls.hidden=false;}
- else {const prestige=s.prestige||0,target=100+80*Math.min(prestige,1000),ready=districts.filter(d=>d.mastered&&d.sales>=target).length;nextNodes.title.textContent=`PROCHAIN PALIER · MAÎTRISE ${prestige+1}`;nextNodes.text.textContent=`Chaque quartier doit atteindre ${target} ventes et maîtriser récolte, transformation et finition au niveau 3, convoyeur au niveau 1. ${ready}/8 quartiers remplissent ces conditions. Le palier se valide automatiquement et conserve vos stocks.${prestige<20?' Il ajoute 10 % du prix de base à toutes les ventes.':''}${prestige<12?' Les bêtes suivantes deviennent aussi plus résistantes.':' Les expéditions affrontent les créatures renforcées.'}`;nextNodes.controls.hidden=true;}
+ else {const prestige=s.prestige||0,target=100+80*Math.min(prestige,1000),ready=districts.filter(d=>d.mastered&&d.sales>=target).length;nextNodes.title.textContent=`PROCHAIN PALIER · MAÎTRISE ${prestige+1}`;nextNodes.text.textContent=`Chaque quartier doit atteindre ${target} ventes et maîtriser récolte, transformation et finition au niveau 2, convoyeur au niveau 1. ${ready}/8 quartiers remplissent ces conditions. Le palier se valide automatiquement et conserve vos stocks.${prestige<20?' Il ajoute 10 % du prix de base à toutes les ventes.':''}${prestige<12?' Les bêtes suivantes deviennent aussi plus résistantes.':' Les expéditions affrontent les créatures renforcées.'}`;nextNodes.controls.hidden=true;}
  for(const d of districts){const nodes=cards.get(d.id)||createCard(d);const entry=CATALOG[d.id],previous=districts.find(x=>x.id===d.id-1);
  nodes.card.classList.toggle('locked',!d.unlocked);nodes.state.textContent=d.unlocked?`${entry.activity} · ${d.mastered?'MAÎTRISÉ':'EN ACTIVITÉ'}`:`QUARTIER ${d.id+1} · ROUTE À OUVRIR`;
  nodes.stocks.hidden=!d.unlocked;nodes.controls.hidden=!d.unlocked;nodes.mastery.hidden=!d.unlocked;

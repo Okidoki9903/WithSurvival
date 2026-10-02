@@ -7,17 +7,17 @@ const unlockObjects=[];
 let selectedContext=null;
 export function setSelectedDistrictContext(record){selectedContext=record;}
 let workerBatch,beastBatch,giantBatch,attackBatch,lootBatch,cargoBatch;
-let monsterHPBack,monsterHPFill;
+let monsterHPBack,monsterHPFill,marketMoneyBatch;
 const playerResourceStacks=[];
 const definitions=[
   {name:'Port des brumes',short:'PORT',chain:['Pêche','Filetage','Fumoir','Marché marin'],color:'#72cbd5',kind:'fish'},
   {name:'Champs dorés',short:'MOISSONS',chain:['Blé','Moulin','Boulangerie','Étal du pain'],color:'#e4bf69',kind:'grain'},
   {name:'Verger des sources',short:'VERGER',chain:['Pommes','Pressoir','Confiturerie','Épicerie'],color:'#d89372',kind:'fruit'},
-  {name:'Mine de cuivre',short:'FORGES',chain:['Minerai','Fonderie','Forge','Armurerie'],color:'#db9770',kind:'ore'},
+  {name:'Scierie',short:'BOIS',chain:['Bûches','Scierie','Menuiserie','Meubles'],color:'#edc399',kind:'wood'},
   {name:'Terres du ranch',short:'RANCH',chain:['Chasse aux bêtes','Découpe','Tannerie','Sellerie'],color:'#bfa378',kind:'ranch'},
-  {name:'Jardin alchimique',short:'CRISTAUX',chain:['Cristaux','Broyeur','Alchimie','Apothicaire'],color:'#86dcca',kind:'crystal'},
-  {name:'Ruines des géants',short:'ANCIENS',chain:['Vestiges','Nettoyage','Atelier reliques','Musée'],color:'#b59bdd',kind:'relic'},
-  {name:'Quartier citadelle',short:'CITADELLE',chain:['Minerai rare','Alliages','Couronnes','Grand bazar'],color:'#e2c68c',kind:'ore'},
+  {name:'Mine',short:'MINE',chain:['Minerai','Fonderie','Forge','Outils'],color:'#b9d9e6',kind:'ore'},
+  {name:'Grandes bêtes',short:'CHASSE',chain:['Chasse','Découpe','Cuisine','Repas'],color:'#edc299',kind:'ranch'},
+  {name:'Atelier métal',short:'ATELIER',chain:['Fer','Fonderie','Assemblage','Équipements'],color:'#b9d9e6',kind:'ore'},
 ];
 export function initDistrictWorld({THREE,scene,materials={}}){
   T=THREE;world=scene;root=new T.Group();root.name='district-world';world.add(root);
@@ -27,17 +27,15 @@ export function initDistrictWorld({THREE,scene,materials={}}){
   workerBatch=batch(mergeGeometries([part(box(.36,.5,.26),'#80adab',0,.68,0),part(sphere(.17),'#e2b38d',0,1.08,0),part(cone(.25,.18,8),'#d4b978',0,1.24,0),part(box(.14,.38,.17),'#4a646e',-.11,.23,0),part(box(.14,.38,.17),'#4a646e',.11,.23,0),part(box(.3,.32,.17),'#b08b60',0,.72,-.25)],false));
   beastBatch=batch(mergeGeometries([part(sphere(.66),'#a5a195',0,1.08,0,0,0,0,1.1,.9,1.4),part(sphere(.44),'#cec7ac',0,1.35,.95),part(cone(.13,.65,6),'#e7d9ad',-.27,1.85,.92,0,0,-.5),part(cone(.13,.65,6),'#e7d9ad',.27,1.85,.92,0,0,.5),...[[-.42,.55],[.42,.55],[-.42,-.55],[.42,-.55]].map(([x,z])=>part(box(.26,.8,.28),'#777b70',x,.4,z))],false));
   giantBatch=batch(mergeGeometries([part(new T.DodecahedronGeometry(.95,0),'#9188a5',0,1.85,0,0,0,0,1,1.2,.7),part(new T.IcosahedronGeometry(.49,0),'#c7b799',0,3.2,0),part(box(.55,1.4,.58),'#6e7686',-.52,.7,0),part(box(.55,1.4,.58),'#6e7686',.52,.7,0),part(new T.DodecahedronGeometry(.43,0),'#8a839c',-1.15,1.6,0,0,0,.2,1,1.8,1),part(new T.DodecahedronGeometry(.43,0),'#8a839c',1.15,1.6,0,0,0,-.2,1,1.8,1),part(box(.55,.09,.06),'#dfb979',0,3.22,.44)],false));
+  giantBatch.geometry.dispose();giantBatch.geometry=beastBatch.geometry.clone().scale(1.6,1.6,1.6);
   attackBatch=new T.InstancedMesh(new T.RingGeometry(.9,1.1,24),new T.MeshBasicMaterial({color:'#ffa26b',side:T.DoubleSide,transparent:true,opacity:.8,depthWrite:false}),128);attackBatch.count=0;attackBatch.frustumCulled=false;world.add(attackBatch);
   lootBatch=batch(part(sphere(.17),'#e2c799',0,0,0,0,0,0,1.3,.8,1));
   cargoBatch=batch(part(box(.3,.22,.3),'#dac6a1'));
   monsterHPBack=new T.InstancedMesh(new T.PlaneGeometry(1.08,.15),new T.MeshBasicMaterial({color:'#263d42',depthTest:false}),8);
   monsterHPFill=new T.InstancedMesh(new T.PlaneGeometry(1,.09),new T.MeshBasicMaterial({color:'#f49970',depthTest:false}),8);
   for(const bar of[monsterHPBack,monsterHPFill]){bar.count=0;bar.frustumCulled=false;bar.renderOrder=11;world.add(bar);}
-  for(const def of definitions){const stack=new T.InstancedMesh(resourceGeometry(def.kind),mats.vertex,12);stack.count=0;stack.frustumCulled=false;stack.castShadow=true;world.add(stack);playerResourceStacks.push(stack);}
-  // The promenade visibly connects the original town to the first unlocked port.
-  const promenade=new T.Group();root.add(promenade);
-  block(promenade,3,.025,13.4,0,.026,13.3,mats.path);
-  combine([part(box(.12,.1,13.4),'#b1bd9d',-1.6,.08,13.3),part(box(.12,.1,13.4),'#b1bd9d',1.6,.08,13.3)],promenade);
+  for(const def of definitions){const variants=[];for(let stage=0;stage<3;stage++){const stack=new T.InstancedMesh(resourceGeometry(def.kind,stage),mats.vertex,64);stack.count=0;stack.frustumCulled=false;stack.castShadow=true;world.add(stack);variants.push(stack);}playerResourceStacks.push(variants);}
+  marketMoneyBatch=new T.InstancedMesh(mergeGeometries([part(box(.6,.09,.32),'#40de44'),part(box(.13,.095,.33),'#b9f3ac')],false),mats.vertex,512);marketMoneyBatch.count=0;marketMoneyBatch.frustumCulled=false;marketMoneyBatch.castShadow=true;world.add(marketMoneyBatch);
   return root;
 }
 const box=(w,h,d)=>new T.BoxGeometry(w,h,d),cyl=(r,h,s=10)=>new T.CylinderGeometry(r,r,h,s),sphere=(r,s=8)=>new T.SphereGeometry(r,s,6),cone=(r,h,s=8)=>new T.ConeGeometry(r,h,s);
@@ -69,6 +67,13 @@ function updateContextLabel(m,distance,showText,icon){
 }
 function roof(g,x,y,z,w,d){for(const side of[-1,1]){const m=block(g,w*.64,.12,d,x+side*w*.23,y,z,mats.roof);m.rotation.z=-side*.55;}}
 function resourceGeometry(kind,stage=0){
+  if(stage>0){
+    if(kind==='fish'||kind==='ranch')return mergeGeometries([part(cyl(.31,.09,12),'#dceaf0'),part(cyl(.25,.11,12),stage===1?'#ee8064':'#d69458',0,.03,0),part(box(.37,.02,.04),'#f6d4ad',0,.1,-.08,0,.4),part(box(.37,.02,.04),'#f6d4ad',0,.1,.07,0,.4)],false);
+    if(kind==='grain')return stage===1?part(box(.35,.36,.26),'#e7dec4'):part(sphere(.21),'#daa06a',0,0,0,0,0,0,1.4,.65,1);
+    if(kind==='fruit')return mergeGeometries([part(cyl(.14,.3,8),stage===1?'#f0ba74':'#d57d70'),part(cyl(.15,.055,8),'#d6c8a5',0,.18,0)],false);
+    if(kind==='wood')return stage===1?part(box(.52,.12,.28),'#d7a774'):mergeGeometries([part(box(.42,.28,.35),'#c59160'),part(box(.45,.07,.37),'#e2b581',0,.17,0)],false);
+    if(kind==='ore')return stage===1?part(box(.42,.15,.25),'#b6c4ca'):mergeGeometries([part(cyl(.035,.4,6),'#b69872',0,-.07,0),part(box(.33,.13,.15),'#8aa4b5',0,.15,0)],false);
+  }
   if(kind==='fish')return mergeGeometries([part(sphere(.16),'#85dbe1',0,0,0,0,0,0,1.8,.7,.8),part(cone(.17,.25,3),'#7bc3d3',-.3,0,0,0,0,Math.PI/2),part(sphere(.025),'#1f3940',.2,.03,.1)],false);
   if(kind==='grain')return mergeGeometries([part(cyl(.035,.45,5),'#ad8b48',0,.15,0),part(sphere(.1),'#edd185',0,.35,0,0,0,0,.8,1.5,.6)],false);
   if(kind==='fruit')return mergeGeometries([part(sphere(.17),'#dc8267'),part(cone(.055,.14,4),'#70926b',.02,.2,0)],false);
@@ -79,12 +84,16 @@ function resourceGeometry(kind,stage=0){
   return part(box(.35,.08,.27),'#c39578',0,0,0,0,0,.1);
 }
 function station(g,def,stage,x,z,level){
+  if(stage>0&&level===0){
+    const points=[[-1.3,-1.1],[1.3,-1.1],[1.3,1.1],[-1.3,1.1],[-1.3,-1.1]].map(([dx,dz])=>new T.Vector3(x+dx,.065,z+dz));
+    const line=new T.Line(new T.BufferGeometry().setFromPoints(points),new T.LineDashedMaterial({color:'#ffffff',dashSize:.19,gapSize:.12}));line.computeLineDistances();g.add(line);g.userData.ownedMaterials.push(line.material);return;
+  }
   const h=1.1+Math.min(level,4)*.15,parts=[],kind=def.kind;
   // Workstations retain distinct silhouettes, even from the mobile camera.
   if(stage===0){
     if(kind==='fish'){
-      block(g,3,.09,3,x,.012,z,mats.water);block(g,1.25,.12,3.4,x,.16,z,mats.wood);
-      for(const side of[-1,1]){parts.push(part(cyl(.055,1.9,6),'#bb9671',x+side*.5,1.08,z-1.3,0,0,side*.18));parts.push(part(box(.6,.07,.2),'#759db0',x+side*.5,1.5,z-1.3));}
+      block(g,3.4,.12,1.3,x-1.1,.16,z,mats.wood);
+      for(const side of[-1,1]){parts.push(part(cyl(.055,1.9,6),'#bb9671',x-.6,1.08,z+side*.48,0,0,-.35));parts.push(part(box(.6,.07,.2),'#759db0',x-.9,1.5,z+side*.48));}
       parts.push(part(cyl(.43,.8,10),'#6d5745',x+.8,.5,z+.65));
       if(level>=1){
         for(let k=0;k<7;k++){parts.push(part(box(2,.025,.025),'#d6d8c7',x,.22,z+.15+k*.25));parts.push(part(box(.025,.025,1.5),'#d6d8c7',x-1+k*.33,.22,z+.9));}
@@ -94,8 +103,10 @@ function station(g,def,stage,x,z,level){
     }else if(kind==='grain'){
       block(g,3,.13,3,x,.08,z,mats.wood);
       for(let i=0;i<36;i++)parts.push(part(cone(.1,.55+(i%3)*.1,5),'#dcc172',x-1.2+(i%6)*.48,.42,z-1.2+Math.floor(i/6)*.48));
-    }else if(kind==='fruit'||kind==='wood'){
-      for(const side of[-1,1]){parts.push(part(cyl(.16,1.8,7),'#806347',x+side*.85,.9,z));parts.push(part(sphere(.75),kind==='wood'?'#678d71':'#8ead70',x+side*.85,2,z,0,0,0,1,1.1,1));if(kind==='fruit')for(let i=0;i<5;i++)parts.push(part(sphere(.11),'#d48661',x+side*.85+Math.sin(i)*.5,1.85+(i%2)*.25,z+Math.cos(i)*.5));}
+    }else if(kind==='wood'){
+      // The reserved grove is rendered separately, behind the harvesting point.
+    }else if(kind==='fruit'){
+      for(const side of[-1,1]){parts.push(part(cyl(.16,1.8,7),'#806347',x+side*.85,.9,z));parts.push(part(sphere(.75),'#8ead70',x+side*.85,2,z,0,0,0,1,1.1,1));for(let i=0;i<5;i++)parts.push(part(sphere(.11),'#d48661',x+side*.85+Math.sin(i)*.5,1.85+(i%2)*.25,z+Math.cos(i)*.5));}
     }else if(kind==='ranch'){
       for(const dx of[-1.4,1.4])for(const dz of[-1.2,1.2])parts.push(part(cyl(.07,.9,6),'#a18b67',x+dx,.45,z+dz));
       parts.push(part(box(3,.09,.09),'#c5ab7a',x,.65,z-1.2));parts.push(part(box(3,.09,.09),'#c5ab7a',x,.65,z+1.2));
@@ -123,7 +134,6 @@ function station(g,def,stage,x,z,level){
     parts.push(part(cone(.48,.9,5),'#bdb0da',x,2.05,z-.55));
   }else if(stage===3){
     block(g,2.5,h,1.9,x,h/2,z,mats.wood);roof(g,x,h+.3,z,3,2.6);block(g,2.7,.1,.8,x,.8,z+1.05,mats.wood);
-    for(let i=0;i<5;i++)parts.push(part(resourceGeometry(kind,1), def.color,x-.8+i*.4,1,z+1.15));
     parts.push(part(box(.6,.7,.05),'#9cb2a6',x,h*.63,z+.98));
   }else{
     block(g,2.2,.18,1.8,x,.76,z,mats.wood);
@@ -139,7 +149,7 @@ function station(g,def,stage,x,z,level){
   if(level>0&&!(kind==='fish'&&stage===0))combine([part(cyl(.18,.9,8),'#c6a277',x+1.1,.65,z-.5),part(cyl(.1,.8,6),'#93a8a3',x+1.1,1.38,z-.5),part(sphere(.09),'#ade1c7',x+1.1,1.85,z-.5)],g);
   const label=textPlane(g,def.chain[stage]+' · '+level,x,stage===0?1.9:2.3,z-.65,def.color,2.3);label.userData.stationStage=stage;
 }
-function dispose(group){group.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material?.map&&o.material.type==='MeshBasicMaterial'){o.material.map.dispose();o.material.dispose();}});for(const mat of group.userData.ownedMaterials||[])mat.dispose();root.remove(group);}
+function dispose(group){group.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material?.map&&(o.material.type==='MeshBasicMaterial'||o.material.type==='SpriteMaterial')){o.material.map.dispose();o.material.dispose();}});for(const mat of group.userData.ownedMaterials||[])mat.dispose();root.remove(group);}
 function districtLayout(d,index){const z0=d.z0??20+22*index,z1=d.z1??z0+20;return {x:((d.x0??-18)+(d.x1??18))/2,z:(z0+z1)/2,tileX:d.tileX??0,tileZ:d.tileZ??(index?z0-4:4.3)};}
 function districtFloorTexture(index){
   const biome={3:1,5:2,6:3}[index];
@@ -157,15 +167,16 @@ function createDistrict(d,index){
   if(unlocked)terrain.userData.districtTerrain=true;
   g.userData.terrain=unlocked?terrain:null;
   g.userData.ownedMaterials=unlocked?[terrain]:[];
-  if(unlocked)terrain.color.set(['#a8bec0','#e1d495','#c8d7ac','#c7a185','#bdc599','#a1c5b6','#b9b0c2','#c7beaa'][index]||'#ffffff');
-  if(unlocked){const tex=districtFloorTexture(index);if(tex){terrain.map=tex;if([3,5,6,7].includes(index))terrain.color.set('#ffffff');}}
-  if(unlocked){
-    const calmColors=['#90b6b0','#d9c6a0','#a4bb95','#bd9c87','#adae97','#90b8ae','#a198b4','#b6b4aa'],c=new T.Color(calmColors[index]);
-    terrain.onBeforeCompile=shader=>{shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>',`#include <map_fragment>\n diffuseColor.rgb = mix(diffuseColor.rgb, vec3(${c.r.toFixed(4)},${c.g.toFixed(4)},${c.b.toFixed(4)}), 0.55);`);};terrain.customProgramCacheKey=()=>`district-calm-${index}`;
-  }
+  if(unlocked){terrain.map=null;terrain.color.set('#dda88e');}
   block(g,w,.025,h,0,.006,0,terrain);
   const frame=[];for(const side of[-1,1]){frame.push(part(box(w,.07,.07),unlocked?def.color:'#879b9c',0,.09,side*h/2));frame.push(part(box(.07,.07,h),unlocked?def.color:'#879b9c',side*w/2,.09,0));}
   combine(frame,g);
+  const logs=[];
+  for(const side of[-1,1]){
+    for(let z=-h/2;z<=h/2;z+=.42){logs.push(part(cyl(.17,.94,8),'#d89562',side*w/2,.47,z));logs.push(part(cyl(.17,.06,8),'#edf2fa',side*w/2,.97,z));}
+    for(let x=-w/2;x<=w/2;x+=.42){if(Math.abs(x)<2)continue;logs.push(part(cyl(.17,.94,8),'#d89562',x,.47,side*h/2));logs.push(part(cyl(.17,.06,8),'#edf2fa',x,.97,side*h/2));}
+  }
+  combine(logs,g);
   const titleY=2.5;
   const title=textPlane(g,def.short,0,titleY,-h/2+.2,def.color,4.2);title.userData.districtTitle=true;
   combine([part(box(.15,titleY,.15),'#8e7859',-2.3,titleY/2,-h/2+.2),part(box(.15,titleY,.15),'#8e7859',2.3,titleY/2,-h/2+.2),part(box(4.8,.12,.16),'#b1a17d',0,titleY+.43,-h/2+.2)],g);
@@ -174,15 +185,24 @@ function createDistrict(d,index){
   const stations=d.stationLevels||d.levels||[d.sourceLevel||0,d.processorLevel||0,d.finisherLevel||0,d.marketLevel||0];
   const locations=[[d.sourceX??-10,d.sourceZ??p.z-5],[d.processorX??-3,d.processorZ??p.z-5],[d.finisherX??4,d.finisherZ??p.z-5],[d.marketX??11,d.marketZ??p.z-5]].map(([x,z])=>[x-p.x,z-p.z]);
   if(unlocked){
+    if(def.kind==='wood'){
+      const treeGeo=mergeGeometries([part(cyl(.13,1.15,8),'#9b7658',0,.575,0),part(cone(.65,1.05,8),'#748f7b',0,1.13,0),part(cone(.63,.72,8),'#edf2f8',0,1.35,0),part(cone(.45,.7,8),'#edf2f8',0,1.83,0)],false);
+      const grove=new T.InstancedMesh(treeGeo,mats.vertex,12);grove.count=0;grove.frustumCulled=false;grove.castShadow=true;grove.receiveShadow=true;g.add(grove);g.userData.sourceGrove=grove;
+    }
     for(let k=0;k<Math.min(5,d.storageLevel||0);k++)block(g,.7,.5,.7,-w/2+1.2+k*.85,.28,h/2-1.2,mats.wood);
     if(index===0){
-      block(g,w-2,.018,7,0,.028,4.8,mats.water);
-      block(g,2.2,.16,7,-10,.18,3.8,mats.wood);
-      block(g,2.1,.025,8,0,.052,4.8,mats.wood);
-      combine([part(box(2.2,.45,4),'#a18761',9,.3,4.5),part(cyl(.07,3.6,8),'#d1ba8b',9,2.2,4.5),part(box(.025,2.1,1.7),'#e9dac0',9,2.5,4.3,0,0,.18)],g);
+      const[sourceX,sourceZ]=locations[0];
+      block(g,6,.018,8,sourceX-4,.04,sourceZ,mats.water);
+      const fish=new T.InstancedMesh(resourceGeometry('fish'),mats.vertex,32);fish.count=0;fish.frustumCulled=false;g.add(fish);g.userData.sourceFish=fish;
     }
     block(g,w-1,.01,1.5,0,.025,-1.5,mats.path);block(g,2,.01,h-1,0,.025,0,mats.path);
     for(let i=0;i<4;i++)station(g,def,i,...locations[i],stations[i]||0);
+    if(d.marketLevel>0){
+      const customer=new T.Group();const[marketX,marketZ]=locations[3];customer.position.set(marketX,.02,marketZ+2.8);customer.rotation.y=Math.PI;
+      combine([part(box(.32,.46,.24),'#44a2cb',0,.64,0),part(sphere(.18),'#edc8a4',0,1.02,.03),part(sphere(.22),'#e7edf2',0,1.14,-.02,0,0,0,1,.65,1),part(box(.14,.37,.17),'#354e69',-.1,.23,0),part(box(.14,.37,.17),'#354e69',.1,.23,0)],customer);g.add(customer);g.userData.consumer=customer;g.userData.lastSales=d.sales;g.userData.salePulse=0;
+      const c=document.createElement('canvas');c.width=c.height=128;const ctx=c.getContext('2d');ctx.fillStyle='#ffffff';ctx.beginPath();ctx.arc(64,64,60,0,Math.PI*2);ctx.fill();ctx.fillStyle='#32536a';ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='52px "Segoe UI Emoji",system-ui';ctx.fillText(['🍖','🍞','🍯','🪑','🍖','🛠','🍖','⚙'][index],64,43);ctx.font='bold 32px system-ui';ctx.fillText('× 1',64,94);
+      const tex=new T.CanvasTexture(c);tex.colorSpace=T.SRGBColorSpace;const bubble=new T.Sprite(new T.SpriteMaterial({map:tex,depthWrite:false}));bubble.position.set(marketX,1.8,marketZ+2.8);bubble.scale.set(.65,.65,1);g.add(bubble);g.userData.demandBubble=bubble;
+    }
     const conveyorSegments=[];if(d.transportLevel>=1)conveyorSegments.push([locations[1],locations[2]]);if(d.transportLevel>=2)conveyorSegments.push([locations[2],locations[3]]);
     for(const [a,b] of conveyorSegments){
       const length=Math.hypot(b[0]-a[0],b[1]-a[1]),belt=block(g,.35,.09,length,(a[0]+b[0])/2,.14,(a[1]+b[1])/2,mats.belt);belt.rotation.y=Math.atan2(b[0]-a[0],b[1]-a[1]);
@@ -190,7 +210,7 @@ function createDistrict(d,index){
   }else{
     const ghosts=[];for(const[x,z]of locations)ghosts.push(part(box(2.2,1.2,1.8),'#899e9d',x,.6,z));const ghost=mesh(mergeGeometries(ghosts,false),mats.locked,false);g.add(ghost);
   }
-  const goods=new T.InstancedMesh(resourceGeometry(def.kind),mats.vertex,64);goods.count=0;goods.userData.unlocked=unlocked;goods.castShadow=true;goods.frustumCulled=false;g.add(goods);g.userData.goods=goods;g.userData.locations=locations;g.userData.data=d;return g;
+  const goods=[];for(let stage=0;stage<3;stage++){const batch=new T.InstancedMesh(resourceGeometry(def.kind,stage),mats.vertex,64);batch.count=0;batch.userData.unlocked=unlocked;batch.castShadow=true;batch.frustumCulled=false;g.add(batch);goods.push(batch);}g.userData.goods=goods;g.userData.locations=locations;g.userData.data=d;return g;
 }
 export function updateDistrictWorld(s,dt){
   if(!root)return;
@@ -205,15 +225,16 @@ export function updateDistrictWorld(s,dt){
     }
     groups[i].visible=i<=highest+1;
     const terrain=groups[i].userData.terrain;
-    const floorTexture=districtFloorTexture(i);
+    const floorTexture=null;
     if(terrain&&floorTexture&&terrain.map!==floorTexture){terrain.map=floorTexture;if([3,5,6,7].includes(i))terrain.color.set('#ffffff');terrain.needsUpdate=true;}
   }
   const time=s.worldTime||s.time||0,matrix=new T.Matrix4(),q=new T.Quaternion();
-  for(const stack of playerResourceStacks)stack.count=0;
+  for(const variants of playerResourceStacks)for(const stack of variants)stack.count=0;
   if(s.carryN>0&&s.player){
-    const stack=playerResourceStacks[Math.max(0,Math.min(7,s.carryDistrict||0))],p=s.player,angle=p.angle||0;stack.count=Math.min(12,s.carryN);q.setFromAxisAngle(new T.Vector3(0,1,0),angle);
-    for(let k=0;k<stack.count;k++){matrix.compose(new T.Vector3(p.x-Math.sin(angle)*.43,.65+k*.2+(p.moving?Math.sin(time*9)*.03:0),p.z-Math.cos(angle)*.43),q,new T.Vector3(1,1,1));stack.setMatrixAt(k,matrix);}stack.instanceMatrix.needsUpdate=true;
+    const stack=playerResourceStacks[Math.max(0,Math.min(7,s.carryDistrict||0))][Math.max(0,Math.min(2,(s.carryKind||1)-1))],p=s.player,angle=p.angle||0;stack.count=Math.min(64,s.carryN);q.setFromAxisAngle(new T.Vector3(0,1,0),angle);
+    for(let k=0;k<stack.count;k++){matrix.compose(new T.Vector3(p.x-Math.sin(angle)*.43,.65+k*.13+(p.moving?Math.sin(time*9)*.03:0),p.z-Math.cos(angle)*.43),q,new T.Vector3(1,1,1));stack.setMatrixAt(k,matrix);}stack.instanceMatrix.needsUpdate=true;
   }
+  let moneyCount=0;q.identity();for(const bank of s.marketCash||[]){for(let k=0;k<Math.min(64,Math.floor(bank.cash||0));k++){matrix.compose(new T.Vector3(bank.x,.12+k*.095,bank.z),q,new T.Vector3(1,1,1));marketMoneyBatch.setMatrixAt(moneyCount++,matrix);}}marketMoneyBatch.count=moneyCount;marketMoneyBatch.instanceMatrix.needsUpdate=true;
   const workers=s.districtWorkers||[];workerBatch.count=Math.min(128,workers.length);
   let cargo=0;
   for(let k=0;k<workerBatch.count;k++){const w=workers[k];q.setFromAxisAngle(new T.Vector3(0,1,0),w.angle||0);matrix.compose(new T.Vector3(w.x,Math.abs(Math.sin(time*9+k))*.05,w.z),q,new T.Vector3(1,1,1));workerBatch.setMatrixAt(k,matrix);if(w.carryN>0){matrix.compose(new T.Vector3(w.x,.84,w.z+.28),q,new T.Vector3(1,1,1));cargoBatch.setMatrixAt(cargo++,matrix);}}workerBatch.instanceMatrix.needsUpdate=true;cargoBatch.count=cargo;cargoBatch.instanceMatrix.needsUpdate=true;
@@ -231,19 +252,28 @@ export function updateDistrictWorld(s,dt){
       if(o.userData.contextLabel){
         const distance=Math.hypot(g.position.x+o.position.x-s.player.x,g.position.z+o.position.z-s.player.z),stage=o.userData.stationStage;
         const selected=selectedContext?.district===i&&(selectedContext.kind===[1,2,3,8][stage]||selectedContext.category===['raw','mid','finished','market'][stage]);
-        const icon=o.userData.districtTitle?'⌂':stage===0?['🐟','🌾','🍎','🪨','🥩','💎','🏺','🪨'][i]:['','⚙','♨','●'][stage];
+        const icon=o.userData.districtTitle?'⌂':stage===0?['🐟','🌾','🍎','🪵','🥩','🪨','🥩','🔩'][i]:['','⚙','♨','●'][stage];
         updateContextLabel(o,distance,o.userData.districtTitle||selected&&distance<=4,icon);
       }
     });
-    if(!goods.userData.unlocked)continue;
-    const stocks=[d.rawOut||0,d.midOut||0,d.finishedOut||0,d.marketIn||0];let count=0;
+    if(g.userData.consumer){if(g.userData.lastSales!==d.sales){g.userData.lastSales=d.sales;g.userData.salePulse=.6;}g.userData.salePulse=Math.max(0,g.userData.salePulse-dt);g.userData.consumer.position.y=.02+Math.sin(g.userData.salePulse*9)*g.userData.salePulse*.15;const c=g.userData.consumer.position;g.userData.demandBubble.visible=Math.hypot(g.position.x+c.x-s.player.x,g.position.z+c.z-s.player.z)<8;}
+    if(g.userData.sourceFish){
+      const fish=g.userData.sourceFish,[sourceX,sourceZ]=locations[0];fish.count=Math.min(32,Math.max(0,Math.floor(d.sourceReserve||0)));
+      for(let k=0;k<fish.count;k++){const phase=time*.38+k*2.399,x=sourceX-4+Math.sin(phase)*2.2,z=sourceZ+Math.cos(phase*.73+k)*3.35,angle=-Math.atan2(Math.sin(phase*.73+k)*.73*3.35,Math.cos(phase)*2.2);q.setFromAxisAngle(new T.Vector3(0,1,0),angle);matrix.compose(new T.Vector3(x,.073,z),q,new T.Vector3(1.25,1.25,1.25));fish.setMatrixAt(k,matrix);}fish.instanceMatrix.needsUpdate=true;q.identity();
+    }
+    if(g.userData.sourceGrove){
+      const grove=g.userData.sourceGrove,[sourceX,sourceZ]=locations[0];grove.count=Math.min(12,Math.max(0,Math.floor(d.sourceReserve||0)));q.identity();
+      for(let k=0;k<grove.count;k++){const row=Math.floor(k/4),scale=.83+(k%3)*.06;matrix.compose(new T.Vector3(sourceX+(k%4-1.5)*1.25,0,sourceZ-2.3-row*.9),q,new T.Vector3(scale,scale,scale));grove.setMatrixAt(k,matrix);}grove.instanceMatrix.needsUpdate=true;
+    }
+    if(!goods[0].userData.unlocked)continue;for(const batch of goods)batch.count=0;
+    const stocks=[d.rawOut||0,d.midOut||0,d.finishedOut||0,d.marketIn||0];
     for(let segment=0;segment<4;segment++)for(let k=0;k<Math.min(16,stocks[segment]);k++){
       const a=locations[segment],b=locations[Math.min(3,segment+1)],automated=segment===1?d.transportLevel>=1:segment===2?d.transportLevel>=2:false;
       let x=a[0]+(k%4-.5)*.23,z=a[1]+(segment===0?1.6:2.5)+Math.floor(k%8/4)*.22,y=.3+Math.floor(k/8)*.27;
       if(automated&&k<2){const t=(time*.16+k*.5)%1;x=T.MathUtils.lerp(a[0],b[0],t);z=T.MathUtils.lerp(a[1],b[1],t);y=.43;}
-      matrix.compose(new T.Vector3(x,y,z),q,new T.Vector3(1.35,1.35,1.35));goods.setMatrixAt(count++,matrix);
+      matrix.compose(new T.Vector3(x,y,z),q,new T.Vector3(1.35,1.35,1.35));const batch=goods[Math.min(2,segment)];batch.setMatrixAt(batch.count++,matrix);
     }
-    goods.count=count;goods.instanceMatrix.needsUpdate=true;
+    for(const batch of goods)batch.instanceMatrix.needsUpdate=true;
   }
 }
 export function pickDistrictUnlock(raycaster){const hit=raycaster.intersectObjects(unlockObjects.filter(o=>o.parent.visible),false)[0];return hit?hit.object.userData.districtIndex:null;}

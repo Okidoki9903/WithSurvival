@@ -354,7 +354,7 @@ impl Game {
     pub fn town_cost(&self) -> u32 { [180, 450, 900, 1600].get(self.tier as usize).copied().unwrap_or(0) }
     pub fn unlocked_regions(&self) -> u32 { (1 + self.tier).min(4) }
     fn region_hp(&self) -> f32 { [3.0, 5.0, 9.0, 15.0][self.region as usize]*(1.0+0.12*(self.contracts_done/5).min(12) as f32) }
-    fn camp(&self) -> Rect { Rect { x0: -self.camp_radius(), x1: self.camp_radius(), z1:6.6+4.0*self.enclosure as f32, ..CAMP } }
+    fn camp(&self) -> Rect { Rect { x0: -self.camp_radius(), x1: self.camp_radius(), z1:6.6, ..CAMP } }
     pub fn storage_cap(&self)->u32 { 30+40*self.buildings[4] }
     fn contract_target(&self)->u32 { [12,6,8,10,1][self.contract_kind() as usize]+if self.contract_kind()==4 {0} else {(self.contracts_done/5).min(20)*2} }
     fn contract_reward(&self)->u32 { 120+80*self.buildings[3]+self.contracts_done.min(20)*25 }
@@ -395,15 +395,7 @@ impl Game {
         })
     }
     // A settlement needs actual space and specialized services to grow.
-    fn missing_dependency(&self,kind:u32)->u32 {
-        if kind!=6 {return 0;}
-        match self.tier {
-            1=>if self.enclosure<1 {7} else if self.buildings[4]<1 {16} else {0},
-            2=>if self.enclosure<2 {7} else if self.buildings[1]<1 {13} else if self.buildings[2]<1 {14} else {0},
-            3=>if self.enclosure<3 {7} else if self.buildings[3]<1 {15} else if self.buildings[4]<2 {16} else {0},
-            _=>0,
-        }
-    }
+    fn missing_dependency(&self,_kind:u32)->u32 {0}
     fn pad_paid(&self,kind:u32)->u32 {
         if kind<=5 {self.pads.iter().find(|p|p.kind as u32==kind).unwrap().paid} else {self.world.base_paid[kind as usize]}
     }
@@ -419,8 +411,6 @@ impl Game {
         }
         if self.tier<tier {return 6;}if self.enclosure<enclosure {return 7;}
         let dep=self.missing_dependency(kind);if dep>0{return dep;}
-        if kind==6&&(self.kills<[3,10,22,40][level as usize]||self.region_kills[level as usize]<3) {return 18;}
-        if kind==8&&self.essence<[0,8,20][level as usize] {return 19;}
         0
     }
     pub fn fund_pad(&mut self,kind:u32)->u32 {
@@ -439,8 +429,7 @@ impl Game {
         let Some(&cost)=costs.get(level as usize) else{return false;};
         (kind>5 || self.pads.iter().find(|p|p.kind as u32==kind).unwrap().visible) && self.money>=cost.saturating_sub(self.pad_paid(kind)) && self.tier>=tier && self.enclosure>=enclosure
         && self.missing_dependency(kind)==0
-        && (kind!=6 || (self.kills>=[3,10,22,40][level as usize] && self.region_kills[level as usize]>=3))
-        && (kind!=8 || self.essence>=[0,8,20][level as usize])
+
     }
     pub fn upgrade(&mut self,kind:u32)->bool {
         if !self.can_upgrade(kind) {return false;}
@@ -457,7 +446,6 @@ impl Game {
             self.push_event([ev::PURCHASE,kind as f32,x,z,0.0,0.0,0.0]);return true;
         }
         self.money-=costs[level as usize].saturating_sub(self.pad_paid(kind));self.set_pad_paid(kind,0);
-        if kind==8 {self.essence-=[0,8,20][level as usize];}
         match kind {
             6=>{self.tier+=1;self.player.hp=self.max_hp();},7=>self.enclosure+=1,
             8=>self.weapon+=1,9=>self.grinder_level+=1,10=>self.kitchen_level+=1,
@@ -564,7 +552,7 @@ impl Game {
         self.dash_t = (self.dash_t-dt).max(0.0);
         self.dash_cd = (self.dash_cd-dt).max(0.0);
         self.update_player(dt, ix, iz);
-        self.world.base_mastered=self.grinder_level>=4&&self.kitchen_level>=4&&self.has_conv1()&&self.has_conv2()&&self.served>=20;
+        self.world.base_mastered=self.has_conv1()&&self.has_conv2()&&self.served>=5;
         let carry_cap=self.capacity().saturating_sub(self.player.stack_n);
         self.world.player_power=(if self.hero() {2.0} else {1.0})+0.8*self.weapon as f32;
         let district_hurt=self.world.tick(dt,self.player.x,self.player.z,carry_cap,&mut self.money,self.player.dead_t<=0.0,self.dash_t>0.0);
@@ -866,7 +854,7 @@ impl Game {
             if self.region==self.contract_region() {self.contract_add(if elite {4} else {1},1);}
             self.essence += 1 + self.region * 2;
             let amount=1+self.region;
-            let direct=if self.world.base_direct_loot()&&self.has_conv1() {amount.min(self.storage_cap().saturating_sub(self.grinder_in))} else {0};
+            let direct=if self.buildings[0]>=2&&self.has_conv1() {amount.min(self.storage_cap().saturating_sub(self.grinder_in))} else {0};
             self.grinder_in+=direct;
             if direct>0 {self.fly(Item::Meat,bx,bz,GRINDER_IN.0,GRINDER_IN.1,false);}
             for j in 0..amount-direct {self.meats.push(Meat{x:bx+j as f32*0.3,z:bz,age:0.0});}
@@ -933,7 +921,7 @@ impl Game {
         let (px, pz) = (self.player.x, self.player.z);
         let period = 0.055;
         // Finished food from the harbor, bakery, and orchard feeds real travelers.
-        if self.near(COUNTER_IN)&&self.counter<self.storage_cap()&&self.world.carry_district<=2&&self.world.carry_stage==3&&self.world.carry_n>0 {
+        if self.near(COUNTER_IN)&&self.counter<self.storage_cap()&&matches!(self.world.carry_district,0|1|2|4|6)&&self.world.carry_stage==3&&self.world.carry_n>0 {
             self.world.carry_n-=1;if self.world.carry_n==0 {self.world.carry_stage=0;}self.counter+=1;
             self.fly(Item::Cooked,px,pz,COUNTER.0-0.6,COUNTER.1-0.3,false);self.player.transfer_cd=period;return;
         }
@@ -1108,7 +1096,7 @@ impl Game {
                             b.alive=false;b.respawn_t=8.0;let elite=b.elite;b.elite=false;self.kills+=1;
                             if self.region==self.contract_region() {self.contract_add(if elite {4} else {1},1);}
                             let amount=1+self.region;
-                            let direct=if self.world.base_direct_loot()&&self.has_conv1() {amount.min(self.storage_cap().saturating_sub(self.grinder_in))} else {0};self.grinder_in+=direct;
+                            let direct=if self.buildings[0]>=2&&self.has_conv1() {amount.min(self.storage_cap().saturating_sub(self.grinder_in))} else {0};self.grinder_in+=direct;
                             for j in 0..amount-direct {self.meats.push(Meat{x:x+j as f32*0.3,z,age:0.0});}
                             self.push_event([ev::BEAR_DIE,x,z,0.0,0.0,0.0,0.0]);
                         }
@@ -1227,7 +1215,7 @@ impl Game {
     }
     pub fn act(&mut self)->u32 {
         if self.player.dead_t>0.0 {return 0;}
-        let result=self.world.act(self.player.x,self.player.z,self.capacity().saturating_sub(self.player.stack_n));if result>0 {return result;}
+        let carry_cap=self.capacity().saturating_sub(self.player.stack_n);let result=self.world.act(self.player.x,self.player.z,carry_cap,&mut self.money);if result>0 {return result;}
         let before=(self.money,self.player.stack_n,self.world.carry_n,self.grinder_in,self.grill_in,self.counter);
         self.player.transfer_cd=0.0;self.update_transfers(0.0);self.update_meat_pickup(0.0);
         if before!=(self.money,self.player.stack_n,self.world.carry_n,self.grinder_in,self.grill_in,self.counter) {return 1;}
@@ -1296,12 +1284,13 @@ impl Game {
         let radius = self.camp_radius();
         let unlocked = self.unlocked_regions();
         let town_cost = self.town_cost();
+        let district_cash=self.world.cash_records();
         let district_export=self.world.export(self.player.x,self.player.z,self.money);
         let upgrade_records:Vec<f32>=(0..=16).flat_map(|kind|{
             let (level,costs,tier,enclosure,x,z)=self.upgrade_spec(kind).unwrap();
             let mut cost=costs.get(level as usize).copied().unwrap_or(0);
             cost=cost.saturating_sub(self.pad_paid(kind));
-            [kind as f32,level as f32,costs.len() as f32,cost as f32,tier as f32,enclosure as f32,(level<costs.len() as u32 && (kind>5 || self.pads.iter().find(|p|p.kind as u32==kind).unwrap().visible)) as u8 as f32,self.can_upgrade(kind) as u8 as f32,x,z,if kind==8 && level<3 {[0.0,8.0,20.0][level as usize]} else {0.0},self.missing_dependency(kind) as f32]
+            [kind as f32,level as f32,costs.len() as f32,cost as f32,tier as f32,enclosure as f32,(level<costs.len() as u32 && (kind>5 || self.pads.iter().find(|p|p.kind as u32==kind).unwrap().visible)) as u8 as f32,self.can_upgrade(kind) as u8 as f32,x,z,0.0,self.missing_dependency(kind) as f32]
         }).collect();
         let storage_cap=self.storage_cap();let contract_target=self.contract_target();let contract_reward=self.contract_reward();
         let contract_kind=self.contract_kind();let contract_region=self.contract_region();
@@ -1391,6 +1380,7 @@ impl Game {
         o.extend_from_slice(&[contract_kind as f32,contract_region as f32,(self.contracts_done/5) as f32,(elite.0>=0.0) as u8 as f32,elite.1,region_hp*4.0,elite.0,self.farm_stock as f32]);
         o.extend_from_slice(&district_export);
         o.extend_from_slice(&[5.0,89.0]);o.extend_from_slice(&pad_records);
+        o.extend_from_slice(&district_cash);
         &self.out
     }
 
@@ -1458,7 +1448,7 @@ impl Game {
             self.grinder_in=stock[0].min(cap);self.grinder_out=stock[1].min(cap);self.grill_in=stock[2].min(cap);self.grill_out=stock[3].min(cap);self.counter=stock[4].min(cap);self.cash_pile=stock[5].min(1_000_000);self.conv1.clear();self.conv2.clear();
             self.player.stack=match stock[6] {1=>Item::Meat,2=>Item::Raw,3=>Item::Cooked,4=>Item::Cash,_=>Item::None};
             self.player.stack_n=stock[7].min(self.capacity());if self.player.stack==Item::None {self.player.stack_n=0;}
-            let x=f32::from_bits(stock[8]);let z=f32::from_bits(stock[9]);if x.is_finite() && z.is_finite() && (self.camp().contains(x,z,0.5) || Self::walkable(x,z) || (x.abs()<18.0&&(20.0..=194.0).contains(&z))) {self.player.x=x;self.player.z=z;}
+            let x=f32::from_bits(stock[8]);let z=f32::from_bits(stock[9]);if x.is_finite() && z.is_finite() && (self.camp().contains(x,z,0.5) || Self::walkable(x,z) || (x.abs()<18.0&&(6.6..=194.0).contains(&z))) {self.player.x=x;self.player.z=z;}
         }
         self.ensure_elite();
         // re-apply reveal chain
@@ -1508,14 +1498,14 @@ pub extern "C" fn pc_act()->u32 {game().act()}
 #[no_mangle]
 pub extern "C" fn pc_fund_pad(scope:u32,district:u32,kind:u32)->u32 {
     let g=game();if g.player.dead_t>0.0 {return 0;}if scope==0 {g.fund_pad(kind)} else if scope==1 {
-        g.world.base_mastered=g.grinder_level>=4&&g.kitchen_level>=4&&g.has_conv1()&&g.has_conv2()&&g.served>=20;
+        g.world.base_mastered=g.has_conv1()&&g.has_conv2()&&g.served>=5;
         g.world.fund_pad(district as usize,kind,g.player.x,g.player.z,&mut g.money)
     } else {0}
 }
 
 #[no_mangle]
 pub extern "C" fn pc_district_upgrade(id:u32,kind:u32)->u32 {
-    let g=game();g.world.base_mastered=g.grinder_level>=4&&g.kitchen_level>=4&&g.has_conv1()&&g.has_conv2()&&g.served>=20;
+    let g=game();g.world.base_mastered=g.has_conv1()&&g.has_conv2()&&g.served>=5;
     let result=g.world.upgrade(id as usize,kind,&mut g.money);
     if result {let (x,z)=districts::World::pad(id as usize,kind);if dist(g.player.x,g.player.z,x,z)<=1.5 {g.world.block_pad(id as usize,kind);}}
     result as u32
@@ -1536,9 +1526,16 @@ pub extern "C" fn pc_world_save()->u32 {
 pub extern "C" fn pc_world_load(len:u32)->u32 {
     let v=unsafe {WORLD_SAVE[..(len as usize).min(4096)].to_vec()};let g=game();
     let result=g.world.load(&v);
-    if result && v.first()==Some(&2) {for p in &mut g.pads {p.paid=g.world.base_paid[p.kind as usize].min(p.cost());}}
-    if result {g.init_fund_latch();}
-    g.world.carry_n=g.world.carry_n.min(g.capacity().saturating_sub(g.player.stack_n));g.world.base_mastered=g.grinder_level>=4&&g.kitchen_level>=4&&g.has_conv1()&&g.has_conv2()&&g.served>=20;result as u32
+    if result && v.first().is_some_and(|version|*version>=2) {for p in &mut g.pads {p.paid=g.world.base_paid[p.kind as usize].min(p.cost());}}
+    if result {
+        if v.first().is_some_and(|version|*version<=2)&&g.player.z>=20.0 {
+            let old_id=((g.player.z-20.0)/22.0).floor() as usize;
+            if old_id<8&&g.world.districts[old_id].unlocked {g.player.z-=13.4+2.0*old_id as f32;}
+        }
+        if !(g.camp().contains(g.player.x,g.player.z,0.5)||Game::walkable(g.player.x,g.player.z)||g.world.walkable(g.player.x,g.player.z)) {g.player.x=0.0;g.player.z=0.0;}
+        g.init_fund_latch();
+    }
+    g.world.carry_n=g.world.carry_n.min(g.capacity().saturating_sub(g.player.stack_n));g.world.base_mastered=g.has_conv1()&&g.has_conv2()&&g.served>=5;result as u32
 }
 
 #[no_mangle]
@@ -1729,9 +1726,9 @@ mod tests {
     }
 
     #[test]
-    fn settlement_requires_hunts_and_unlocks_regions() {
+    fn settlement_cash_unlocks_regions_without_unrelated_hunting_gate() {
         let mut g = Game::new(1); g.money=10_000;
-        assert!(!g.travel(1)); assert!(!g.upgrade(6));
+        assert!(!g.travel(1));
         g.kills=3; g.region_kills[0]=3; assert!(g.upgrade(6)); assert_eq!(g.money,9820);
         assert!(g.travel(1)); assert_eq!(g.region,1);
         assert!(g.bears.iter().all(|b| b.hp==5.0));
@@ -1808,22 +1805,18 @@ mod tests {
     }
 
     #[test]
-    fn advanced_weapons_consume_hunting_essence() {
+    fn weapon_upgrades_use_earned_cash_without_unrelated_essence_gate() {
         let mut g=Game::new(1);g.money=1000;
-        assert!(g.upgrade(8));assert!(!g.upgrade(8));
-        g.essence=8; assert!(g.upgrade(8));assert_eq!(g.essence,0);
+        assert!(g.upgrade(8));assert!(g.upgrade(8));assert_eq!(g.essence,0);
+        g.money=0;assert!(!g.upgrade(8));
     }
 
     #[test]
-    fn town_mastery_cannot_be_farmed_in_the_first_region() {
-        let mut g=Game::new(1);g.money=10_000;g.enclosure=3;g.buildings=[1,1,1,1,2];g.kills=100;g.region_kills=[100,0,0,0];
-        assert!(g.upgrade(6));assert!(!g.upgrade(6));
-        g.region_kills[1]=3;assert!(g.upgrade(6));assert!(!g.upgrade(6));
-        g.region_kills[2]=3;assert!(g.upgrade(6));assert!(!g.upgrade(6));
-        g.region_kills[3]=3;assert!(g.upgrade(6));
-        let mut h=Game::new(2);h.load(&g.save());assert_eq!(h.region_kills,g.region_kills);
-        let mut previous=g.save();previous.truncate(24);previous[0]=2;h.load(&previous);
-        assert_eq!(h.tier,4);assert_eq!(h.region_kills,[3;4]);
+    fn town_growth_requires_cash_and_never_invents_combat_dependencies() {
+        let mut g=Game::new(1);g.money=3130;
+        for _ in 0..4 {assert!(g.upgrade(6));}
+        assert_eq!(g.tier,4);assert_eq!(g.money,0);assert_eq!(g.kills,0);
+        assert!(!g.upgrade(6));
     }
 
     #[test]
@@ -1852,8 +1845,8 @@ mod tests {
     fn buildings_are_gated_and_towns_need_specialized_services() {
         let mut g=Game::new(1);g.money=10_000;g.kills=40;g.region_kills=[3;4];
         assert!(g.upgrade(12));assert!(!g.upgrade(13));
-        assert!(g.upgrade(6));assert!(!g.upgrade(6));assert_eq!(g.missing_dependency(6),7);
-        assert!(g.upgrade(7));assert_eq!(g.missing_dependency(6),16);
+        assert!(g.upgrade(6));assert_eq!(g.missing_dependency(6),0);
+        assert!(g.upgrade(7));
         assert!(g.upgrade(16));assert!(g.upgrade(6));
         assert_eq!(g.storage_cap(),70);assert!(!g.upgrade(14));
         assert!(g.upgrade(7));assert!(g.upgrade(13));assert!(g.upgrade(14));assert!(g.upgrade(6));
@@ -1920,19 +1913,18 @@ mod tests {
     }
 
     #[test]
-    fn expanded_settlement_has_reachable_southern_neighborhoods() {
-        let mut g=Game::new(1);g.enclosure=3;g.player.x=5.0;g.player.z=6.0;
-        for _ in 0..300 {g.tick(0.1,0.0,1.0);}
-        assert!(g.player.z>17.5,"expanded neighborhoods must be walkable");
-        assert!(g.player.z<=18.1,"cannot cross the expanded southern fence");
-        let mut base=Game::new(2);base.player.x=5.0;base.player.z=6.0;
-        for _ in 0..100 {base.tick(0.1,0.0,1.0);}
-        assert!(base.player.z<=6.1);
+    fn width_upgrades_never_open_unpurchased_adjacent_production_parcels() {
+        let mut g=Game::new(1);g.enclosure=3;g.player.x=0.0;g.player.z=6.0;
+        for _ in 0..100 {g.tick(0.1,0.0,1.0);}
+        assert!(g.player.z<=6.1);
+        g.world.districts[0].unlocked=true;
+        for _ in 0..100 {g.tick(0.1,0.0,1.0);}
+        assert!(g.player.z>25.5);assert!(g.player.z<=26.1);
     }
 
     #[test]
     fn original_food_chain_direct_loot_uses_actual_kills_and_bounded_input() {
-        let mut g=Game::new(1);g.world.districts[0].unlocked=true;g.world.districts[0].levels[6]=1;g.pads[0].level=1;
+        let mut g=Game::new(1);g.buildings[0]=2;g.pads[0].level=1;
         g.player.x=0.0;g.player.z=-20.0;for b in &mut g.bears {b.alive=false;}
         g.bears[0].alive=true;g.bears[0].hp=0.5;g.bears[0].x=0.0;g.bears[0].z=-21.3;
         g.update_combat(0.1);assert_eq!(g.grinder_in,1);assert_eq!(g.meats.len(),0);
@@ -1948,8 +1940,8 @@ mod tests {
 
     #[test]
     fn district_combat_uses_weapon_and_emits_existing_animation_events() {
-        let mut weak=Game::new(1);weak.world.districts[4].unlocked=true;weak.player.x=-10.0;weak.player.z=113.0;
-        let mut strong=Game::new(1);strong.world.districts[4].unlocked=true;strong.player.x=-10.0;strong.player.z=113.0;strong.weapon=3;strong.pads[4].level=1;
+        let mut weak=Game::new(1);weak.world.districts[4].unlocked=true;weak.player.x=-10.0;weak.player.z=91.6;
+        let mut strong=Game::new(1);strong.world.districts[4].unlocked=true;strong.player.x=-10.0;strong.player.z=91.6;strong.weapon=3;strong.pads[4].level=1;
         weak.tick(0.1,0.0,0.0);strong.tick(0.1,0.0,0.0);
         let weak_hp=weak.world.monsters.iter().map(|m|m.hp).sum::<f32>();let strong_hp=strong.world.monsters.iter().map(|m|m.hp).sum::<f32>();
         assert!(strong_hp<weak_hp);assert!(strong.player.swing>=0.0);
@@ -1980,8 +1972,8 @@ mod tests {
     fn all_base_purchase_pads_are_separate_and_complete_abi_records_exist() {
         let mut g=Game::new(1);
         for i in 0..17 {let (_,_,_,_,x,z)=g.upgrade_spec(i).unwrap();for j in i+1..17 {let (_,_,_,_,xx,zz)=g.upgrade_spec(j).unwrap();assert!(dist(x,z,xx,zz)>1.9,"funding pads must not overlap");}}
-        let o=g.export();let start=o.len()-2-89*12;assert_eq!(&o[start..start+2],&[5.0,89.0]);
-        let records=&o[start+2..];assert_eq!(records[10],1.0);assert_eq!(records[16*12+2],16.0);
+        let o=g.export();let start=o.len()-34-2-89*12;assert_eq!(&o[start..start+2],&[5.0,89.0]);
+        let records=&o[start+2..start+2+89*12];assert_eq!(records[10],1.0);assert_eq!(records[16*12+2],16.0);
     }
 
     #[test]
@@ -2002,7 +1994,7 @@ mod tests {
 
     #[test]
     fn finished_district_food_serves_real_base_customers_without_conjuring_stock() {
-        for id in 0..3 {
+        for id in [0,1,2,4,6] {
             let mut g=Game::new(1);g.player.x=COUNTER_IN.0;g.player.z=COUNTER_IN.1;
             g.world.carry_district=id;g.world.carry_stage=3;g.world.carry_n=3;
             assert_eq!(g.act(),1);assert_eq!(g.counter,1);assert_eq!(g.world.carry_n,2);
