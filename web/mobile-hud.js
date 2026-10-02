@@ -1,7 +1,7 @@
 // A compact HUD driven by live world state; no synthetic inventories or progress.
-import { districtCatalog } from './district-ui.js';
+import { districtCatalog } from './district-ui.js?v=reference-v6';
 let actions={},live=null,initialized=false,firstHarvest=false,lastInventory=-Infinity;
-let knownCollectors=null;
+let knownCollectors=null,playedAt=null,lastInstruction=null,instructionUntil=0;
 const $=id=>document.getElementById(id);
 function text(id,value){const node=$(id),next=String(value);if(node.textContent!==next)node.textContent=next;}
 const number=value=>Math.floor(Math.max(0,Number(value)||0));
@@ -13,15 +13,15 @@ export function isMobileMenuOpen(){return Boolean(document.querySelector('dialog
 export function initMobileHUD(callbacks={}){
  actions=callbacks;if(initialized)return;initialized=true;
  document.body.classList.add('hud-onboarding');
- $('play').addEventListener('click',()=>document.body.classList.add('game-active'));
- $('nav-build').addEventListener('click',()=>{closeMenus();actions.guideBuild?.();});
+ $('play').addEventListener('click',()=>{document.body.classList.add('game-active');playedAt=performance.now();instructionUntil=playedAt+5500;});
+ // Building is a world-floor interaction; no hidden navigation starts auto-walking.
  $('nav-inventory').addEventListener('click',()=>{open('inventory-panel');lastInventory=-Infinity;if(live)paintInventory(live);});
- $('nav-expeditions').addEventListener('click',()=>{closeMenus();$('btn-journal').click();});
+ // Catalog and expedition navigation are retained only as hidden legacy DOM.
  $('btn-menu').addEventListener('click',()=>open('menu-panel'));
  $('btn-pause').addEventListener('click',()=>open('pause-panel'));
  for(const [button,dialog] of [['inventory-close','inventory-panel'],['menu-close','menu-panel'],['menu-continue','menu-panel'],['pause-continue','pause-panel']])$(button).addEventListener('click',()=>$(dialog).close());
- $('menu-expeditions').addEventListener('click',()=>{closeMenus();$('btn-journal').click();});
- $('context-action').addEventListener('click',()=>{const action=live?.contextAction;if(action&&action.enabled!==false){actions.interact?.(action);}});
+ $('menu-inventory').addEventListener('click',()=>{open('inventory-panel');lastInventory=-Infinity;if(live)paintInventory(live);});
+ $('context-cluster').hidden=true;
 }
 function quest(s){
  const p=s.player,carry=s.districtCarry||{district:s.carryDistrict,kind:s.carryKind,n:s.carryN};
@@ -72,8 +72,14 @@ export function updateMobileHUD(s){
  $('health-bar').style.width=`${Math.max(0,Math.min(1,p.hp))*100}%`;
  const carry=s.districtCarry||{district:s.carryDistrict,kind:s.carryKind,n:s.carryN};
  text('inventory-val',`Sac ${number(p.stackN)+number(carry.n)} / ${p.cap}`);
- const a=s.contextAction;
- $('context-cluster').hidden=!a;
- if(a){const detail=a.enabled===false&&a.condition?`${a.detail||''} · ${a.condition}`:a.detail||'';text('context-label',a.label||'Continuer');text('context-icon',a.icon||'➜');text('context-detail',detail);$('context-detail').title=detail;$('context-action').disabled=a.enabled===false;$('context-progress').style.width=`${Math.max(0,Math.min(1,a.progress||0))*100}%`;}
+ $('context-cluster').hidden=true;
+ const now=performance.now();
+ const elapsed=playedAt===null?Infinity:now-playedAt;
+ if(lastInstruction!==q.label){lastInstruction=q.label;if(elapsed>5500&&elapsed<45000&&(s.served||0)<3)instructionUntil=now+5000;}
+ const instruction=elapsed<5500?'Glissez pour marcher':q.label;
+ text('micro-instruction',instruction);
+ $('micro-instruction').classList.toggle('show',playedAt!==null&&now<instructionUntil);
+ const enemies=[...(s.bears||[]),...(s.districtMonsters||[]).filter(m=>m.alive)];
+ $('btn-dash').hidden=!enemies.some(m=>Math.hypot(m.x-p.x,m.z-p.z)<7);
  if($('inventory-panel').open)paintInventory(s);
 }

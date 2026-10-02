@@ -16,7 +16,7 @@ const bits=n=>new Uint32Array(new Float32Array([n]).buffer)[0];
   await page.mouse.click(pos.x,pos.y);
   await page.waitForFunction(()=>window.__withsurvival.state.contextAction?.kind===12);
   assert.equal(await page.locator('dialog[open]').count(),0,'world tile does not open a catalogue');
-  await page.click('#context-action');
+
   await page.waitForFunction(()=>window.__withsurvival.state.worldPads.find(p=>p.scope===0&&p.kind===12).paid>0,null,{timeout:15000});
   await page.click('#btn-pause');
   let s=await page.evaluate(()=>window.__withsurvival.state),pad=s.worldPads.find(p=>p.scope===0&&p.kind===12),paid=pad.paid,money=s.money;
@@ -27,6 +27,6 @@ const bits=n=>new Uint32Array(new Float32Array([n]).buffer)[0];
   await page.click('#play');await page.waitForFunction(()=>window.__withsurvival.state.collectorLevel===1,null,{timeout:15000});
   await page.waitForTimeout(1200);s=await page.evaluate(()=>window.__withsurvival.state);assert.equal(s.collectorLevel,1);assert.equal(s.money,540,'standing still after completion does not buy the next tier');assert.ok(s.workers.some(w=>w.kind===0),'actual collector spawns');assert.equal(await page.locator('dialog[open]').count(),0);
   await page.screenshot({path:'test-artifacts/mobile-world-construction.png'});assert.deepEqual(errors,[]);
-  console.log('PASS physical mobile tile selection, one CTA, walk/finance without catalogue, partial save/reload, actual collector, completion latch and conservation.');
+  console.log('PASS physical mobile tile selection, automatic approach, walk/finance without catalogue, partial save/reload, actual collector, completion latch and conservation.');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exit(1)});

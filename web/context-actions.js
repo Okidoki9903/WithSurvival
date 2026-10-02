@@ -1,11 +1,11 @@
 // Context is derived from simulation state. No resource, purchase or tutorial counter lives here.
 const BASE_NAMES=['Convoyeur','Livraison','Héros','Sac','Bottes','Grill','Village','Enclos','Arme','Atelier','Cuisine','Assistants','Collecteurs','Chasseurs','Ferme','Caravanes','Entrepôt'];
 const DISTRICT_NAMES=['Quartier','Récolte','Transformation','Finition','Convoyeurs','Équipe','Stockage','Collecte directe','Marché'];
-const RAW=['poissons','blé','fruits','minerai','prises','cristaux','vestiges','minerai rare'];
-const MID=['filets','farine','jus','lingots','peaux','essences','reliques','alliages'];
-const FINAL=['poissons fumés','pains','confitures','outils','cuir','potions','artefacts','couronnes'];
+const RAW=['poissons','blé','fruits','bûches','prises','minerai','viande','fer'];
+const MID=['filets','farine','jus','planches','découpes','lingots','vivres','pièces'];
+const FINAL=['poissons fumés','pains','confitures','meubles','repas','outils','repas','équipements'];
 const distance=(p,q)=>Math.hypot(p.x-q.x,p.z-q.z);
-const iconFor=d=>['🐟','🌾','🍎','⛏','🥩','💎','🗿','👑'][d]||'📦';
+const iconFor=d=>['🐟','🌾','🍎','🪵','🥩','⛏','🥩','⚒'][d]||'📦';
 export const padKey=p=>`pad:${p.scope}:${p.district}:${p.kind}`;
 export function padAction(s,p){
  const name=p.scope===0?BASE_NAMES[p.kind]:DISTRICT_NAMES[p.kind];
@@ -13,8 +13,8 @@ export function padAction(s,p){
  let condition='';
  if(!p.available){
   if(p.scope===0)condition=({19:'Essences requises',18:'Victoires requises',100:'Premier convoyeur requis',101:'Second convoyeur requis',102:'Héros requis',6:'Développer le village',7:'Agrandir l’enclos',13:'Guilde des chasseurs requise',14:'Ferme requise',15:'Caravanes requises',16:'Entrepôt requis',99:'Niveau maximal'})[p.missingPrereq]||'Étape précédente requise';
-  else if(p.missingPrereq===1)condition=(s.grinderLevel||0)<4?'Atelier niveau 4 requis':(s.kitchenLevel||0)<4?'Cuisine niveau 4 requise':!s.conv1On||!s.conv2On?'Deux convoyeurs requis':'Nourrir 20 voyageurs';
-  else condition=p.missingPrereq===2?'Machines 3 et convoyeur requis':p.missingPrereq===3?`Vendre ${s.districts?.[p.district]?.unlockNeedSales||30} produits`:'Ouvrir ce quartier';
+  else if(p.missingPrereq===1)condition=!s.conv1On||!s.conv2On?'Deux convoyeurs requis':'Nourrir cinq voyageurs';
+  else condition=p.missingPrereq===2?'Machines 2 et convoyeur requis':p.missingPrereq===3?`Vendre ${s.districts?.[p.district]?.unlockNeedSales||30} produits`:'Ouvrir ce quartier';
  }
  return {...p,id:padKey(p),type:'pad',label:p.scope===1&&p.kind===0?'OUVRIR':p.level===0?'CONSTRUIRE':'AMÉLIORER',icon:p.kind===0&&p.scope===1?'🏘':'🔨',detail:`${name} · ${Math.ceil(p.remaining)} 🪙`,condition,enabled:p.available&&(s.money>0||!near),progress:p.totalCost?p.paid/p.totalCost:0,distance:distance(s.player,p),near};
 }
@@ -24,8 +24,9 @@ export function resourceTargets(s,L){
  if(p.stack===1&&p.stackN>0)add('base:deposit-meat',L.grinderIn,'DÉPOSER','🥩','Atelier');
  else if(p.stack===2&&p.stackN>0)add('base:deposit-raw',L.grillIn,'DÉPOSER','🔥','Cuisine');
  else if(p.stack===3&&p.stackN>0)add('base:serve',L.counterIn,'SERVIR','🍽','Voyageurs');
- if(s.carryN>0&&s.carryKind===3&&s.carryDistrict<3&&(s.currentDistrict??-1)<0&&p.z<20)add('cross:food-serve',L.counterIn,'SERVIR','🍽',FINAL[s.carryDistrict],{district:s.carryDistrict,stage:3});
+ if(s.carryN>0&&s.carryKind===3&&[0,1,2,4,6].includes(s.carryDistrict)&&(s.currentDistrict??-1)<0&&p.z<(s.districts?.[0]?.z0??6.6))add('cross:food-serve',L.counterIn,'SERVIR','🍽',FINAL[s.carryDistrict],{district:s.carryDistrict,stage:3});
  if(s.cashPile>0)add('base:cash',L.cash,'RAMASSER','🪙',`${s.cashPile} pièces`);
+ for(const cash of s.marketCash||[])if(cash.cash>0)add(`market-cash:${cash.district}`,cash,'RAMASSER','💵',`${cash.cash} billets`,{district:cash.district,category:'market-cash',index:0});
  if(!p.stackN){
   for(let i=0;i<(s.meats||[]).length;i++)add(`meat:${i}`,s.meats[i],'RAMASSER','🥩','Viande');
   if(s.grinderOut>0&&!s.conv1On)add('base:raw',L.grinderOut,'RAMASSER','🥩','Viande préparée');
@@ -37,9 +38,11 @@ export function resourceTargets(s,L){
   const held=s.carryN>0&&s.carryDistrict===d.id;
   if(held){
    const kind=s.carryKind;
+   const destinationLevel=kind===1?d.processorLevel:kind===2?d.finisherLevel:d.marketLevel;
+   if(destinationLevel===0)continue;
    add(`district:${d.id}:deposit:${kind}`,{x:kind===1?d.processorX:kind===2?d.finisherX:d.marketX,z:(kind===1?d.processorZ:kind===2?d.finisherZ:d.marketZ)-2.5},kind===3?'VENDRE':'DÉPOSER',kind===3?'🪙':'📦',(kind===1?RAW:kind===2?MID:FINAL)[d.id],{district:d.id,stage:kind});
   }else if(!s.carryN&&!p.stackN){
-   add(`district:${d.id}:source`,{x:d.sourceX,z:d.sourceZ},d.id===0?'PÊCHER':d.id===4||d.id===6?'CHASSER':d.id===3||d.id===5||d.id===7?'EXTRAIRE':'RÉCOLTER',iconFor(d.id),RAW[d.id],{district:d.id,stage:0,progress:d.harvestProgress||0});
+   add(`district:${d.id}:source`,{x:d.sourceX,z:d.sourceZ},d.id===0?'PÊCHER':d.id===4||d.id===6?'CHASSER':d.id===3?'COUPER':d.id===5||d.id===7?'EXTRAIRE':'RÉCOLTER',iconFor(d.id),RAW[d.id],{district:d.id,stage:0,progress:d.harvestProgress||0});
    if(d.rawOut>0)add(`district:${d.id}:raw`,{x:d.sourceX,z:d.sourceZ},'RAMASSER',iconFor(d.id),RAW[d.id],{district:d.id,stage:1});
    if(d.midOut>0&&d.transportLevel<1)add(`district:${d.id}:mid`,{x:d.processorX,z:d.processorZ+2.5},'RAMASSER','📦',MID[d.id],{district:d.id,stage:2});
    if(d.finishedOut>0&&d.transportLevel<2)add(`district:${d.id}:final`,{x:d.finisherX,z:d.finisherZ+2.5},'RAMASSER','📦',FINAL[d.id],{district:d.id,stage:3});
@@ -67,6 +70,11 @@ export function chooseContext(s,L,selected=null){
  if(selected){const a=[...pads,...targets].find(q=>q.id===selected.id);if(a)return a;}
  const held=targets.find(a=>a.id.startsWith('base:deposit')||a.id==='base:serve'||a.id==='cross:food-serve'||a.id.includes(':deposit:'));
  if(held)return held;
+ if(s.carryN>0){
+  const kind=s.carryKind===1?2:s.carryKind===2?3:8;
+  const build=pads.find(p=>p.scope===1&&p.district===s.carryDistrict&&p.kind===kind&&p.level===0);
+  if(build)return build;
+ }
  const nearby=targets.filter(t=>t.distance<=1.7&&t.type!=='animal').sort((a,b)=>a.distance-b.distance);
  const pad=pads.filter(p=>p.distance<=1.3).sort((a,b)=>a.distance-b.distance)[0];
  if(pad)return pad;

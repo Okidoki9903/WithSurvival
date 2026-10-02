@@ -3,12 +3,12 @@
 // reads input and plays effects.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { initCampaign, updateCampaign } from './campaign.js';
-import { initDistrictWorld, updateDistrictWorld, pickDistrictUnlock, setSelectedDistrictContext } from './district-world.js';
-import { initDistrictUI, updateDistrictUI } from './district-ui.js';
-import { initMobileHUD, updateMobileHUD, isMobileMenuOpen } from './mobile-hud.js';
-import { initWorldAffordances, updateWorldAffordances, pickWorldAffordance, setSelectedWorldAffordance } from './world-affordances.js';
-import { chooseContext, preferredBuild, padAction, selectAtWorldPoint, resourceTargets } from './context-actions.js';
+import { initCampaign, updateCampaign } from './campaign.js?v=reference-v6';
+import { initDistrictWorld, updateDistrictWorld, pickDistrictUnlock, setSelectedDistrictContext } from './district-world.js?v=reference-v6';
+import { initDistrictUI, updateDistrictUI } from './district-ui.js?v=reference-v6';
+import { initMobileHUD, updateMobileHUD, isMobileMenuOpen } from './mobile-hud.js?v=reference-v6';
+import { initWorldAffordances, updateWorldAffordances, pickWorldAffordance, setSelectedWorldAffordance } from './world-affordances.js?v=reference-v6';
+import { chooseContext, preferredBuild, padAction, selectAtWorldPoint, resourceTargets } from './context-actions.js?v=reference-v6';
 
 // ---------------------------------------------------------------------------
 // WebAssembly core
@@ -120,6 +120,10 @@ function readState() {
     n=a[i++];s.worldPads=[];
     for(let k=0;k<n;k++){const q={};for(const name of ['scope','district','kind','x','z','totalCost','paid','remaining','level','max','available','missingPrereq'])q[name]=a[i++];q.available=!!q.available;s.worldPads.push(q);}
   }
+  if(a[i++]===6){
+    n=a[i++];s.marketCash=[];
+    for(let k=0;k<n;k++)s.marketCash.push({district:a[i++],x:a[i++],z:a[i++],cash:a[i++]});
+  }
   return s;
 }
 
@@ -162,7 +166,7 @@ scene.background = new THREE.Color('#e3edf5');
 scene.fog = new THREE.Fog('#e3edf5', 75, 140);
 
 const camera = new THREE.PerspectiveCamera(38, 1, 0.5, 200);
-const CAM_OFFSET = new THREE.Vector3(15, 23, 18);
+const CAM_OFFSET = new THREE.Vector3(0, 22, 14);
 let camZoom = 1;
 function resize() {
   const w = window.innerWidth, h = window.innerHeight;
@@ -265,53 +269,14 @@ function craftSurface(kind,color){
   tex.wrapS=tex.wrapT=THREE.RepeatWrapping;
   const mat=new THREE.MeshStandardMaterial({color:'#ffffff',map:tex,roughness:.92});surfaceMaterials[kind]=mat;return mat;
 }
-const pathMaterial=craftSurface('cobble','#78817b'),grassMaterial=craftSurface('grass','#638e65'),woodMaterial=craftSurface('wood','#986c48');
-const roofMaterial=craftSurface('roof','#426e78');
-// Load a shared art atlas when available, retaining procedural fallbacks offline.
-new THREE.ImageLoader().load('assets/terrain-atlas.png',img=>{
-  for(const [key,col,row] of [['grass',1,0],['cobble',0,1],['wood',1,1]]){
-    const c=document.createElement('canvas');c.width=c.height=512;
-    c.getContext('2d').drawImage(img,col*img.width/2,row*img.height/2,img.width/2,img.height/2,0,0,512,512);
-    const tex=new THREE.CanvasTexture(c);tex.colorSpace=THREE.SRGBColorSpace;tex.wrapS=tex.wrapT=THREE.RepeatWrapping;tex.anisotropy=4;
-    surfaceMaterials[key].map.dispose();surfaceMaterials[key].map=tex;surfaceMaterials[key].needsUpdate=true;
-  }
-  const snow=document.createElement('canvas');snow.width=snow.height=512;
-  snow.getContext('2d').drawImage(img,0,0,img.width/2,img.height/2,0,0,512,512);
-  const tex=new THREE.CanvasTexture(snow);tex.colorSpace=THREE.SRGBColorSpace;tex.wrapS=tex.wrapT=THREE.RepeatWrapping;tex.repeat.set(34,34);tex.anisotropy=4;
-  regionSurfaceMaps[0]=tex;
-  if(worldGround && visualRegion<=0){worldGround.material.map=tex;worldGround.material.needsUpdate=true;}
-  if(!surfaceMaterials.slate){roofMaterial.map.dispose();roofMaterial.map=surfaceMaterials.wood.map.clone();roofMaterial.map.needsUpdate=true;roofMaterial.color.set('#527c87');}
-},undefined,()=>{});
-new THREE.ImageLoader().load('assets/biome-atlas.png',img=>{
-  for(let quadrant=0;quadrant<4;quadrant++){
-    const c=document.createElement('canvas');c.width=c.height=512;
-    c.getContext('2d').drawImage(img,(quadrant%2)*img.width/2,Math.floor(quadrant/2)*img.height/2,img.width/2,img.height/2,0,0,512,512);
-    const tex=new THREE.CanvasTexture(c);tex.colorSpace=THREE.SRGBColorSpace;tex.wrapS=tex.wrapT=THREE.RepeatWrapping;tex.anisotropy=4;
-    if(quadrant===3){surfaceMaterials.slate=tex;roofMaterial.map=tex;roofMaterial.color.set('#ffffff');roofMaterial.needsUpdate=true;}
-    else{tex.repeat.set(30,30);regionSurfaceMaps[quadrant+1]=tex;}
-  }
-  if(worldGround && visualRegion>0){worldGround.material.map=regionSurfaceMaps[visualRegion];worldGround.material.color.set('#ffffff');worldGround.material.needsUpdate=true;}
-},undefined,()=>{});
+const pathMaterial=new THREE.MeshStandardMaterial({color:'#dda88e',roughness:1}),grassMaterial=new THREE.MeshStandardMaterial({color:'#dda88e',roughness:1}),woodMaterial=new THREE.MeshStandardMaterial({color:'#d59a64',roughness:.85});
+const roofMaterial=new THREE.MeshStandardMaterial({color:'#62b6d6',roughness:.8});
+// Flat pastel surfaces match the reference. Geometry supplies the detail.
 const originalFenceMeshes = [];
-// snow ground with subtle noise
+// Broad untextured snow keeps actors, resources and floor prices readable.
 {
-  const { tex } = canvasTex(512, 512, (ctx, w, h) => {
-    ctx.fillStyle = '#eef4f9';
-    ctx.fillRect(0, 0, w, h);
-    for (let k = 0; k < 2200; k++) {
-      const x = Math.random() * w, y = Math.random() * h, r = Math.random() * 3 + 0.5;
-      ctx.fillStyle = Math.random() < 0.5 ? 'rgba(190,210,228,.35)' : 'rgba(255,255,255,.7)';
-      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
-    }
-  });
-  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(14, 14);
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshLambertMaterial({ map: tex }));
-  ground.rotation.x = -Math.PI / 2;
-  ground.position.z = -10;
-  ground.receiveShadow = true;
-  scene.add(ground);
-  worldGround = ground;
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(600,600),new THREE.MeshStandardMaterial({color:'#dce7f5',roughness:1}));
+  ground.rotation.x=-Math.PI/2;ground.position.z=60;ground.receiveShadow=true;scene.add(ground);worldGround=ground;
 }
 
 // camp dirt floor (slightly chamfered rectangle)
@@ -531,7 +496,7 @@ function buildFrontier(radius) {
     }
     worldTrees.userData.originalMatrices.forEach((original,k)=>{
       const x=original.elements[12],z=original.elements[14];
-      const cleared=Math.abs(x)<radius+2 && z>L.camp.z0-2 && z<L.camp.z1+4*Math.round((radius-9)/3)+5;
+      const cleared=Math.abs(x)<Math.max(radius+2,20) && z>L.camp.z0-2;
       worldTrees.setMatrixAt(k,cleared?new THREE.Matrix4().makeScale(0,0,0):original);
     });
     worldTrees.instanceMatrix.needsUpdate=true;
@@ -539,12 +504,12 @@ function buildFrontier(radius) {
   clearWorldGroup(frontier);
   // Replace both camp and hunting rails so expansion remains visible.
   originalFenceMeshes.forEach(m=>m.visible=false);
-  const c={...L.camp,z1:L.camp.z1+4*Math.round((radius-9)/3)},f=L.field,g=L.gate, segments=[[-radius,c.z0,g.x0,c.z0],[g.x1,c.z0,radius,c.z0],[-radius,c.z0,-radius,c.z1],[radius,c.z0,radius,c.z1],[-radius,c.z1,L.counter.x-2.1,c.z1],[L.counter.x+2.1,c.z1,radius,c.z1],[g.x0,c.z0,g.x0,f.z1],[g.x1,c.z0,g.x1,f.z1],[f.x0,f.z1,g.x0,f.z1],[g.x1,f.z1,f.x1,f.z1],[f.x0,f.z0,f.x1,f.z0],[f.x0,f.z0,f.x0,f.z1],[f.x1,f.z0,f.x1,f.z1]];
+  const c={...L.camp},f=L.field,g=L.gate, segments=[[-radius,c.z0,g.x0,c.z0],[g.x1,c.z0,radius,c.z0],[-radius,c.z0,-radius,c.z1],[radius,c.z0,radius,c.z1],[-radius,c.z1,L.counter.x-2.1,c.z1],[L.counter.x+2.1,c.z1,radius,c.z1],[g.x0,c.z0,g.x0,f.z1],[g.x1,c.z0,g.x1,f.z1],[f.x0,f.z1,g.x0,f.z1],[g.x1,f.z1,f.x1,f.z1],[f.x0,f.z0,f.x1,f.z0],[f.x0,f.z0,f.x0,f.z1],[f.x1,f.z0,f.x1,f.z1]];
   const parts=[];
   for(const [ax,az,bx,bz] of segments){
     const len=Math.hypot(bx-ax,bz-az), angle=-Math.atan2(bz-az,bx-ax);
-    for(let k=0;k<=Math.ceil(len/1.5);k++){const t=k/Math.ceil(len/1.5);parts.push(part(cyl(.1,.13,1.2,6),'#8e6c52',ax+(bx-ax)*t,.6,az+(bz-az)*t));}
-    for(const y of [.43,.89]) parts.push(part(box(len,.12,.1),'#c49d71',(ax+bx)/2,y,(az+bz)/2,0,angle));
+    const count=Math.ceil(len/.42);
+    for(let k=0;k<=count;k++){const t=k/count,x=ax+(bx-ax)*t,z=az+(bz-az)*t;parts.push(part(cyl(.16,.18,1.0,8),'#d99561',x,.5,z));parts.push(part(cyl(.165,.165,.065,8),'#f0f3f9',x,1.025,z));}
   }
   frontier.add(mesh(merge(parts)));
   const deckGeo=box(radius*2,.045,c.z1-c.z0);
@@ -552,15 +517,13 @@ function buildFrontier(radius) {
   const deck=mesh(deckGeo,grassMaterial,false);
   deck.position.set(0,.0015,(c.z0+c.z1)/2);frontier.add(deck);
   const addPath=(w,d,x,z)=>{const geo=box(w,.01,d),uv=geo.attributes.uv;for(let k=0;k<uv.count;k++)uv.setXY(k,uv.getX(k)*w/1.8,uv.getY(k)*d/1.8);const p=mesh(geo,pathMaterial,false);p.position.set(x,.027,z);frontier.add(p);};
-  addPath(2.7,c.z1-c.z0,0,(c.z0+c.z1)/2);
-  addPath(radius*2-1.2,2.1,0,-3.2);addPath(radius*2-1.2,1.6,0,2.4);
+  // No decorative paving: the continuous sand floor matches the reference.
   const trim=[];
   for(let k=0;k<Math.floor(radius)*3;k++){
     const side=k%2?-1:1,x=side*(radius-.55),z=c.z0+.6+(k%18)*.72;
     trim.push(part(cone(.13,.28,5),'#83ae65',x,.2,z,.3,k));
     if(k%3===0)trim.push(part(sph(.065,6),k%2?'#eac688':'#db8f96',x,.32,z));
   }
-  frontier.add(mesh(merge(trim),vmat,false));
 }
 function buildBiomeLandmarks(region) {
   clearWorldGroup(biomeLandmarks);
@@ -708,9 +671,9 @@ function updateIndustryVisuals(s) {
       }
       industrialDetails.add(mesh(merge(hardware)));
       const ring=mesh(new THREE.TorusGeometry(1.7+level*.08,.035,4,40),machineryGlow,false);
-      ring.rotation.x=Math.PI/2;ring.position.set(center.x,.11,center.z);industrialDetails.add(ring);
+      ring.rotation.x=Math.PI/2;ring.position.set(center.x,.11,center.z);ring.visible=false;industrialDetails.add(ring);
       const sign=mesh(box(.85,.16,.08),machineryGlow,false);
-      sign.position.set(center.x,2.2,center.z);industrialDetails.add(sign);
+      sign.position.set(center.x,2.2,center.z);sign.visible=false;industrialDetails.add(sign);
     }
     for(let j=0;j<belts.length;j++){
       if(belts[j]<2)continue;
@@ -726,12 +689,14 @@ function updateIndustryVisuals(s) {
   }
   machineryGlow.emissiveIntensity=1+Math.sin(s.time*2.5)*.18;
   if(workshopDrone){
+    workshopDrone.visible=false;
     const t=(Math.sin(s.time*.32)+1)/2;
     workshopDrone.position.set(THREE.MathUtils.lerp(L.grinder.x,L.counter.x,t),2.8+Math.sin(s.time*3)*.1,THREE.MathUtils.lerp(L.grinder.z,L.counter.z,t));
     workshopDrone.rotation.y=s.time*.7;
   }
 }
 function updateWorldVisuals(s,dt) {
+  settlement.visible=false;biomeLandmarks.visible=false;weather.visible=false;
   const elite=s.eliteAlive?s.bears[s.eliteAliveIndex]:null;eliteBeacon.visible=!!elite;
   if(elite){eliteBeacon.position.set(elite.x,0,elite.z);eliteRing.scale.setScalar(1+Math.sin(s.time*5)*.08);eliteBeacon.rotation.y=s.time*.3;}
   updateCivicVisuals(s);
@@ -741,9 +706,8 @@ function updateWorldVisuals(s,dt) {
     visualRegion=region;
     bearBodies.mesh.geometry=monsterBodyGeometries[region];
     bearLegs.mesh.geometry=monsterLegGeometries[region];
-    if(regionSurfaceMaps[region]){worldGround.material.map=regionSurfaceMaps[region];worldGround.material.color.set('#ffffff');worldGround.material.needsUpdate=true;}else worldGround.material.color.set(palette.ground);
-    worldTrees.material.color.set(palette.trees);
-    scene.background.set(palette.sky);scene.fog.color.set(palette.sky);sun.color.set(palette.sun);
+    worldGround.material.color.set('#dce7f5');worldTrees.material.color.set('#ffffff');
+    scene.background.set('#dce7f5');scene.fog.color.set('#dce7f5');sun.color.set('#fff8ee');
     weather.material.color.set(palette.dust);weather.material.size=region===0?.075:.055;
     buildBiomeLandmarks(region);
   }
@@ -867,20 +831,27 @@ const grinderGroup = new THREE.Group();
 {
   const g = merge([
     part(box(2.4, 0.3, 2.0), '#394650', 0, 0.15, 0),
-    part(box(2.2, 1.3, 1.8), '#2f62d8', 0, 0.95, 0),
-    part(box(2.25, 0.2, 1.85), '#244aa6', 0, 0.35, 0),
+    part(box(2.2, 1.3, 1.8), '#2e647e', 0, 0.95, 0),
+    part(box(2.25, 0.2, 1.85), '#214454', 0, 0.35, 0),
     part(box(1.5, 0.5, 0.05), '#1b2a46', 0, 1.0, 0.92),
     part(box(1.2, 0.08, 0.06), '#8fd6ff', 0, 1.1, 0.95),
-    part(box(1.7, 0.6, 1.4), '#56606a', 0, 1.9, 0),
-    part(box(1.9, 0.12, 1.6), '#3c444c', 0, 2.2, 0),
+    part(box(1.6, 0.08, 1.2), '#182b35', 0, 1.72, 0),
+    part(box(.16,.55,1.5),'#91a8b5',-.86,1.96,0),
+    part(box(.16,.55,1.5),'#91a8b5',.86,1.96,0),
+    part(box(1.85,.55,.15),'#91a8b5',0,1.96,-.72),
+    part(box(1.85,.55,.15),'#789aa9',0,1.96,.72),
+    part(cyl(.18,.18,1.5,12),'#bdcbd1',0,1.83,.22,0,0,Math.PI/2),
+    part(cyl(.18,.18,1.5,12),'#bdcbd1',0,1.83,-.22,0,0,Math.PI/2),
   ]);
   const spikes = [];
-  for (let k = 0; k < 4; k++) spikes.push(part(cone(0.16, 0.7, 6), '#e8eef4', -0.6 + k * 0.4, 2.6, 0.1, 0, 0, 0.15 * (k - 1.5)));
+  for (let k = 0; k < 6; k++) for(const z of[-.22,.22])spikes.push(part(box(.11,.21,.15),'#e2e9ee',-.65+k*.26,1.99,z));
   grinderGroup.add(mesh(merge([g, ...spikes])));
   // feed belt towards input zone
   const belt = mesh(merge([
-    part(box(2.0, 0.35, 1.2), '#444c55', 0, 0.45, 0),
-    part(box(2.0, 0.06, 1.0), '#23282e', 0, 0.65, 0),
+    part(box(2.4, 0.35, 1.55), '#658391', 0, 0.45, 0),
+    part(box(2.4, 0.06, 1.35), '#29353d', 0, 0.65, 0),
+    part(box(2.4,.16,.08),'#a9bac3',0,.74,-.7),
+    part(box(2.4,.16,.08),'#a9bac3',0,.74,.7),
   ]));
   belt.position.set(1.9, 0, -0.4);
   grinderGroup.add(belt);
@@ -898,11 +869,14 @@ const grillGroup = new THREE.Group();
 let grillLight, grillGlow;
 {
   const body = merge([
-    part(box(2.2, 1.0, 1.7), '#4a5058', 0, 0.5, 0),
+    part(box(2.2, 1.0, 1.7), '#d67f43', 0, 0.5, 0),
     part(box(2.3, 0.12, 1.8), '#343940', 0, 1.05, 0),
     part(box(1.3, 1.5, 0.3), '#d86a38', -0.3, 1.6, -0.65, -0.15, 0, 0),
     part(box(1.1, 1.3, 0.1), '#ff9a4a', -0.3, 1.6, -0.48, -0.15, 0, 0),
     part(box(0.8, 0.8, 1.2), '#3c4148', 1.2, 0.4, 0.1),
+    part(box(1.75,.12,.08),'#a84a29',-.15,.25,.89),
+    part(cyl(.1,.1,.08,10),'#dbdfd9',-.65,.65,.89,Math.PI/2),
+    part(cyl(.1,.1,.08,10),'#dbdfd9',.35,.65,.89,Math.PI/2),
   ]);
   grillGroup.add(mesh(body));
   grillGlow = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.2), new THREE.MeshBasicMaterial({ color: '#ff7a22' }));
@@ -1453,7 +1427,7 @@ canvas.addEventListener('pointerup',e=>{
   if(picked){action=picked.scope!==undefined?padAction(S,picked):selectAtWorldPoint(S,L,picked);}
   const point=new THREE.Vector3();
   if(!action&&ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0,1,0),0),point))action=selectAtWorldPoint(S,L,point);
-  if(action){selectContext(action);if(action.near)performContext(action);return;}
+  if(action){selectContext(action);if(action.near)performContext(action);else startWalk(action);return;}
   if(ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0,1,0),0),point)&&clientWalkable(S,point))startWalk({x:point.x,z:point.z,label:'ALLER',id:'ground',type:'ground'});
 });
 const keys = new Set();
@@ -1570,7 +1544,7 @@ let selectedContext=null,autoWalk=null;
 function selectContext(action){selectedContext=action.type==='destination'?{...action}:{id:action.id,type:action.type};districtGuide={x:action.x,z:action.z,label:action.detail||action.label};setSelectedWorldAffordance(action);setSelectedDistrictContext(action);}
 function clientWalkable(s,q){
   const inside=(r,m=.5)=>q.x>=r.x0+m&&q.x<=r.x1-m&&q.z>=r.z0+m&&q.z<=r.z1-m;
-  if(inside({...L.camp,x0:-s.campRadius,x1:s.campRadius,z1:6.6+4*(s.enclosure||0)})||inside(L.gate)||inside(L.field))return true;
+  if(inside({...L.camp,x0:-s.campRadius,x1:s.campRadius,z1:6.6})||inside(L.gate)||inside(L.field))return true;
   return(s.districts||[]).some(d=>d.unlocked&&((Math.abs(q.x)<=17.5&&q.z>=d.z0+.5&&q.z<=d.z1-.5)||(Math.abs(q.x)<=2&&q.z>=6&&q.z<=d.z1)));
 }
 function startWalk(action){
@@ -1580,8 +1554,9 @@ function startWalk(action){
   else if(p.z>-9&&action.z<-10)points.push({x:0,z:-7},{x:0,z:-14});
   const current=S.currentDistrict??-1;
   const targetDistrict=S.districts?.find(d=>d.unlocked&&action.z>=d.z0&&action.z<=d.z1)?.id??-1;
-  if((p.z>=20||action.z>=20)&&current!==targetDistrict){
-    points.push({x:0,z:p.z>=20?p.z:Math.min(5,p.z)},{x:0,z:action.z});
+  const frontierZ=S.districts?.[0]?.z0??6.6;
+  if((p.z>=frontierZ||action.z>=frontierZ)&&current!==targetDistrict){
+    points.push({x:0,z:p.z>=frontierZ?p.z:Math.min(5,p.z)},{x:0,z:action.z});
   }
   points.push({x:action.x,z:action.z});
   autoWalk={waypoints:points,index:0,actionId:action.id,type:action.type};joy.x=joy.y=0;keys.clear();
@@ -1638,7 +1613,7 @@ function update(dt) {
   updateWorldAffordances(s);
   updateDistrictWorld(s,dt);
   enclosureSign.visible=false;
-  updateCampaign(s);
+  // Progression is shown by the physical plots and production, without a campaign overlay.
   updateDistrictUI(s);
   updateWorldVisuals(s, dt);
   const p = s.player;
@@ -1664,6 +1639,13 @@ function update(dt) {
     po.armR.rotation.x = t < 0.35 ? -2.4 * (t / 0.35) : -2.4 + 3.2 * ((t - 0.35) / 0.65);
     if (p.hero) po.g.rotation.y = p.angle + t * Math.PI * 2;
   } else po.armR.rotation.x = p.moving ? sw * 0.6 : 0;
+  const woodSource=s.districts?.find(d=>d.id===3&&d.unlocked);
+  const woodInventoryCompatible=(s.carryN||0)===0||(s.carryDistrict===3&&s.carryKind===1);
+  const woodOutput=woodSource?.directLootLevel>0&&woodSource?.processorLevel>0?woodSource?.processorIn:woodSource?.rawOut;
+  if(woodSource&&woodSource.harvestProgress>0&&woodSource.sourceReserve>0&&woodOutput<woodSource.cap&&p.dead<=0&&p.stackN===0&&(s.carryN||0)<p.cap&&woodInventoryCompatible&&Math.hypot(p.x-woodSource.sourceX,p.z-woodSource.sourceZ)<1.7){
+    const chop=Math.sin(Math.min(1,woodSource.harvestProgress)*Math.PI*2);
+    po.armR.rotation.x=-1.4-chop*.9;po.armL.rotation.x=-.7-chop*.45;
+  }
   po.g.position.y = p.moving ? Math.abs(Math.sin(walkT)) * 0.08 : 0;
   playerRing.position.set(p.x, 0.05, p.z);
   playerRing.visible = p.dead <= 0;

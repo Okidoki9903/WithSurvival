@@ -1,13 +1,14 @@
 let T,scene,camera,root,state=null,selected=null,layout=null;
 const pads=new Map(),resources=new Map();
 const kindSymbols=['⌂','◆','⚙','♨','⇄','♟','▣','⚔','●'];
-const resourceSymbols=['🐟','🌾','🍎','🪨','🥩','💎','🏺','🪨'];
-const baseSymbols={6:'⌂',7:'↔',8:'⚔',9:'⚙',10:'♨',11:'♟',12:'♟',13:'⚔',14:'🌾',15:'●',16:'▣'};
+const resourceSymbols=['🐟','🌾','🍎','🪵','🥩','🪨','🥩','🔩'];
+const baseSymbols={0:'▤',1:'▤',2:'⚔',3:'▣',4:'↟',5:'♨',6:'⌂',7:'↔',8:'⚔',9:'⚙',10:'♨',11:'♟',12:'♟',13:'⚔',14:'🌾',15:'●',16:'▣'};
 export function initWorldAffordances({THREE,scene:target,camera:cam,layout:map=null}){T=THREE;scene=target;camera=cam;layout=map;root=new T.Group();root.name='world-affordances';scene.add(root);return root;}
 const keyOf=r=>r.type==='resource'?`resource:${r.category}:${r.district??-1}:${r.index??0}`:`pad:${r.scope}:${r.district}:${r.kind}`;
 export function setSelectedWorldAffordance(record){selected=record?keyOf(record):null;}
 export function isWorldPadRevealed(pad,s,selectionKey=null){
   if(selectionKey===keyOf(pad)||(pad.paid||0)>0||(pad.level||0)>0)return true;
+  if(pad.scope===0&&[6,13,14,15,16].includes(pad.kind))return false;
   const late=(s.served||0)>=10||(s.enclosure||0)>0||(s.tier||0)>0;
   if(pad.scope===0){
     if(Math.abs(pad.x)>(s.campRadius||9))return false;
@@ -38,14 +39,15 @@ function redraw(tile,isResource){
   const remaining=Math.max(0,Math.ceil(r.remaining??r.totalCost??0)),fraction=r.totalCost>0?Math.min(1,(r.paid||0)/r.totalCost):0;
   const unlocked=!!r.available,done=r.max>0&&r.level>=r.max;
   const signature=[remaining,Math.floor(fraction*100),unlocked,done,active,r.n,r.level,r.scope,r.kind].join(':');if(signature===tile.signature)return;tile.signature=signature;
-  ctx.clearRect(0,0,w,w);ctx.fillStyle=isResource?'rgba(39,68,66,.52)':unlocked?'rgba(37,65,62,.78)':'rgba(67,78,79,.72)';roundedRect(ctx,14,14,228,228,20);
+  ctx.clearRect(0,0,w,w);ctx.fillStyle=isResource?'rgba(86,76,74,.42)':'rgba(84,75,76,.66)';roundedRect(ctx,14,14,228,228,20);
   if(!isResource&&fraction>0){ctx.fillStyle='rgba(107,220,139,.4)';roundedRect(ctx,20,234-208*fraction,216,208*fraction,9);}
-  ctx.strokeStyle=active?'#fcdf94':unlocked||isResource?'#f6f6e9':'#a4b1b0';ctx.lineWidth=8;ctx.lineCap='round';
+  ctx.strokeStyle=active?'#84ff74':'#ffffff';ctx.lineWidth=7;ctx.lineCap='round';
+  ctx.setLineDash([20,15]);ctx.strokeRect(22,22,212,212);ctx.setLineDash([]);
   for(const[x,y,sx,sy]of[[22,22,1,1],[234,22,-1,1],[22,234,1,-1],[234,234,-1,-1]]){ctx.beginPath();ctx.moveTo(x+sx*40,y);ctx.lineTo(x,y);ctx.lineTo(x,y+sy*40);ctx.stroke();}
   const symbol=isResource?(r.symbol||'◆'):r.scope===0?(baseSymbols[r.kind]||'↑'):r.kind===1?(resourceSymbols[r.district]||'◆'):(kindSymbols[r.kind]||'↑');
   ctx.fillStyle=done?'#b0d8bf':unlocked||isResource?'#ffffff':'#aebdbb';ctx.font='bold 82px "Segoe UI Emoji",system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(done?'✓':symbol,128,96);
   ctx.font='bold 37px system-ui';ctx.fillStyle=unlocked||isResource?'#f7ebbe':'#a8b5b4';ctx.fillText(isResource?`× ${r.n}`:done?'MAX':`${remaining.toLocaleString('fr-FR')}`,128,180,190);
-  if(!isResource&&!done){ctx.fillStyle='#f2d67c';ctx.beginPath();ctx.arc(51,180,12,0,Math.PI*2);ctx.fill();ctx.fillStyle='#a87c39';ctx.font='bold 16px system-ui';ctx.fillText('●',51,180);}
+  if(!isResource&&!done){ctx.fillStyle='#61db66';ctx.fillRect(28,169,40,23);ctx.strokeStyle='#a5f898';ctx.lineWidth=3;ctx.strokeRect(31,172,34,17);ctx.fillStyle='#ffffff';ctx.font='bold 16px system-ui';ctx.fillText('$',48,181);}
   tile.texture.needsUpdate=true;
   const badgeSignature=[unlocked,done,r.level,r.kind,r.n].join(':');
   if(tile.badgeSignature===badgeSignature)return;tile.badgeSignature=badgeSignature;
@@ -64,6 +66,7 @@ function resourceRecords(s){
     }
   }
   for(const d of s.districts||[]){if(!d.unlocked)continue;for(const[category,n,x,z]of[['raw',d.rawOut,d.sourceX,d.sourceZ],['mid',d.midOut,d.processorX,d.processorZ+2.5],['finished',d.finishedOut,d.finisherX,d.finisherZ+2.5]])if(n>0)list.push({type:'resource',category,district:d.id,index:0,x,z,n,symbol:resourceSymbols[d.id]});}
+  for(const bank of s.marketCash||[])if(bank.cash>0)list.push({type:'resource',category:'market-cash',district:bank.id??bank.district,index:0,x:bank.x,z:bank.z,n:bank.cash,symbol:'💵'});
   for(let k=0;k<(s.districtLoot||[]).length;k++){const l=s.districtLoot[k];list.push({type:'resource',category:'loot',district:l.district,index:k,x:l.x,z:l.z,n:l.n,symbol:l.district===4?'🥩':'🏺'});}
   if(s.cashPile>0)list.push({type:'resource',category:'cash',district:-1,index:0,x:layout?.cash?.x??3.8,z:layout?.cash?.z??5,n:s.cashPile,symbol:'💰'});
   for(let k=0;k<(s.meats||[]).length;k++){const m=s.meats[k];list.push({type:'resource',category:'meat',district:-1,index:k,x:m.x,z:m.z,n:1,symbol:'🥩'});}
@@ -78,10 +81,10 @@ export function updateWorldAffordances(s){
     }for(const[key,tile]of cache)if(!live.has(key)){removeTile(tile);cache.delete(key);}
   };
   const resourceList=resourceRecords(s).sort((a,b)=>Math.hypot(a.x-p.x,a.z-p.z)-Math.hypot(b.x-p.x,b.z-p.z)).slice(0,8);
-  const padList=(s.worldPads||[]).filter(r=>isWorldPadRevealed(r,s,selected)).sort((a,b)=>{
+  const padList=(s.worldPads||[]).filter(r=>(r.level<r.max||(r.paid||0)>0||selected===keyOf(r))&&isWorldPadRevealed(r,s,selected)).sort((a,b)=>{
     const aSelected=selected===keyOf(a),bSelected=selected===keyOf(b);
     return Number(bSelected)-Number(aSelected)||Math.hypot(a.x-p.x,a.z-p.z)-Math.hypot(b.x-p.x,b.z-p.z);
-  }).slice(0,6);
+  }).slice(0,4);
   sync(padList,pads,false);sync(resourceList,resources,true);
   near.sort((a,b)=>Number(selected===keyOf(b.tile.record))-Number(selected===keyOf(a.tile.record))||a.distance-b.distance);for(const item of near.slice(0,2))item.tile.badge.visible=selected===keyOf(item.tile.record)||item.distance<2.5;
 }
