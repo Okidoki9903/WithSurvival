@@ -50,9 +50,11 @@ export const BEATS = {
   expandTile: [['brann', 'Les rescapés dorment dans la neige. Il est temps d’agrandir Fort-Aube.']],
   expand1: [
     ['brann', 'Des cabanes ! Mais le froid mord : les nouveaux veulent du bois pour leurs foyers.'],
-    ['brann', 'Coupe les sapins en lisière et porte les bûches au comptoir. Ils repousseront.'],
+    ['brann', 'Coupe les sapins en lisière et porte les bûches à la nouvelle scierie. Les sapins repousseront.'],
   ],
-  firstLog: [['brann', 'Du bon bois sec. Les rescapés en demandent au comptoir.']],
+  firstLog: [['brann', 'Du bon bois. Passe-le à la scie, puis porte le bois fendu au comptoir.']],
+  sawUpTile: [['oleg', 'Une scie à vapeur, voilà ce qu’il nous faut. Elle avalerait deux fois plus de bûches.']],
+  sawUp: [['oleg', 'Écoute-la chanter ! La scierie tourne deux fois plus vite.']],
   hunter: [['yuki', 'Yuki. Je chasse depuis que j’ai six ans. Laisse-moi la horde du nord.']],
   lumberjack: [['oleg', 'Oleg. Une hache, une forêt, et je ne m’arrête jamais.']],
   grill2: [['brann', 'Deux chaudrons ! Fort-Aube devient une vraie cantine.']],

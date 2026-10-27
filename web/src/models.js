@@ -389,8 +389,8 @@ export function makeCampfire() {
 // ---------------------------------------------------------------------------
 // Carried items (instanced): raw meat, cooked steak, cash bill, log
 // ---------------------------------------------------------------------------
-export const ITEM_TYPES = ['raw', 'cooked', 'cash', 'log'];
-export const ITEM_HEIGHT = { raw: 0.13, cooked: 0.12, cash: 0.1, log: 0.2 };
+export const ITEM_TYPES = ['raw', 'cooked', 'cash', 'log', 'plank'];
+export const ITEM_HEIGHT = { raw: 0.13, cooked: 0.12, cash: 0.1, log: 0.2, plank: 0.22 };
 
 export function itemGeometry(type) {
   if (type === 'raw') {
@@ -406,6 +406,14 @@ export function itemGeometry(type) {
   if (type === 'cash') {
     const main = new THREE.Color(0x56c84a), band = new THREE.Color(0x2f8f36);
     return paint(new THREE.BoxGeometry(0.56, 0.085, 0.32, 4, 1, 1), (c, x) => c.copy(Math.abs(x) < 0.08 ? band : main));
+  }
+  if (type === 'plank') {
+    // bundle of split firewood tied with a rope
+    const wood = new THREE.Color(0xe2b37a), rope = new THREE.Color(0x6b4a2a);
+    const parts = [[-0.11, 0.06], [0.11, 0.06], [0, 0.16]].map(([x, y]) => new THREE.BoxGeometry(0.2, 0.1, 0.62).translate(x, y - 0.06, 0));
+    parts.push(new THREE.BoxGeometry(0.44, 0.24, 0.07).translate(0, 0.0, 0.14), new THREE.BoxGeometry(0.44, 0.24, 0.07).translate(0, 0.0, -0.14));
+    parts.forEach((g, i) => paint(g, (c) => c.copy(i < 3 ? wood : rope)));
+    return mergeGeometries(parts.map((g) => g.toNonIndexed()));
   }
   if (type === 'log') {
     const bark = new THREE.Color(0x8b5530), end = new THREE.Color(0xe7b87c);
@@ -613,4 +621,44 @@ export function makeDeck(w, d) {
     p.position.set(-w / 2 + (i + 0.5) * (w / n), 0.04, 0); g.add(p);
   }
   return g;
+}
+
+// Sawmill: log bench with a spinning circular blade under a snowy roof.
+export function makeSawmill() {
+  const g = new THREE.Group();
+  const wood = mat(0x93623d), dark = mat(0x5a3a24), snow = mat(0xf7f9fc);
+  const steel = new THREE.MeshStandardMaterial({ color: 0xc9d0d8, metalness: 0.85, roughness: 0.25 });
+  const deck = makeDeck(3.4, 2.4); g.add(deck);
+  const bench = mesh(new THREE.BoxGeometry(2.8, 0.75, 0.9), wood); bench.position.y = 0.45; g.add(bench);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) { const l = mesh(new THREE.BoxGeometry(0.14, 0.45, 0.14), dark); l.position.set(sx * 1.25, 0.2, sz * 0.36); g.add(l); }
+  const blade = mesh(new THREE.CylinderGeometry(0.62, 0.62, 0.04, 28).rotateX(Math.PI / 2), steel);
+  blade.position.set(0, 0.95, 0); g.add(blade);
+  const teeth = mesh(new THREE.TorusGeometry(0.62, 0.035, 4, 28), steel, { cast: false }); blade.add(teeth);
+  const hub = mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.12, 10).rotateX(Math.PI / 2), mat(0x3a3a40)); blade.add(hub);
+  const log = mesh(new THREE.CylinderGeometry(0.2, 0.2, 1.1, 8).rotateZ(Math.PI / 2), mat(0x8b5530)); log.position.set(-0.75, 1.03, 0); g.add(log);
+  for (const sx of [-1, 1]) { const post = mesh(new THREE.BoxGeometry(0.16, 2.6, 0.16), dark); post.position.set(sx * 1.55, 1.3, -0.95); g.add(post); }
+  const roof = mesh(new THREE.BoxGeometry(3.6, 0.12, 1.6), dark); roof.position.set(0, 2.6, -0.45); roof.rotation.x = 0.25; g.add(roof);
+  const roofSnow = mesh(new THREE.BoxGeometry(3.6, 0.16, 1.5), snow); roofSnow.position.set(0, 2.72, -0.47); roofSnow.rotation.x = 0.25; g.add(roofSnow);
+  const sawdust = mesh(new THREE.CircleGeometry(0.6, 12).rotateX(-Math.PI / 2), mat(0xe9c48e), { cast: false }); sawdust.position.set(0.9, 0.09, 0.85); g.add(sawdust);
+  return { group: g, blades: [blade], log, level: 1 };
+}
+
+// Steam saw: copper boiler with chimney, drive belt and a second blade.
+export function upgradeSawmill(saw) {
+  const parts = new THREE.Group();
+  const copper = new THREE.MeshStandardMaterial({ color: 0xc27a3a, metalness: 0.7, roughness: 0.35 });
+  const iron = new THREE.MeshStandardMaterial({ color: 0x4a4e55, metalness: 0.6, roughness: 0.5 });
+  const boiler = mesh(new THREE.CylinderGeometry(0.45, 0.45, 1.3, 14).rotateZ(Math.PI / 2), copper); boiler.position.set(0.6, 0.62, -1.15); parts.add(boiler);
+  for (const x of [0.15, 1.05]) { const b = mesh(new THREE.TorusGeometry(0.46, 0.04, 6, 16).rotateY(Math.PI / 2), iron); b.position.set(x, 0.62, -1.15); parts.add(b); }
+  const chim = mesh(new THREE.CylinderGeometry(0.12, 0.15, 1.2, 8), iron); chim.position.set(1.0, 1.4, -1.15); parts.add(chim);
+  const gauge = mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.05, 12).rotateX(Math.PI / 2), mat(0xf2efe6)); gauge.position.set(0.3, 0.9, -0.72); parts.add(gauge);
+  const belt = mesh(new THREE.TorusGeometry(0.35, 0.03, 4, 16), mat(0x2a2420)); belt.position.set(0.4, 0.95, -0.5); belt.rotation.y = Math.PI / 2; parts.add(belt);
+  const steel = new THREE.MeshStandardMaterial({ color: 0xffd36b, metalness: 0.85, roughness: 0.25 });
+  const blade2 = mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.04, 26).rotateX(Math.PI / 2), steel);
+  blade2.position.set(0.75, 0.92, 0.0); parts.add(blade2);
+  saw.group.add(parts);
+  saw.blades.push(blade2);
+  saw.chimney = new THREE.Vector3(1.0, 2.1, -1.15);
+  saw.level = 2;
+  return parts;
 }

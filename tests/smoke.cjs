@@ -23,7 +23,7 @@ const OUT = path.join(__dirname, '..', 'test-artifacts');
     const ws = window.__ws; ws.start();
     const g = ws.game, inp = ws.input;
     const orig = g.update.bind(g);
-    g.update = (dt, i) => { for (let k = 0; k < 12; k++) orig(1 / 30, i); };
+    g.update = () => { for (let k = 0; k < 12; k++) orig(1 / 30, inp.read()); };
     inp.read = () => {
       const o = g.objective, p = g.player;
       const at = g.guideTarget || (o && o.at);

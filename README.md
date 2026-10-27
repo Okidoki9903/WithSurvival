@@ -6,20 +6,33 @@ Tout se joue en marchant, sans menu ni bouton d'action : glisse n'importe où su
 
 ## Boucle de jeu
 
+- **Départ** : Sasha n'a rien sur le dos. Brann, vieux trappeur garé dans la clairière avec son traîneau, achète la viande d'ours (10 billets le morceau). Il faut 200 billets pour bâtir le camp ; ensuite Brann repart sur la piste et continue de guider par radio.
 - **Chasse** : approche-toi d'un ours, la hache frappe toute seule. L'ours explose en morceaux de viande qui s'empilent sur ton dos (la pile ondule quand tu cours).
 - **Chaudron** : passe sur la dalle « viande » pour déposer la viande crue. Le chaudron la cuit et sort les steaks sur la zone pointillée.
 - **Comptoir** : ramasse les steaks, puis tiens-toi dans la zone du comptoir. Les rescapés font la queue dehors, une bulle indique ce qu'ils veulent.
 - **Billets** : chaque client paie en billets qui s'empilent près du comptoir. Ramasse-les.
 - **Construire** : reste sur une dalle `$` pour la financer billet par billet (les paiements partiels sont gardés).
 
+## Machines du camp et leurs évolutions
+
+Chaque amélioration se finance sur une dalle posée juste à côté de la machine, et change son modèle 3D en plus de son effet.
+
+| Machine | Niveau 1 | Évolutions |
+|---|---|---|
+| Chaudron | Marmite sur un foyer de pierres | **Chaudron renforcé** (cerclé de cuivre, grand foyer, bois de chauffe, cuisson ×1,5) → **Second chaudron** (deux marmites en parallèle) |
+| Comptoir | Table sur un plancher | **Comptoir couvert** (auvent rayé, lanternes, service plus rapide, file plus longue) → **Étal du marché** (enseigne Fort-Aube, fanions, caisses de fruits, clients qui paient +30 %) |
+| Arbalètes | Tour de caisses et arbalète sur la palissade | **Balistes** (blindage d'acier, double arc doré, fanion, tir plus rapide et plus fort) |
+| Scierie (chapitre III) | Établi et scie circulaire sous abri | **Scie à vapeur** (chaudière en cuivre qui fume, courroie, seconde lame dorée, coupe ×2) |
+| Réserve de bois | — | La pile de bûches grandit avec ce que la scierie a coupé |
+
 ## Progression et histoire
 
 | Chapitre | Ce qui change |
 |---|---|
-| Prologue | Sasha, perdue après la tempête, plante Fort-Aube avec ses 200 derniers billets. Brann, vieux trappeur, la guide à la radio. |
+| Prologue | Sasha, perdue après la tempête, chasse ses premiers ours et vend la viande à Brann pour réunir 200 billets, puis plante Fort-Aube. |
 | I · Le Premier Feu | Palissade, chaudron, comptoir. Lina (caissière) tient le comptoir, hache d'acier. |
 | II · Les Fourrures Blanches | Arbalètes automatiques sur la palissade, Tomas le porteur, grand sac, la Danse des Lames (anneau de haches tournoyantes). |
-| III · Le Froid Mordant | Agrandissement à l'est : cabanes, feux de camp, rescapés qui vivent dans le fort. Les clients veulent aussi du bois : coupe les sapins en lisière. Oleg (bûcheron), Yuki (chasseuse), second chaudron, lames tempête. |
+| III · Le Froid Mordant | Agrandissement à l'est : cabanes, feux de camp, rescapés qui vivent dans le fort. Les clients veulent aussi du bois de chauffe : coupe les sapins en lisière, passe les bûches à la scierie, porte le bois fendu au comptoir. Oleg (bûcheron), Yuki (chasseuse), second chaudron, lames tempête. |
 | IV · Grand-Blanc | Agrandissement à l'ouest… et le colosse des glaces sort de la forêt. Évite ses coups au sol (cercle rouge). |
 | Épilogue · L'Aube | Le Phare de l'Aube s'allume : les caravanes arrivent, la ville continue de tourner. |
 

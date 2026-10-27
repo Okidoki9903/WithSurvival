@@ -1,7 +1,7 @@
 // WithSurvival gameplay: hunting, carried stacks, the cauldron, the counter,
 // customers, paid tiles, workers, crossbows, spinning blades and the colossus.
 import * as THREE from 'three';
-import { makeHuman, makeBear, makeGrill, makeTurret, makeCounter, makeCabin, makeBeacon, makeCampfire, ITEM_HEIGHT, mat, hdr, upgradeGrill, makeAwning, makeMarketDecor, upgradeTurret, makeSled, makeWoodCrib, makeHearth, makeDeck } from './models.js';
+import { makeHuman, makeBear, makeGrill, makeTurret, makeCounter, makeCabin, makeBeacon, makeCampfire, ITEM_HEIGHT, mat, hdr, upgradeGrill, makeAwning, makeMarketDecor, upgradeTurret, makeSled, makeWoodCrib, makeHearth, makeDeck, makeSawmill, upgradeSawmill } from './models.js';
 import { padTexture, TileTexture, bubbleTexture, bracketTexture, radialGlowTexture } from './textures.js';
 import { STAGES, MEADOW, COUNTER, LANE_QUEUE, LANE_EXIT, inRect, backOut } from './world.js';
 
@@ -22,15 +22,18 @@ export const POS = {
   gateOut: P(0, -7.6),
   counterSteak: P(-4.6, COUNTER.z),
   counterLog: P(-3.4, COUNTER.z),
+  logPad: P(8.4, -1.0),
+  sawmill: P(10.9, -0.9),
+  plankPad: P(13.4, -0.9),
 };
 const TURRETS = [
   { x: -4.6, z: -6, pad: P(-4.6, -4.3) },
   { x: 4.6, z: -6, pad: P(4.6, -4.3) },
-  { x: 13.6, z: -6, pad: P(13.6, -4.3) },
+  { x: 10.6, z: -6, pad: P(10.6, -4.3) },
   { x: -11, z: -6, pad: P(-11, -4.3) },
 ];
-const CABINS = { 2: [[10.4, 3.6], [14.4, 3.6], [14.8, -2.0]], 3: [[-10.2, 3.6], [-14.4, 3.6], [-14.6, -2.4]] };
-const WOOD_CRIB = P(16.0, 0.8);
+const CABINS = { 2: [[9.0, 4.2], [12.6, 4.2], [15.2, -3.6]], 3: [[-10.2, 3.6], [-14.4, 3.6], [-14.6, -2.4]] };
+const WOOD_CRIB = P(15.8, 3.6);
 const BEACON_POS = P(-11.0, -0.4);
 
 // Upgrade tiles bought in the world. Machine upgrades sit right next to the
@@ -50,11 +53,12 @@ const TILES = [
   { id: 'expand1', icon: 'expand', cost: 500, at: P(5.8, -0.6), req: (g) => g.bought.whirl && g.bought.turret2 && g.bought.grillUp && g.bought.counter2, label: 'Agrandir', beat: 'expandTile' },
   { id: 'grill2', icon: 'pot', cost: 300, at: POS.grill2, req: (g) => g.stage >= 2, label: 'Second chaudron' },
   { id: 'counter3', icon: 'cash', cost: 400, at: P(-1.7, 4.5), req: (g) => g.stage >= 2 && g.bought.counter2, label: 'Étal du marché', beat: 'marketTile' },
-  { id: 'lumberjack', icon: 'person', cost: 200, at: P(8.6, -1.8), req: (g) => g.stage >= 2, label: 'Recruter Oleg' },
-  { id: 'hunter', icon: 'person', cost: 250, at: P(11.2, -1.8), req: (g) => g.stage >= 2, label: 'Recruter Yuki' },
+  { id: 'sawUp', icon: 'axeplus', cost: 350, at: P(13.6, 1.8), req: (g) => g.stage >= 2 && g.stats.sawn >= 6, label: 'Scie à vapeur', beat: 'sawUpTile' },
+  { id: 'lumberjack', icon: 'person', cost: 200, at: P(8.4, 1.6), req: (g) => g.stage >= 2, label: 'Recruter Oleg' },
+  { id: 'hunter', icon: 'person', cost: 250, at: P(11.0, 1.8), req: (g) => g.stage >= 2, label: 'Recruter Yuki' },
   { id: 'turret3', icon: 'bow', cost: 250, at: TURRETS[2].pad, req: (g) => g.stage >= 2, label: 'Arbalète' },
-  { id: 'bag2', icon: 'bag', cost: 300, at: P(8.6, 1.0), req: (g) => g.bought.lumberjack, label: 'Sac de trappeur' },
-  { id: 'whirl2', icon: 'blades', cost: 600, at: P(11.4, 1.0), req: (g) => g.bought.hunter, label: 'Lames tempête' },
+  { id: 'bag2', icon: 'bag', cost: 300, at: P(8.4, -3.6), req: (g) => g.bought.lumberjack, label: 'Sac de trappeur' },
+  { id: 'whirl2', icon: 'blades', cost: 600, at: P(15.6, 0.9), req: (g) => g.bought.hunter, label: 'Lames tempête' },
   { id: 'expand2', icon: 'expand', cost: 1200, at: P(-5.8, -1.6), req: (g) => g.bought.grill2 && g.bought.hunter && g.bought.lumberjack && g.bought.counter3, label: 'Agrandir' },
   { id: 'turret4', icon: 'bow', cost: 350, at: TURRETS[3].pad, req: (g) => g.stage >= 3, label: 'Arbalète' },
   { id: 'beacon', icon: 'beacon', cost: 2000, at: BEACON_POS, req: (g) => g.bossDown, label: 'Phare de l’Aube', big: true },
@@ -65,6 +69,8 @@ const PILE = {
   cookedPad: { cols: 3, rows: 3, sp: 0.6, h: ITEM_HEIGHT.cooked, cap: 60 },
   cashPad: { cols: 2, rows: 3, sp: 0.6, h: ITEM_HEIGHT.cash, cap: 400, rot: Math.PI / 2 },
   turret: { cols: 3, rows: 3, sp: 0.6, h: ITEM_HEIGHT.raw, cap: 45 },
+  logPad: { cols: 2, rows: 3, sp: 0.62, h: ITEM_HEIGHT.log, cap: 40, rot: Math.PI / 2 },
+  plankPad: { cols: 2, rows: 3, sp: 0.62, h: ITEM_HEIGHT.plank, cap: 40 },
 };
 const BILL = 5;
 
@@ -82,7 +88,9 @@ export class Game {
     this.money = 0;
     this.bought = {};
     this.paidPartial = {};
-    this.stats = { kills: 0, served: 0, cooked: 0, chopped: 0, earned: 0, sold: 0 };
+    this.stats = { kills: 0, served: 0, cooked: 0, chopped: 0, earned: 0, sold: 0, sawn: 0 };
+    this.sawTime = 1.1;
+    this.sawTimer = 0;
     this.cookTime = 0.9;
     this.serveInterval = 0.2;
     this.priceMult = 1;
@@ -110,7 +118,9 @@ export class Game {
       cookedPad: { ...POS.cookedPad, n: 0, pile: PILE.cookedPad, type: 'cooked' },
       cashPad: { ...POS.cashPad, n: 0, pile: PILE.cashPad, type: 'cash' },
       counterSteak: { ...POS.counterSteak, n: 0, type: 'cooked', cap: 40 },
-      counterLog: { ...POS.counterLog, n: 0, type: 'log', cap: 40 },
+      counterLog: { ...POS.counterLog, n: 0, type: 'plank', cap: 40 },
+      logPad: { ...POS.logPad, n: 0, pile: PILE.logPad, type: 'log' },
+      plankPad: { ...POS.plankPad, n: 0, pile: PILE.plankPad, type: 'plank' },
       turrets: TURRETS.map((t) => ({ ...t.pad, n: 0, pile: PILE.turret, type: 'raw' })),
     };
 
@@ -149,12 +159,12 @@ export class Game {
   makeCarrier(model, at) {
     return {
       model, x: at.x, z: at.z, vx: 0, vz: 0, facing: 0,
-      carry: { raw: 0, cooked: 0, log: 0 }, reserved: 0, cap: 10,
+      carry: { raw: 0, cooked: 0, log: 0, plank: 0 }, reserved: 0, cap: 10,
       sway: { x: 0, z: 0, vx: 0, vz: 0 }, pvx: 0, pvz: 0,
       swing: -1, swingCd: 0, moving: 0,
     };
   }
-  load_total(c) { return c.carry.raw + c.carry.cooked + c.carry.log + c.reserved; }
+  load_total(c) { return c.carry.raw + c.carry.cooked + c.carry.log + c.carry.plank + c.reserved; }
 
   padMesh(icon, at, { dashed = false, size = 2.0 } = {}) {
     const m = new THREE.Mesh(new THREE.PlaneGeometry(size, size).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: padTexture(icon, { dashed }), transparent: true, depthWrite: false }));
@@ -404,6 +414,7 @@ export class Game {
       case 'counter2': this.upgradeCounter(2, fresh); if (fresh) this.story.beat('counter2'); break;
       case 'counter3': this.upgradeCounter(3, fresh); if (fresh) this.story.beat('counter3'); break;
       case 'ballista': this.upgradeTurrets(fresh); if (fresh) this.story.beat('ballista'); break;
+      case 'sawUp': { const parts = upgradeSawmill(this.saw); this.sawTime = 0.55; if (fresh) { this.popIn(parts); this.story.beat('sawUp'); } break; }
       case 'cashier': this.addWorker('cashier', fresh); if (fresh) this.story.beat('cashier'); break;
       case 'porter': this.addWorker('porter', fresh); if (fresh) this.story.beat('porter'); break;
       case 'hunter': this.addWorker('hunter', fresh); if (fresh) this.story.beat('hunter'); break;
@@ -458,6 +469,15 @@ export class Game {
     }
     if (stage >= 2) {
       this.wood = true;
+      if (!this.saw) {
+        this.saw = makeSawmill();
+        this.saw.group.position.set(POS.sawmill.x, 0, POS.sawmill.z);
+        this.scene.add(this.saw.group);
+        this.sawPads = [this.padMesh('log', POS.logPad), this.padMesh('log', POS.plankPad, { dashed: true })];
+        this.sawPads.forEach((m) => this.scene.add(m));
+        this.world.circles.push({ x: POS.sawmill.x, z: POS.sawmill.z, r: 1.45, camp: true });
+        if (fresh) { this.popIn(this.saw.group, 0.5); this.sawPads.forEach((m) => this.popIn(m, 0.7)); }
+      }
       if (!this.crib) {
         this.crib = makeWoodCrib();
         this.crib.group.position.set(WOOD_CRIB.x, 0, WOOD_CRIB.z);
@@ -607,11 +627,14 @@ export class Game {
         if (w.state === 'idle') {
           const tp = this.pads.turrets.find((pd) => pd.n > 0);
           if (this.pads.cookedPad.n > 0 && this.pads.counterSteak.n < this.pads.counterSteak.cap) { w.state = 'toCooked'; this.route(w, POS.cookedPad); }
+          else if (this.saw && this.pads.plankPad.n > 0 && this.pads.counterLog.n < this.pads.counterLog.cap) { w.state = 'toPlank'; this.route(w, POS.plankPad); }
           else if (tp && this.pads.rawPad.n < PILE.rawPad.cap) { w.state = 'toTurret'; w.tp = tp; this.route(w, tp); }
           else { w.state = 'wait'; w.timer = 1; this.route(w, P(-0.6, -2.8)); }
         } else if (w.state === 'wait') { w.timer -= dt; if (w.timer <= 0) w.state = 'idle'; }
         else if (w.state === 'toCooked' && arrived) {
           if (this.transfer(w, this.pads.cookedPad, 'pick', dt) === 'done' || total >= w.cap) { w.state = 'toCounter'; this.route(w, POS.counterDrop); }
+        } else if (w.state === 'toPlank' && arrived) {
+          if (this.transfer(w, this.pads.plankPad, 'pick', dt) === 'done' || total >= w.cap) { w.state = 'toCounter'; this.route(w, POS.counterDrop); }
         } else if (w.state === 'toCounter' && arrived) {
           if (this.dropToCounter(w, dt) === 'done') w.state = 'idle';
         } else if (w.state === 'toTurret' && arrived) {
@@ -648,7 +671,7 @@ export class Game {
       case 'lumberjack': {
         this.magnet(w, 3.2, 'log');
         if (w.state === 'idle') {
-          if (total >= w.cap) { w.state = 'deliver'; this.route(w, POS.counterDrop); break; }
+          if (total >= w.cap) { w.state = 'deliver'; this.route(w, POS.logPad); break; }
           const t = this.nearestChoppable(w, true);
           if (t) { w.state = 'walk'; w.tree = t; this.route(w, { x: t.sx, z: t.sz, reach: 0.3 }); }
           else { w.state = 'wait'; w.timer = 2; }
@@ -661,7 +684,7 @@ export class Game {
           if (w.swing >= 0.5 && !w.hitDone) { w.hitDone = true; this.chopTree(t, w); if (!t.alive) { w.timer = 0.6; w.state = 'collect'; } }
         } else if (w.state === 'collect') { w.timer -= dt; if (w.timer <= 0) w.state = 'idle'; }
         else if (w.state === 'deliver' && arrived) {
-          if (this.dropToCounter(w, dt) === 'done') w.state = 'idle';
+          if (this.transfer(w, this.pads.logPad, 'drop', dt) === 'done') w.state = 'idle';
         }
         break;
       }
@@ -704,7 +727,7 @@ export class Game {
   dropToCounter(c, dt) {
     const a = c.carry.cooked > 0 ? this.transfer(c, this.pads.counterSteak, 'drop', dt) : 'done';
     if (a === 'busy') return 'busy';
-    return c.carry.log > 0 ? this.transfer(c, this.pads.counterLog, 'drop', dt) : 'done';
+    return c.carry.plank > 0 ? this.transfer(c, this.pads.counterLog, 'drop', dt) : 'done';
   }
 
   // -------------------------------------------------------------------------
@@ -713,7 +736,7 @@ export class Game {
   columns(c) {
     const cols = [];
     if (c.isPlayer && this.money > 0) cols.push('cash');
-    for (const t of ['raw', 'cooked', 'log']) if (c.carry[t] > 0 || this.reservedType(c, t)) cols.push(t);
+    for (const t of ['raw', 'cooked', 'log', 'plank']) if (c.carry[t] > 0 || this.reservedType(c, t)) cols.push(t);
     return cols;
   }
   reservedType(c, t) { return c.reserved > 0 && this.flying.some((f) => f.dest === c && f.type === t); }
@@ -927,9 +950,7 @@ export class Game {
         if (b.attack >= 0.5 && !b.hitDone && foe) {
           b.hitDone = true;
           if (dist(b, foe) < 2.4 * b.size && foe === p) {
-            const d = dist(b, p) || 1;
-            p.knock.x = (p.x - b.x) / d * 9; p.knock.z = (p.z - b.z) / d * 9;
-            this.shake = Math.max(this.shake, 0.35);
+            this.shake = Math.max(this.shake, 0.12);
             this.audio.growl();
           }
         }
@@ -967,7 +988,7 @@ export class Game {
         b.z = THREE.MathUtils.clamp(b.z, MEADOW.z0 + 1, -7.4);
         // keep the path through the north gate clear
         const gx = b.x - POS.gateOut.x, gz = b.z - (POS.gateOut.z + 0.6), gd = Math.hypot(gx, gz), clear = 2.6 + b.radius;
-        if (!foe && gd < clear && gd > 1e-3) { b.x += gx / gd * (clear - gd) * Math.min(1, dt * 4); b.z += gz / gd * (clear - gd) * Math.min(1, dt * 4); }
+        if (gd < clear && gd > 1e-3) { b.x += gx / gd * (clear - gd) * Math.min(1, dt * 4); b.z += gz / gd * (clear - gd) * Math.min(1, dt * 4); }
       }
       // visuals
       const m = b.model;
@@ -1096,13 +1117,13 @@ export class Game {
     const waiting = this.customers.filter((c) => c.state !== 'leave');
     this.custTimer -= dt;
     if (this.custTimer <= 0 && waiting.length < maxQ) {
-      this.custTimer = this.beaconLit ? 1.5 : this.chapter >= 3 ? 2.2 : 3.2;
+      this.custTimer = (this.bought.counter3 ? 1.6 : this.bought.counter2 ? 2.3 : 3.2) * (this.chapter >= 3 ? 0.8 : 1) * (this.beaconLit ? 0.6 : 1);
       const colors = [0x2f74b8, 0x3a86c8, 0x2a68a8, 0x4a90cf, 0x2d5f99];
       const m = makeHuman({ parka: colors[Math.floor(Math.random() * colors.length)], tool: null, scale: rand(0.92, 1.0) });
-      const woodFlow = this.pads.counterLog.n > 0 || this.player.carry.log > 0 || this.workers.some((w) => w.kind === 'lumberjack');
+      const woodFlow = this.pads.counterLog.n > 0 || this.pads.plankPad.n > 0 || this.player.carry.plank > 0 || this.workers.some((w) => w.kind === 'lumberjack');
       const wantLog = this.wood && Math.random() < (woodFlow ? 0.4 : 0.15);
       const qty = Math.ceil(rand(0.01, Math.min(5, 1 + this.chapter)));
-      const c = { model: m, x: LANE_QUEUE, z: 34, facing: Math.PI, state: 'queue', want: wantLog ? 'log' : 'cooked', qty, got: 0, slot: waiting.length, bubbleKey: '', serveT: 0 };
+      const c = { model: m, x: LANE_QUEUE, z: 34, facing: Math.PI, state: 'queue', want: wantLog ? 'plank' : 'cooked', qty, got: 0, slot: waiting.length, bubbleKey: '', serveT: 0 };
       m.root.position.set(c.x, 0, c.z);
       this.scene.add(m.root);
       c.bubble = new THREE.Sprite(new THREE.SpriteMaterial({ depthTest: false, transparent: true }));
@@ -1136,10 +1157,10 @@ export class Game {
       c.model.pose(dt, moving * 0.7, -1, c.got > 0);
       // serving
       if (c.state === 'queue' && c.slot === 0 && d < 0.3 && serverHere) {
-        let pad = c.want === 'log' ? this.pads.counterLog : this.pads.counterSteak;
+        let pad = c.want === 'plank' ? this.pads.counterLog : this.pads.counterSteak;
         // a customer waiting too long for wood settles for a steak
         c.waitT = (c.waitT || 0) + dt;
-        if (c.want === 'log' && c.got === 0 && !c.incoming && pad.n === 0 && c.waitT > 7 && this.pads.counterSteak.n > 0) { c.want = 'cooked'; pad = this.pads.counterSteak; }
+        if (c.want === 'plank' && c.got === 0 && !c.incoming && pad.n === 0 && c.waitT > 7 && this.pads.counterSteak.n > 0) { c.want = 'cooked'; pad = this.pads.counterSteak; }
         c.serveT -= dt;
         if (c.serveT <= 0 && pad.n - (pad.inflight || 0) > 0 && c.got + (c.incoming || 0) < c.qty) {
           c.serveT = this.serveInterval;
@@ -1173,7 +1194,7 @@ export class Game {
     if (this.bubbleCache.has(key)) return this.bubbleCache.get(key);
     let tex;
     if (key === 'check') tex = bubbleTexture('check', 0, { bg: '#4fd04a', fg: '#ffffff' });
-    else { const [type, n] = key.split(':'); tex = bubbleTexture(type === 'log' ? 'log' : 'steak', Number(n), { fg: type === 'log' ? '#8b5530' : '#b8402a' }); }
+    else { const [type, n] = key.split(':'); tex = bubbleTexture(type === 'plank' ? 'log' : 'steak', Number(n), { fg: type === 'plank' ? '#8b5530' : '#b8402a' }); }
     this.bubbleCache.set(key, tex);
     return tex;
   }
@@ -1322,6 +1343,8 @@ export class Game {
       if (near(p, POS.cashPad, 1.25)) this.transfer(p, this.pads.cashPad, 'pick', dt, 0.03);
       if (near(p, POS.cashier, 1.25)) this.dropToCounter(p, dt);
       for (const t of this.turrets) if (near(p, t.pad, 1.2)) this.transfer(p, t.pad, 'pick', dt, 0.05);
+      if (this.saw && near(p, POS.logPad, 1.2)) this.transfer(p, this.pads.logPad, 'drop', dt, 0.05);
+      if (this.saw && near(p, POS.plankPad, 1.2)) this.transfer(p, this.pads.plankPad, 'pick', dt, 0.05);
     }
     if (p.carry.cooked > 0) this.story.beat('firstCooked');
     this.carrierVisual(p, dt);
@@ -1378,6 +1401,36 @@ export class Game {
     }
   }
 
+  updateSawmill(dt) {
+    const saw = this.saw;
+    if (!saw) return;
+    const logs = this.pads.logPad, out = this.pads.plankPad;
+    const busy = logs.n - (logs.inflight || 0) > 0 || saw.cutting > 0;
+    saw.spin = THREE.MathUtils.lerp(saw.spin || 0, busy ? 1 : 0.15, Math.min(1, dt * 3));
+    for (const b of saw.blades) b.rotation.z -= dt * 22 * saw.spin;
+    saw.log.visible = saw.cutting > 0;
+    if (saw.cutting > 0) {
+      saw.cutting -= dt;
+      saw.log.position.x = -0.75 + (1 - Math.max(0, saw.cutting) / this.sawTime) * 0.9;
+      if (Math.random() < dt * 30) this.fx.puff(POS.sawmill.x, 1.1, POS.sawmill.z + 0.3, { n: 1, color: [0.93, 0.8, 0.6], size: [0.25, 0.6], speed: 2, up: 1.5, g: 4, life: 0.5, alpha: 0.9 });
+      if (saw.cutting <= 0) {
+        this.stats.sawn++;
+        this.audio.chop();
+        this.fly('plank', { x: POS.sawmill.x + 0.9, y: 1.1, z: POS.sawmill.z }, this.incoming(out), { dur: 0.45, arc: 1.6, onArrive: () => { out.inflight--; } });
+      }
+    } else {
+      this.sawTimer -= dt;
+      if (this.sawTimer <= 0 && logs.n - (logs.inflight || 0) > 0 && out.n < out.pile.cap) {
+        this.sawTimer = 0.15;
+        const from = this.pickPos(logs);
+        logs.n--;
+        this.fly('log', from, () => ({ x: POS.sawmill.x - 0.75, y: 1.05, z: POS.sawmill.z }), { dur: 0.35, arc: 1.2, onArrive: () => { saw.cutting = this.sawTime; } });
+        saw.cutting = 0.0001 + this.sawTime + 0.35;
+      }
+    }
+    if (saw.chimney && Math.random() < dt * 4) { const v = saw.chimney.clone().applyMatrix4(saw.group.matrixWorld); this.fx.smoke(v.x, v.y, v.z); }
+  }
+
   // -------------------------------------------------------------------------
   // Guidance: objective chip and 3D pointer
   // -------------------------------------------------------------------------
@@ -1395,7 +1448,9 @@ export class Game {
     const affordable = this.tiles.filter((t) => this.money >= Math.min(t.def.cost - t.paid, 60) && this.money >= (t.def.cost - t.paid) * 0.5).sort((a, b) => (a.def.cost - a.paid) - (b.def.cost - b.paid))[0];
     const starving = this.pads.rawPad.n === 0 && this.pads.cookedPad.n === 0 && this.pads.counterSteak.n < 2;
     if (p.carry.raw > 0 && (this.load_total(p) >= p.cap * 0.6 || (starving && p.carry.raw >= 5))) return { at: POS.rawPad, text: 'Dépose la viande près du chaudron', icon: 'meat' };
-    if (p.carry.cooked > 0 || p.carry.log > 0) return { at: POS.cashier, text: 'Sers les rescapés au comptoir', icon: 'person' };
+    if (p.carry.log > 0 && this.saw && (this.load_total(p) >= p.cap * 0.6 || p.carry.log >= 6)) return { at: POS.logPad, text: 'Apporte les bûches à la scierie', icon: 'log' };
+    if (p.carry.cooked > 0 || p.carry.plank > 0) return { at: POS.cashier, text: 'Sers les rescapés au comptoir', icon: 'person' };
+    if (this.saw && this.pads.plankPad.n >= 3 && !this.workers.some((w) => w.kind === 'porter')) return { at: POS.plankPad, text: 'Ramasse le bois fendu', icon: 'log' };
     if (this.pads.cashPad.n >= 6 && this.stats.served < 30) return { at: POS.cashPad, text: 'Ramasse les billets', icon: 'cash' };
     if (affordable) return { at: affordable.def.at, text: affordable.def.label, icon: affordable.def.icon };
     if (this.pads.cookedPad.n >= 3 && !this.workers.some((w) => w.kind === 'porter')) return { at: POS.cookedPad, text: 'Ramasse les steaks cuits', icon: 'steak' };
@@ -1403,7 +1458,8 @@ export class Game {
     if (this.boss && !this.boss.dead && this.boss.state !== 'enter') return { at: this.boss, text: 'Abats Grand-Blanc !', icon: 'blades' };
     const tp = this.pads.turrets.find((t) => t.n >= 6);
     if (tp && !this.workers.some((w) => w.kind === 'porter')) return { at: tp, text: 'Récupère la viande des arbalètes', icon: 'meat' };
-    if (this.wood && this.pads.counterLog.n < 3 && this.customers.some((c) => c.want === 'log') && !this.workers.some((w) => w.kind === 'lumberjack')) {
+    if (p.carry.log > 0 && this.saw) return { at: POS.logPad, text: 'Apporte les bûches à la scierie', icon: 'log' };
+    if (this.wood && this.pads.counterLog.n < 3 && this.pads.plankPad.n < 3 && this.pads.logPad.n < 3 && this.customers.some((c) => c.want === 'plank') && !this.workers.some((w) => w.kind === 'lumberjack')) {
       const t = this.nearestChoppable(p);
       if (t) return { at: { x: t.x, z: t.z }, text: 'Coupe du bois en lisière', icon: 'axe' };
     }
@@ -1426,12 +1482,17 @@ export class Game {
     // route the pointer through the north gate when the fence is in the way
     if (at && this.stage >= 1) {
       const pin = this.world.insideCamp(p.x, p.z), tin = this.world.insideCamp(at.x, at.z);
-      const outsideNorth = (q) => q.z < STAGES[this.stage].z0 + 0.5;
+      const outsideNorth = (q) => q.z < STAGES[this.stage].z0 - 0.7;
       if (pin && !tin) at = Math.abs(p.x - POS.gateIn.x) < 1 && p.z < POS.gateIn.z + 0.6 ? POS.gateOut : POS.gateIn;
       else if (!pin && tin) {
         const r = STAGES[this.stage];
         if (outsideNorth(p)) at = Math.abs(p.x - POS.gateOut.x) < 1 && p.z > POS.gateOut.z - 0.6 ? POS.gateIn : POS.gateOut;
-        else at = { x: p.x > (r.x0 + r.x1) / 2 ? r.x1 + 0.9 : r.x0 - 0.9, z: r.z0 - 1.0 }; // walk round the fence corner
+        else {
+          // walk round the palisade corners towards the north gate
+          const sx = p.x > (r.x0 + r.x1) / 2 ? r.x1 + 0.9 : r.x0 - 0.9;
+          const besideX = p.x < r.x0 - 0.3 || p.x > r.x1 + 0.3;
+          at = !besideX && p.z > r.z1 - 0.2 ? { x: sx, z: r.z1 + 1.0 } : { x: sx, z: r.z0 - 1.0 };
+        }
       }
       if (at !== o.at) this.guideAt = at; else this.guideAt = null;
     }
@@ -1464,6 +1525,7 @@ export class Game {
     this.updateBears(dt);
     this.updateTurrets(dt);
     this.updateGrill(dt);
+    this.updateSawmill(dt);
     this.updateCustomers(dt);
     this.updateTiles(dt);
     this.updateItems(dt);
@@ -1479,7 +1541,7 @@ export class Game {
       if (Math.random() < dt * 10) this.fx.ember(BEACON_POS.x, 9, BEACON_POS.z);
     }
     if (this.time > 1.5) this.story.beat('intro');
-    if (this.crib) this.crib.setLevel(Math.min(10, 1 + Math.floor((this.stats.chopped + this.pads.counterLog.n) / 2)));
+    if (this.crib) this.crib.setLevel(Math.min(10, 1 + Math.floor(this.stats.sawn / 4)));
     this.hud.setMoney(this.money);
     this.drawItems();
     this.shake = Math.max(0, this.shake - dt * 2.2);
@@ -1517,7 +1579,7 @@ export class Game {
         }
       }
     }
-    const pads = [this.pads.rawPad, this.pads.cookedPad, this.pads.cashPad, this.pads.counterSteak, this.pads.counterLog, ...this.pads.turrets];
+    const pads = [this.pads.rawPad, this.pads.cookedPad, this.pads.cashPad, this.pads.counterSteak, this.pads.counterLog, this.pads.logPad, this.pads.plankPad, ...this.pads.turrets];
     for (const pad of pads) {
       const n = pad.n - (pad.inflight || 0);
       for (let i = 0; i < n; i++) {
@@ -1543,7 +1605,7 @@ export class Game {
     const p = this.player;
     return {
       v: 1, money: this.money, carry: { ...p.carry }, bought: Object.keys(this.bought), paid: this.paidPartial,
-      pads: { raw: this.pads.rawPad.n, cooked: this.pads.cookedPad.n, cash: this.pads.cashPad.n, steak: this.pads.counterSteak.n, log: this.pads.counterLog.n, turrets: this.pads.turrets.map((t) => t.n) },
+      pads: { raw: this.pads.rawPad.n, cooked: this.pads.cookedPad.n, cash: this.pads.cashPad.n, steak: this.pads.counterSteak.n, log: this.pads.counterLog.n, logs: this.pads.logPad.n, planks: this.pads.plankPad.n, turrets: this.pads.turrets.map((t) => t.n) },
       stats: this.stats, bossDown: this.bossDown, beats: this.story.serialize(), chapter: this.chapter,
     };
   }
@@ -1558,10 +1620,13 @@ export class Game {
     const order = TILES.map((t) => t.id);
     const bought = (s.bought || []).slice().sort((a, b) => order.indexOf(a) - order.indexOf(b));
     for (const id of bought) { this.bought[id] = true; this.applyUpgrade(id, false); }
+    const b = this.bought;
+    this.chapter = Math.max(this.chapter, b.beacon ? 5 : b.expand2 ? 4 : b.expand1 ? 3 : b.turret1 ? 2 : 1);
     Object.assign(this.player.carry, s.carry || {});
     const pd = s.pads || {};
     this.pads.rawPad.n = pd.raw || 0; this.pads.cookedPad.n = pd.cooked || 0; this.pads.cashPad.n = pd.cash || 0;
     this.pads.counterSteak.n = pd.steak || 0; this.pads.counterLog.n = pd.log || 0;
+    this.pads.logPad.n = pd.logs || 0; this.pads.plankPad.n = pd.planks || 0;
     (pd.turrets || []).forEach((n, i) => { if (this.pads.turrets[i]) this.pads.turrets[i].n = n; });
     if (this.stage >= 1) { this.player.x = POS.cashPad.x + 1.5; this.player.z = POS.cashPad.z - 1.5; }
     if (bought.includes('expand2') && !this.bossDown) setTimeout(() => this.spawnBoss(), 4000);
