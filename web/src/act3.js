@@ -760,6 +760,8 @@ const methods = {
     if (!this.forge || this.act3.phase !== 'west') return null;
     const need = new Set();
     for (const t of this.itemTiles()) for (const [k, n] of this.tileItemsLeft(t)) if (n > 0) need.add(k);
+    // the first ingots unlock everything else: start by mining
+    if (this.stats.steel < 12) need.add('steel');
     if (need.has('can') && !this.cannery) {
       const c = this.tiles.find((t) => t.def.id === 'cannery');
       if (c) return { at: c.def.at, text: 'Construis la conserverie', icon: 'can' };
