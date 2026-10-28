@@ -17,6 +17,7 @@ export const CAST = {
   mira: { name: 'Mira', role: 'ta sœur · caravanière', color: '#4fa3d9', initial: 'M' },
   piotr: { name: 'Piotr', role: 'convoyeur · mécanicien', color: '#d08a2a', initial: 'P' },
   anouk: { name: 'Anouk', role: 'pêcheuse du lac', color: '#2f8f8a', initial: 'A' },
+  nadia: { name: 'Nadia', role: 'bûcheronne', color: '#2f7a6a', initial: 'N' },
   ivan: { name: 'Ivan', role: 'apprenti porteur', color: '#7d8f3a', initial: 'I' },
   gustav: { name: 'Gustav', role: 'mineur', color: '#8a7a6a', initial: 'G' },
   vera: { name: 'Véra Solenne', role: 'enregistrement · Station Aube', color: '#9fd8ff', initial: 'V' },
@@ -125,6 +126,7 @@ export const BEATS = {
   ],
   registerTile: [['lina', 'Je passe mes journées à courir après les billets. Une caisse automatique, et l’argent irait droit dans ta poche.']],
   register: [['lina', 'Ding ! Chaque client paie directement. Plus besoin de ramasser les billets.']],
+  nadia: [['nadia', 'Nadia, la fille d’Oleg. Il dit que je coupe plus vite que lui. Il ment, je coupe deux fois plus vite.']],
   porter2: [['tomas', 'Voici Ivan. Il a l’âge qu’avait mon frère. Je lui apprends le métier… et à ne jamais lâcher une main dans la tempête.']],
   cableTile: [['anouk', 'Un téléphérique du lac jusqu’au comptoir… Le poisson voyagerait au-dessus de nos têtes !']],
   cable: [['anouk', 'Les nacelles partent ! Le fumoir est relié au fort.']],
@@ -149,6 +151,7 @@ export const BEATS = {
     ['sasha', 'Tu as sauvé quarante personnes. J’aurais coupé aussi.'],
     ['mira', 'Je t’ai appelée trois jours à la radio. Je ne me suis jamais arrêtée. Jamais.'],
   ],
+  surplus: [['mira', 'Trop de marchandise sur le dos ? Laisse-la au relais, la caravane te rachète la viande, les steaks, le poisson et les bûches : cinq billets pièce.']],
   orderNudge: [['mira', 'La route du lac, Sasha… nos gens attendent là-bas.']],
   courier: [['piotr', 'Piotr, convoyeur. Mécanicien, avant. Je remplis les traîneaux de la caravane, toi tu continues à faire tourner le fort.']],
   lakeTile: [

@@ -20,6 +20,7 @@ export const INDUSTRY_TILES = [
   { id: 'boots', icon: 'boot', cost: 500, at: P(-5.8, 1.8), req: (g) => g.bought.hunter && g.bought.lumberjack, label: 'Bottes fourrées' },
   { id: 'steam', icon: 'steam', cost: 1600, at: IND_POS.boiler, req: (g) => g.stage >= 3 && g.bought.grill2 && g.bought.ballista, label: 'Chaudron à vapeur', beat: 'steamTile', reveal: true },
   { id: 'register', icon: 'register', cost: 1200, at: P(-1.7, 4.5), req: (g) => g.stage >= 3 && g.bought.counter3, label: 'Caisse automatique', beat: 'registerTile' },
+  { id: 'lumberjack2', icon: 'person', cost: 900, at: P(6.2, 1.6), req: (g) => g.stage >= 3 && g.bought.lumberjack && g.bought.sawUp, label: 'Recruter Nadia' },
   { id: 'porter2', icon: 'person', cost: 1500, at: P(-5.6, -1.2), req: (g) => g.bought.lakeRoad, label: 'Recruter Ivan' },
   { id: 'cable', icon: 'cable', cost: 2600, at: P(17.0, 11.8), req: (g) => g.stage >= 4 && (g.bought.fumoirUp || g.stats.smoked >= 25), label: 'Téléphérique du lac', beat: 'cableTile', reveal: true },
   { id: 'nets', icon: 'net', cost: 1800, at: P(21.8, 23.6), req: (g) => g.bought.fisher, label: 'Filets sous la glace' },
@@ -86,6 +87,7 @@ const methods = {
       case 'boots': this.workerSpeed = 1.35; this.workers.forEach((w) => this.gearWorker(w, fresh)); if (fresh) this.story.beat('boots'); return true;
       case 'steam': this.buildSteam(fresh); if (fresh) this.story.beat('steam'); return true;
       case 'register': this.buildRegister(fresh); if (fresh) this.story.beat('register'); return true;
+      case 'lumberjack2': this.addWorker('lumberjack', fresh, 'nadia'); if (fresh) this.story.beat('nadia'); return true;
       case 'porter2': this.addWorker('porter', fresh, 'ivan'); if (fresh) this.story.beat('porter2'); return true;
       case 'cable': this.buildCable(fresh); if (fresh) this.story.beat('cable'); return true;
       case 'nets': this.buildNets(fresh); if (fresh) this.story.beat('nets'); return true;

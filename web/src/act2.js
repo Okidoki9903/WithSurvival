@@ -494,12 +494,25 @@ const methods = {
 
   act2Stations(dt) {
     const p = this.player;
-    if (this.caravan && near(p, A.relay, 1.25)) this.deliverToCaravan(p, dt);
+    if (this.caravan && near(p, A.relay, 1.25) && !this.deliverToCaravan(p, dt)) this.sellSurplus(p, dt);
     if (this.fumoir) {
       if (near(p, A.fishPad, 1.2)) this.transfer(p, this.pads.fishPad, 'drop', dt, 0.05);
       if (near(p, A.smokedPad, 1.2)) this.transfer(p, this.pads.smokedPad, 'pick', dt, 0.05);
     }
     if (this.holes) { this.updateFishing(p, dt, this.catchTime); this.updateRodVisual(p); }
+  },
+
+  // The caravan buys back whatever food or wood Fort-Aube cannot use.
+  sellSurplus(c, dt) {
+    if (c.tt > 0) return;
+    const type = ['raw', 'cooked', 'fish', 'log'].find((t) => c.carry[t] > 0);
+    if (!type) return;
+    c.tt = 0.05;
+    const from = this.stackTop(c, type);
+    c.carry[type]--;
+    const to = { x: A.relay.x + rand(-0.3, 0.3), y: 0.6, z: A.relay.z + 1.2 };
+    this.fly(type, from, () => to, { dur: 0.35, arc: 1.4, onArrive: () => { this.money += 5; this.stats.earned += 5; this.audio.cash(); } });
+    if (!this.surplusSaid) { this.surplusSaid = true; this.story.beat('surplus', 0.2); }
   },
 
   act2Worker(w, dt, arrived, total) {
@@ -553,6 +566,8 @@ const methods = {
 
   act2LateObjective(p) {
     if (!this.act2.started) return null;
+    const junk = ['raw', 'cooked', 'fish', 'log'].reduce((n, t) => n + p.carry[t], 0);
+    if (this.load_total(p) >= p.cap * 0.85 && junk > 0) return { at: A.relay, text: 'Revends tes surplus au relais', icon: 'cash' };
     const parked = this.act2.caravan === 'parked';
     const courier = this.workers.some((w) => w.kind === 'courier');
     if (parked && !courier) {

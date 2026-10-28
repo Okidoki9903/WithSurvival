@@ -742,9 +742,10 @@ export class Game {
       miner: { parka: 0x6a5a4a, pants: 0x2b2b35, fur: 0x9a9a9a, scarf: 0xb06a2c, tool: 'axe' },
     }[kind];
     if (name === 'ivan') Object.assign(looks, { parka: 0x7d8f3a, scarf: 0xd23b3b });
+    if (name === 'nadia') Object.assign(looks, { parka: 0x2f7a6a, scarf: 0xf2c94c });
     const spawnAt = kind === 'miner' ? { x: -37.6, z: 4.0 } : kind === 'hunter' || kind === 'lumberjack' ? POS.gateIn : kind === 'fisher' ? ACT2_POS.fishPad : kind === 'courier' ? ACT2_POS.relay : P(POS.cashier.x + 1, POS.cashier.z - 1);
     const w = this.makeCarrier(makeHuman(looks), spawnAt);
-    w.kind = kind; w.name = name; w.state = 'idle'; w.path = []; w.cap = kind === 'porter' ? 12 : 10; w.timer = 0; w.speed = kind === 'hunter' ? 5 : 4.5;
+    w.kind = kind; w.name = name; w.state = 'idle'; w.path = []; w.cap = kind === 'porter' ? 12 : kind === 'lumberjack' ? 16 : 10; w.timer = 0; w.speed = kind === 'hunter' ? 5 : 4.5;
     w.dmg = 14;
     this.scene.add(w.model.root);
     this.workers.push(w);
@@ -862,7 +863,7 @@ export class Game {
           const t = w.tree;
           if (!t.alive) { w.state = 'idle'; break; }
           w.facing = lerpAngle(w.facing, Math.atan2(t.x - w.x, t.z - w.z), dt * 12);
-          if (w.swing < 0 && w.swingCd <= 0) { w.swing = 0; w.swingCd = 0.7; w.hitDone = false; }
+          if (w.swing < 0 && w.swingCd <= 0) { w.swing = 0; w.swingCd = 0.55; w.hitDone = false; }
           if (w.swing >= 0.5 && !w.hitDone) { w.hitDone = true; this.chopTree(t, w); if (!t.alive) { w.timer = 3; w.state = 'collect'; } }
         } else if (w.state === 'collect') {
           // wait for the tree to fall, then walk over to the logs
@@ -1419,6 +1420,7 @@ export class Game {
     if (this.register) this.payToRegister(c, bills);
     else for (let i = 0; i < bills; i++) {
       setTimeout(() => {
+        if (this.register) { this.money += BILL; return; }
         if (pad.n >= pad.pile.cap) return;
         this.fly('cash', { x: c.x, y: 1.4, z: c.z }, this.incoming(pad), { dur: 0.45, arc: 2.2, onArrive: () => { pad.inflight--; this.audio.cash(); } });
       }, i * 60);
@@ -1704,10 +1706,10 @@ export class Game {
     if (a2) return a2;
     if ((p.carry.cooked > 0 && room(this.pads.counterSteak)) || (p.carry.plank > 0 && room(this.pads.counterLog))) return { at: POS.cashier, text: 'Sers les rescapés au comptoir', icon: 'person' };
     if (this.saw && this.pads.plankPad.n >= 3 && !this.workers.some((w) => w.kind === 'porter')) return { at: POS.plankPad, text: 'Ramasse le bois fendu', icon: 'log' };
-    if (this.pads.cashPad.n >= 6 && this.stats.served < 30) return { at: POS.cashPad, text: 'Ramasse les billets', icon: 'cash' };
+    if (!this.register && this.pads.cashPad.n >= 6 && this.stats.served < 30) return { at: POS.cashPad, text: 'Ramasse les billets', icon: 'cash' };
     if (affordable) return { at: affordable.def.at, text: affordable.def.label, icon: affordable.def.icon };
     if (this.pads.cookedPad.n >= 3 && !this.workers.some((w) => w.kind === 'porter')) return { at: POS.cookedPad, text: 'Ramasse les steaks cuits', icon: 'steak' };
-    if (this.pads.cashPad.n >= 6) return { at: POS.cashPad, text: 'Ramasse les billets', icon: 'cash' };
+    if (!this.register && this.pads.cashPad.n >= 6) return { at: POS.cashPad, text: 'Ramasse les billets', icon: 'cash' };
     if (this.boss && !this.boss.dead && this.boss.state !== 'enter') return { at: this.boss, text: 'Abats Grand-Blanc !', icon: 'blades' };
     const a3l = this.act3LateObjective(p);
     if (a3l) return a3l;
