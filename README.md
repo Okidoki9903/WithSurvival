@@ -68,6 +68,12 @@ Le fort d'origine reste compact pendant l'acte I. Ensuite, à chaque acte, un **
 - **Maison commune** (acte II) : quatre emplacements devant le bâtiment proposent toujours les améliorations les moins chères disponibles parmi une vingtaine de lignes à niveaux : enseigne du marché (prix), cadence des chaudrons, sac, hache, bottes des ouvriers, porteurs, chasseurs, bûcherons et mineurs supplémentaires, lames de scie, carreaux des arbalètes, affiches (plus de clients), fumoir, forge, foreuse, bâtisseurs, intendance de Lina, confort des logements (loyers), commerce (revenus des boutiques), tréfilerie, cimenterie, chaîne des panneaux. Plus de 70 niveaux en tout.
 - **Boutiques** : onze parcelles dans les quartiers (auberge, boulangerie, pelleterie, coutellerie, bains, école, atelier, cinéma, marché couvert, dispensaire, bibliothèque). Chacune monte d'un étage à chaque niveau et verse ses recettes à chaque jour de paie ; certaines accélèrent aussi la ville (l'auberge attire des clients, l'école forme les ouvriers, le marché couvert fait monter les prix).
 
+## Plus de piles sur le dos
+
+Au début, Sasha porte tout sur son dos : billets, viande, bûches, lingots. À la Maison commune, deux achats l'en libèrent :
+- **Banque de Lina** : l'argent n'est plus empilé sur le dos (il reste affiché en haut de l'écran et paie toujours les dalles quand on marche dessus) ;
+- **Traîneau de Sasha** : un traîneau suit Sasha au bout de sa corde et porte tout ce qu'elle ramasse, en rangées basses, au lieu d'une tour de marchandises.
+
 ## Automatisation complète
 
 Chaque étape du processus peut tourner seule : chasse (arbalètes, chasseurs), viande vers le chaudron (treuil, porteurs), cuisson, comptoir (tapis, Lina, caisse), bois (bûcherons, scierie, foyer nourri par Oleg), pêche et fumoir (filets, téléphérique), caravanes (Piotr), fer (mineurs, wagonnet, foreuse, forge), conserves, cuivre et fil (Oskar, foreuse électrique), pierre et ciment (Kaja, concasseur), panneaux et Arches (drones). Les **bâtisseurs** portent l'acier, le bois, les conserves, le fil, les parpaings et les panneaux jusqu'aux chantiers qui les attendent, et l'**intendance de Lina** finance chaque chantier dès que ses matériaux sont livrés. Les ouvriers suivent les rues (grille de navigation) au lieu de traverser les murs.

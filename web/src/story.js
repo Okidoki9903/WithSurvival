@@ -326,6 +326,8 @@ export const BEATS = {
   shop_bibliotheque: [['sasha', 'La bibliothèque porte le nom de maman. Ses carnets sont sous verre, à l’entrée.']],
   stoneDrill: [['kaja', 'Un concasseur électrique ! La pierre vole toute seule jusqu’au four. Je vais enfin pouvoir sculpter.']],
   lvTreasury: [['lina', 'Désormais, dès que tes bâtisseurs ont tout livré sur un chantier, je le finance moi-même. Tu n’as plus qu’à regarder la ville pousser.']],
+  lvBank: [['lina', 'Ton argent dort à la banque, maintenant. Plus besoin de porter une colonne de billets sur ton dos : je paie les chantiers pour toi quand tu marches dessus.']],
+  lvSled: [['piotr', 'Un traîneau rien qu’à toi. Il te suit au bout de sa corde et porte tout ce que tu ramasses. Ton dos te remerciera.'], ['mira', 'Le même traîneau que le premier jour… mais celui-là, personne ne coupera sa corde.']],
   builder: [['piotr', 'Un bâtisseur ! Il prend l’acier, le bois, les conserves sur leurs dalles et les apporte tout seul aux chantiers qui en ont besoin.']],
   // ---- Act IV · the Age of Lightning ----
   radio1: [

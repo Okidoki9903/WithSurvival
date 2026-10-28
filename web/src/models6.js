@@ -117,3 +117,20 @@ export function makeSlotMarker() {
   const ring = mesh(new THREE.TorusGeometry(1.25, 0.06, 4, 28).rotateX(Math.PI / 2), mat(0xf2d24b), { cast: false }); ring.position.y = 0.04; g.add(ring);
   return g;
 }
+
+// Sasha's own sled: it follows her on a rope and carries the load
+// instead of a tower of goods on her back.
+export function makeHeroSled() {
+  const g = new THREE.Group();
+  const wood = mat(0x9b6a42), dark = mat(0x5a3a24), iron = mat(0x4a4e55);
+  const bed = mesh(new THREE.BoxGeometry(1.3, 0.12, 1.9), wood); bed.position.y = 0.32; g.add(bed);
+  for (const x of [-0.6, 0.6]) {
+    const side = mesh(new THREE.BoxGeometry(0.08, 0.22, 1.9), dark); side.position.set(x, 0.45, 0); g.add(side);
+    const runner = mesh(new THREE.BoxGeometry(0.08, 0.06, 2.3), iron); runner.position.set(x, 0.05, -0.1); g.add(runner);
+    const tip = mesh(new THREE.TorusGeometry(0.22, 0.04, 4, 10, Math.PI), iron); tip.rotation.y = Math.PI / 2; tip.position.set(x, 0.27, 1.05); g.add(tip);
+    for (const z of [-0.6, 0.5]) { const leg = mesh(new THREE.BoxGeometry(0.07, 0.26, 0.07), dark); leg.position.set(x, 0.18, z); g.add(leg); }
+  }
+  const back = mesh(new THREE.BoxGeometry(1.3, 0.3, 0.08), dark); back.position.set(0, 0.5, -0.95); g.add(back);
+  const rope = mesh(new THREE.CylinderGeometry(0.025, 0.025, 1, 4), mat(0x6b4a2a), { cast: false }); rope.rotation.x = Math.PI / 2; g.add(rope);
+  return { group: g, rope };
+}
