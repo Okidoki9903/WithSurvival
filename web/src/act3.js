@@ -741,28 +741,41 @@ const methods = {
       const dock = dockRoom && (!oreRoom || dist(p, A3.dock) < dist(p, A3.orePad));
       return { at: dock ? A3.dock : A3.orePad, text: 'Porte le minerai à la forge', icon: 'ore' };
     }
-    const ship = this.tiles.find((t) => t.def.id.startsWith('ship') || t.def.id === 'depart');
-    if (ship) {
-      if (ship.def.id === 'depart') return { at: ship.def.at, text: 'Monte à bord du Brise-Glace', icon: 'ship' };
-      const left = this.tileItemsLeft(ship);
-      if (left.some(([t, n]) => n > 0 && p.carry[t] > 0)) return { at: ship.def.at, text: 'Livre au chantier du Brise-Glace', icon: 'ship' };
-    }
+    const dep = this.tiles.find((t) => t.def.id === 'depart');
+    if (dep) return { at: dep.def.at, text: 'Monte à bord du Brise-Glace', icon: 'ship' };
+    // carrying something a tile is waiting for: bring it there (the icebreaker first)
+    const waiting = this.itemTiles();
+    const give = waiting.find((t) => this.tileItemsLeft(t).some(([k, n]) => n > 0 && p.carry[k] > 0));
+    if (give) return { at: give.def.at, text: give.def.id.startsWith('ship') ? 'Livre au chantier du Brise-Glace' : `Apporte les matériaux : ${give.def.label}`, icon: give.def.icon };
     return null;
+  },
+
+  // Tiles still waiting for materials, the icebreaker first.
+  itemTiles() {
+    return this.tiles.filter((t) => t.def.items && this.tileItemsLeft(t).some(([, n]) => n > 0))
+      .sort((a, b) => (b.def.id.startsWith('ship') ? 1 : 0) - (a.def.id.startsWith('ship') ? 1 : 0) || (b.def.id === 'cannery' ? 1 : 0) - (a.def.id === 'cannery' ? 1 : 0));
   },
 
   act3LateObjective(p) {
     if (!this.forge || this.act3.phase !== 'west') return null;
-    const ship = this.tiles.find((t) => t.def.id.startsWith('ship'));
-    const need = ship ? this.tileItemsLeft(ship).filter(([, n]) => n > 0).map(([t]) => t) : ['steel'];
-    if (need.includes('steel') && this.pads.steelPad.n >= 4) return { at: A3.steelPad, text: 'Ramasse les lingots d’acier', icon: 'ingot' };
-    if (need.includes('can') && this.pads.canPad.n >= 4) return { at: A3.canPad, text: 'Ramasse les conserves', icon: 'can' };
-    if (need.includes('plank') && this.pads.plankPad.n >= 4) return { at: this.pads.plankPad, text: 'Va chercher du bois fendu', icon: 'log' };
-    if (need.includes('plank')) {
+    const need = new Set();
+    for (const t of this.itemTiles()) for (const [k, n] of this.tileItemsLeft(t)) if (n > 0) need.add(k);
+    if (need.has('can') && !this.cannery) {
+      const c = this.tiles.find((t) => t.def.id === 'cannery');
+      if (c) return { at: c.def.at, text: 'Construis la conserverie', icon: 'can' };
+      const k = this.tiles.find((t) => t.def.id === 'cuisine');
+      if (k) return { at: k.def.at, text: 'Construis la Cuisine de l’Aube', icon: 'pot' };
+    }
+    if (this.load_total(p) >= p.cap * 0.85) return null;
+    if (need.has('steel') && this.pads.steelPad.n >= 1) return { at: A3.steelPad, text: 'Ramasse les lingots d’acier', icon: 'ingot' };
+    if (need.has('can') && this.pads.canPad.n >= 1) return { at: A3.canPad, text: 'Ramasse les conserves', icon: 'can' };
+    if (need.has('plank')) {
+      if (this.pads.plankPad.n >= 2) return { at: this.pads.plankPad, text: 'Va chercher du bois fendu', icon: 'log' };
       if (p.carry.log >= 6 || (p.carry.log > 0 && this.load_total(p) >= p.cap * 0.6)) return { at: this.pads.logPad, text: 'Porte les bûches à la scierie', icon: 'log' };
       const t = this.nearestChoppable(p);
-      if (t && this.load_total(p) < p.cap * 0.8) return { at: { x: t.x, z: t.z }, text: 'Coupe du bois pour le chantier', icon: 'axe' };
+      if (t) return { at: { x: t.x, z: t.z }, text: 'Coupe du bois pour le chantier', icon: 'axe' };
     }
-    if (need.includes('steel') || !ship) {
+    if (need.has('steel')) {
       const n = this.nearestOreNode(p, 200);
       if (n && !this.workers.some((w) => w.kind === 'miner')) return { at: n, text: 'Mine le fer de la falaise', icon: 'ore' };
     }
