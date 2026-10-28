@@ -255,7 +255,6 @@ const methods = {
     this.world.tween(0.15, (f) => n.g.scale.setScalar(1 + (1 - f) * 0.06));
     if (n.hp <= 0) {
       n.alive = false; n.t = 26;
-      this.world.circles = this.world.circles.filter((c) => c !== n.circle);
       this.burst('ore', n.x, 0.9, n.z, 4, { owner: src, speed: 3.2 });
       this.world.tween(0.3, (f) => n.g.scale.setScalar(Math.max(0.001, 1 - f)));
       this.audio.whoosh();
@@ -266,9 +265,8 @@ const methods = {
     for (const n of this.oreNodes || []) {
       if (n.alive) continue;
       n.t -= dt;
-      if (n.t <= 0 && !near(this.player, n, 1.6)) {
+      if (n.t <= 0) {
         n.alive = true; n.hp = 4;
-        this.world.circles.push(n.circle);
         this.world.tween(1.0, (f) => n.g.scale.setScalar(Math.max(0.001, backOut(f))));
       }
     }
@@ -392,7 +390,7 @@ const methods = {
     const y = 3.6;
     this.foodLine = this.addLine({
       kind: 'cable', speed: 2.6, spacing: 0.9, color: 0x2b2b30,
-      path: [{ x: -2.9, y, z: 0.6 }, { x: -6.8, y, z: 5.2 }, { x: -12.4, y, z: 5.45 }, { x: -17.0, y, z: 5.45 }, { x: -24.6, y, z: 5.75 }, { x: -26.9, y, z: 4.7 }],
+      path: [{ x: -2.9, y, z: 0.6 }, { x: -6.8, y, z: 5.75 }, { x: -12.4, y, z: 5.75 }, { x: -17.0, y, z: 5.75 }, { x: -24.6, y, z: 5.75 }, { x: -26.9, y, z: 4.7 }],
       posts: null,
       sources: [{ pad: this.pads.cookedPad, s: 0.05, when: () => this.pads.cookedPad.n > 4 && this.pads.canPad.n + this.canQ + this.foodLine.items.length < this.pads.canPad.pile.cap }],
       sink: { accept: () => this.canQ < 6, deliver: (type, from) => { this.canQ++; this.fly(type, from, () => ({ x: A3.cannery.x + 0.4, y: 1.1, z: A3.cannery.z + 0.45 }), { dur: 0.3, arc: 0.3 }); } },

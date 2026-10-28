@@ -216,7 +216,7 @@ const methods = {
     const y = 3.2;
     this.lakeCable = this.addLine({
       kind: 'cable', speed: 2.3, spacing: 0.9, camp: false, color: 0x2b2b30,
-      path: [{ x: 19.0, y, z: 12.2 }, { x: 14.4, y, z: 9.0 }, { x: 14.4, y, z: 5.4 }, { x: 8.0, y, z: 5.4 }, { x: 4.4, y, z: 5.4 }, { x: -0.5, y, z: 5.5 }, { x: -2.1, y, z: 5.65 }],
+      path: [{ x: 19.0, y, z: 12.2 }, { x: 14.4, y, z: 9.0 }, { x: 14.4, y, z: 5.75 }, { x: 8.0, y, z: 5.75 }, { x: 4.4, y, z: 5.75 }, { x: -0.5, y, z: 5.75 }, { x: -2.1, y, z: 5.75 }],
       sources: [{ pad: this.pads.smokedPad, s: 0.05, when: () => this.pads.counterFish.n + this.lakeCable.items.length < 30 }],
       sink: padSink(this, this.pads.counterFish, { dur: 0.5, arc: 0.4 }),
     }, fresh);

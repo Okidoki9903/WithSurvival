@@ -7,6 +7,7 @@ import { STAGES, MEADOW, COUNTER, LANE_QUEUE, LANE_EXIT, inRect, backOut } from 
 import { ACT2_TILES, ACT2_POS, installAct2 } from './act2.js';
 import { INDUSTRY_TILES, IND_POS, installIndustry } from './industry.js';
 import { ACT3_TILES, installAct3 } from './act3.js';
+import { NavGrid } from './nav.js';
 
 const P = (x, z) => ({ x, z });
 export const POS = {
@@ -36,7 +37,8 @@ const TURRETS = [
   { x: -11, z: -6, pad: P(-11, -4.3) },
 ];
 // [x, z, campfire x, campfire z] — campfires sit where no tile or pad goes
-const CABINS = { 2: [[8.6, 3.5, 8.8, 1.2], [15.4, 3.5], [15.2, -3.6, 13.0, -4.4]], 3: [[-10.2, 3.5, -8.0, 1.2], [-14.4, 3.5], [-14.6, -2.4, -14.6, 0.6]] };
+// Cabins stand right against the palisade: no thin slot behind them to get stuck in.
+const CABINS = { 2: [[8.6, 4.05, 8.8, 1.4], [15.4, 4.05], [15.2, -4.1, 13.0, -4.4]], 3: [[-10.2, 4.05, -8.0, 1.4], [-14.4, 4.05], [-14.6, -2.4, -14.6, 0.6]] };
 const WOOD_CRIB = P(15.9, 0.9);
 // The Beacon stands in the bear meadow beside the rocky outcrop, where the
 // colossus fell: it overlooks the forest without crowding the fort.
@@ -136,6 +138,8 @@ export class Game {
     this.initAct2();
     this.initIndustry();
     this.initAct3();
+    this.nav = new NavGrid(this.world);
+    this.navStation = new NavGrid(this.world);
 
     this.player = this.makeCarrier(makeHuman({ parka: 0x2c5f9e, pants: 0x262b38, scarf: 0xe2702e }), POS.spawn);
     this.player.cap = 20;
@@ -477,6 +481,7 @@ export class Game {
     this.fx.sparks(def.at.x, 0.6, def.at.z, { n: 24, color: [1, 0.85, 0.3], speed: 7 });
     this.applyUpgrade(def.id, true);
     this.unstick();
+    this.nav.dirty = true;
     this.refreshTiles();
     this.save?.();
   }
@@ -529,6 +534,23 @@ export class Game {
       b.x0 = Math.min(b.x0, zr.x0 - 3); b.x1 = Math.max(b.x1, zr.x1 + 3); b.z0 = Math.min(b.z0, zr.z0 - 3); b.z1 = Math.max(b.z1, zr.z1 + 3);
     }
     return this.world.reachMap(b, this.stage >= 1 ? { x: 0, z: 3.2 } : POS.spawn, 0.35);
+  }
+
+  // Bounds of the navigation grid: the fort, the meadow and every open zone.
+  navNext(p, at) {
+    if (this.region(p) === 'station' || this.region(at) === 'station') {
+      const zr = (this.world.extraZones || []).find((z) => z.z1 < -50);
+      if (!zr) return null;
+      this.navStation.ensure({ x0: zr.x0 - 2, x1: zr.x1 + 2, z0: zr.z0 - 2, z1: zr.z1 + 2 });
+      return this.navStation.next(p, at);
+    }
+    const r = STAGES[this.stage];
+    const b = { x0: Math.min(r.x0 - 5, MEADOW.x0 - 4), x1: Math.max(r.x1 + 5, MEADOW.x1 + 4), z0: MEADOW.z0 - 3, z1: r.z1 + 6 };
+    if (this.stage >= 4) { b.x1 = Math.max(b.x1, 31); b.z1 = 28; }
+    for (const zr of this.world.extraZones || []) if (zr.z1 > -50) { b.x0 = Math.min(b.x0, zr.x0 - 3); b.z0 = Math.min(b.z0, zr.z0 - 3); b.z1 = Math.max(b.z1, zr.z1 + 3); }
+    if (at.x < b.x0 || at.x > b.x1 || at.z < b.z0 || at.z > b.z1 || p.x < b.x0 || p.x > b.x1 || p.z < b.z0 || p.z > b.z1) return null;
+    this.nav.ensure(b);
+    return this.nav.next(p, at);
   }
 
   archReport() {
@@ -1670,7 +1692,7 @@ export class Game {
       const b = this.nearestBear(p, 80, true);
       return { at: b ? { x: b.x, z: b.z } : null, text: `Chasse les ours · ${this.money}/200 billets`, icon: 'meat', hunt: true };
     }
-    const affordable = this.tiles.filter((t) => this.money >= Math.min(t.def.cost - t.paid, 60) && this.money >= (t.def.cost - t.paid) * 0.5).sort((a, b) => (a.def.cost - a.paid) - (b.def.cost - b.paid))[0];
+    const affordable = this.tiles.filter((t) => t.def.cost - t.paid > 0 && this.money >= Math.min(t.def.cost - t.paid, 60) && this.money >= (t.def.cost - t.paid) * 0.5).sort((a, b) => (a.def.cost - a.paid) - (b.def.cost - b.paid))[0];
     const starving = this.pads.rawPad.n === 0 && this.pads.cookedPad.n === 0 && this.pads.counterSteak.n < 2;
     const room = (pad) => pad.n < (pad.pile ? pad.pile.cap : pad.cap) - 2;
     if (p.carry.raw > 0 && room(this.pads.rawPad) && (this.load_total(p) >= p.cap * 0.6 || (starving && p.carry.raw >= 5))) return { at: POS.rawPad, text: 'Dépose la viande près du chaudron', icon: 'meat' };
@@ -1714,9 +1736,18 @@ export class Game {
     const o = this.objective;
     const p = this.player;
     let at = o && o.at;
+    // real path around buildings, fences and trees, when the grid covers it
+    let navved = false;
+    if (at && this.stage >= 1) {
+      // the waypoint is refreshed a few times per second, or as soon as it is reached
+      this.wpT = (this.wpT || 0) - dt;
+      if (this.wpT <= 0 || !this.wp || this.wpGoal !== at || dist(p, this.wp) < 0.4) { this.wpT = 0.15; this.wpGoal = at; this.wp = this.navNext(p, at); }
+      const wp = this.wp;
+      if (wp) { navved = true; at = wp.final ? o.at : wp; }
+    }
     // route through the lake gate or the west gate when those regions are involved
     let viaSouth = false;
-    if (at && this.stage >= 4) {
+    if (at && this.stage >= 4 && !navved) {
       const pr = this.region(p), tr = this.region(at);
       const zone = pr !== tr ? (pr !== 'camp' && pr !== 'out' ? pr : tr !== 'camp' && tr !== 'out' ? tr : null) : null;
       const G = zone && this.gates()[zone];
@@ -1732,7 +1763,7 @@ export class Game {
       }
     }
     // route the pointer through the north gate when the fence is in the way
-    if (at && this.stage >= 1 && !viaSouth) {
+    if (at && this.stage >= 1 && !viaSouth && !navved) {
       const pin = this.world.insideCamp(p.x, p.z), tin = this.world.insideCamp(at.x, at.z);
       const outsideNorth = (q) => q.z < STAGES[this.stage].z0 - 0.7;
       if (pin && !tin) at = Math.abs(p.x - POS.gateIn.x) < 1 && p.z < POS.gateIn.z + 0.6 ? POS.gateOut : POS.gateIn;
@@ -1757,11 +1788,12 @@ export class Game {
     }
     if (at && o) this.guideAt = at !== o.at ? at : null;
     this.guideTarget = at;
-    const d = at ? dist(p, at) : 0;
+    const goal = o && o.at;
+    const d = at ? dist(p, at) : 0, dGoal = goal ? dist(p, goal) : 0;
     const routed = !!this.guideAt;
-    const show = at && (routed || (d > 3.2 && !(o.hunt && d < 9)));
-    this.marker.visible = !!(at && !o.hunt && !routed && d > 1.5);
-    if (this.marker.visible) this.marker.position.set(at.x, 2.4 + Math.abs(Math.sin(this.time * 4)) * 0.5, at.z);
+    const show = at && ((routed && dGoal > 2.2) || (d > 3.2 && !(o.hunt && d < 9)));
+    this.marker.visible = !!(goal && !o.hunt && dGoal > 1.5);
+    if (this.marker.visible) this.marker.position.set(goal.x, 2.4 + Math.abs(Math.sin(this.time * 4)) * 0.5, goal.z);
     this.marker.rotation.y += dt * 2;
     this.arrow.visible = !!show;
     if (show) {
