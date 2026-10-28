@@ -389,8 +389,10 @@ export function makeCampfire() {
 // ---------------------------------------------------------------------------
 // Carried items (instanced): raw meat, cooked steak, cash bill, log
 // ---------------------------------------------------------------------------
-export const ITEM_TYPES = ['raw', 'cooked', 'cash', 'log', 'plank', 'fish', 'smoked'];
-export const ITEM_HEIGHT = { raw: 0.13, cooked: 0.12, cash: 0.1, log: 0.2, plank: 0.22, fish: 0.14, smoked: 0.13 };
+export const ITEM_TYPES = ['raw', 'cooked', 'cash', 'log', 'plank', 'fish', 'smoked', 'ore', 'steel', 'can', 'copper', 'wire', 'stone', 'concrete', 'panel'];
+// Everything a carrier can hold on its back (cash is the money stack).
+export const CARRY_TYPES = ITEM_TYPES.filter((t) => t !== 'cash');
+export const ITEM_HEIGHT = { raw: 0.13, cooked: 0.12, cash: 0.1, log: 0.2, plank: 0.22, fish: 0.14, smoked: 0.13, ore: 0.2, steel: 0.13, can: 0.2, copper: 0.2, wire: 0.24, stone: 0.2, concrete: 0.2, panel: 0.07 };
 
 export function itemGeometry(type) {
   if (type === 'raw') {
@@ -432,6 +434,57 @@ export function itemGeometry(type) {
     paint(geo, (c, x) => c.copy(Math.abs(x) > 0.34 ? end : bark));
     const g2 = geo.clone().translate(0, 0, 0.12), g1 = geo.clone().translate(0, 0, -0.12);
     return mergeGeometries([g1, g2]);
+  }
+  if (type === 'ore') {
+    // chunk of rock streaked with rusty iron
+    const rock = new THREE.Color(0x5b5651), rust = new THREE.Color(0xd0662a);
+    const geo = new THREE.DodecahedronGeometry(0.2, 0).scale(1.3, 0.85, 1.1).toNonIndexed();
+    return paint(geo, (c, x, y, z, ny, i) => c.copy(Math.floor(i / 3) % 3 === 0 ? rust : rock));
+  }
+  if (type === 'steel') {
+    // trapezoid ingot
+    const sh = new THREE.Shape(); sh.moveTo(-0.3, -0.06); sh.lineTo(0.3, -0.06); sh.lineTo(0.22, 0.06); sh.lineTo(-0.22, 0.06); sh.closePath();
+    const geo = new THREE.ExtrudeGeometry(sh, { depth: 0.3, bevelEnabled: false }).translate(0, 0, -0.15);
+    const top = new THREE.Color(0xd9e2ea), side = new THREE.Color(0x8a96a3);
+    return paint(geo.toNonIndexed(), (c, x, y, z, ny) => c.copy(ny > 0.5 ? top : side));
+  }
+  if (type === 'can') {
+    const geo = new THREE.CylinderGeometry(0.16, 0.16, 0.19, 12);
+    const tin = new THREE.Color(0xc9d0d8), label = new THREE.Color(0xc0392b);
+    return paint(geo, (c, x, y, z, ny) => c.copy(Math.abs(ny) > 0.5 || Math.abs(y) > 0.07 ? tin : label));
+  }
+  if (type === 'copper') {
+    // green-veined malachite chunk
+    const rock = new THREE.Color(0x4a4640), cu = new THREE.Color(0x2fb8a0);
+    const geo = new THREE.DodecahedronGeometry(0.2, 0).scale(1.25, 0.85, 1.1).toNonIndexed();
+    return paint(geo, (c, x, y, z, ny, i) => c.copy(Math.floor(i / 3) % 2 === 0 ? cu : rock));
+  }
+  if (type === 'wire') {
+    // spool of copper wire
+    const flange = new THREE.Color(0x3a3a40), cu = new THREE.Color(0xd9844a);
+    const core = new THREE.CylinderGeometry(0.15, 0.15, 0.3, 12).rotateZ(Math.PI / 2).toNonIndexed();
+    paint(core, (c) => c.copy(cu));
+    const f1 = new THREE.CylinderGeometry(0.2, 0.2, 0.04, 12).rotateZ(Math.PI / 2).translate(0.17, 0, 0).toNonIndexed();
+    const f2 = f1.clone().translate(-0.34, 0, 0);
+    [f1, f2].forEach((g) => paint(g, (c) => c.copy(flange)));
+    return mergeGeometries([core, f1, f2]).translate(0, 0.02, 0);
+  }
+  if (type === 'stone') {
+    const a = new THREE.Color(0xa7a29a), b = new THREE.Color(0x8b867e);
+    const geo = new THREE.BoxGeometry(0.42, 0.18, 0.3).toNonIndexed();
+    return paint(geo, (c, x, y, z, ny) => c.copy(ny > 0.5 ? a : b));
+  }
+  if (type === 'concrete') {
+    // cinder block with two holes
+    const top = new THREE.Color(0xd9d6cf), side = new THREE.Color(0xb3afa7), hole = new THREE.Color(0x6f6c66);
+    const geo = new THREE.BoxGeometry(0.5, 0.18, 0.26).toNonIndexed();
+    return paint(geo, (c, x, y, z, ny) => c.copy(ny > 0.5 ? (Math.abs(Math.abs(x) - 0.12) < 0.06 && Math.abs(z) < 0.06 ? hole : top) : side));
+  }
+  if (type === 'panel') {
+    // solar mirror panel: blue cells in a silver frame
+    const cell = new THREE.Color(0x2a5fb0), frame = new THREE.Color(0xd9e2ea);
+    const geo = new THREE.BoxGeometry(0.56, 0.05, 0.4, 4, 1, 3).toNonIndexed();
+    return paint(geo, (c, x, y, z, ny) => c.copy(ny > 0.5 && Math.abs(x) < 0.25 && Math.abs(z) < 0.17 ? cell : frame));
   }
   return new THREE.BoxGeometry(0.3, 0.1, 0.3);
 }

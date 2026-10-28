@@ -9,7 +9,7 @@
 <title>WithSurvival — Fort-Aube</title>
 <meta name="description" content="Chassez les ours polaires, faites tourner le chaudron, nourrissez les rescapés et bâtissez Fort-Aube au cœur des Terres Blanches.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>❄️</text></svg>">
-<link rel="stylesheet" href="style.css?v=2">
+<link rel="stylesheet" href="style.css?v=5">
 <script type="importmap">{"imports":{"three":"./vendor/three.module.min.js","three/addons/":"./vendor/addons/"}}</script>
 </head>
 <body>
@@ -17,11 +17,14 @@
 <div id="touch"></div>
 <div id="fx-layer"></div>
 <div id="storm"></div>
+<div id="fade"></div>
 
 <div id="hud">
   <div id="money" aria-label="Billets"><span class="bill"><i></i></span><span id="money-val">0</span></div>
+  <div id="civ"><div class="civ-row"><b id="civ-k">K 0,00</b><span id="civ-era"></span><span id="civ-pop"></span></div><div class="civ-bar"><i id="civ-fill"></i><em style="left:33.3%"></em><em style="left:66.6%"></em></div></div>
   <div id="objective"><img id="objective-icon" alt=""><span id="objective-text"></span></div>
   <div id="top-right">
+    <button id="btn-journal" aria-label="Carnet"><img id="journal-icon" alt=""><span id="journal-badge"></span></button>
     <button id="btn-sound" aria-label="Son"><svg viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path class="wave" d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/><path class="mute" d="M16 9l6 6M22 9l-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
     <button id="btn-menu" aria-label="Menu"><svg viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1.5" fill="currentColor"/><rect x="14" y="5" width="4" height="14" rx="1.5" fill="currentColor"/></svg></button>
   </div>
@@ -29,6 +32,7 @@
     <div id="dialog-avatar">B</div>
     <div class="dialog-body"><div class="dialog-head"><b id="dialog-name"></b><span id="dialog-role"></span></div><p id="dialog-text"></p></div>
   </div>
+  <div id="edge"><div id="edge-arrow"></div><img id="edge-icon" alt=""></div>
   <div id="banner"><div id="banner-num"></div><div id="banner-title"></div><div id="banner-sub"></div></div>
 </div>
 
@@ -43,18 +47,26 @@
   </div>
 </div>
 
+<div id="journal">
+  <div class="card">
+    <div class="journal-head"><span class="eyebrow">CARNET DE SASHA</span><button id="journal-close" class="btn ghost small">Fermer</button></div>
+    <div id="journal-list"></div>
+  </div>
+</div>
+
 <div id="credits">
   <div class="card">
-    <div class="eyebrow">FIN · L’HIVER A RECULÉ</div>
+    <div id="credits-eyebrow" class="eyebrow">FIN DE L’ACTE II · L’HIVER A RECULÉ</div>
     <div class="logo small"><span class="l1">WITHSURVIVAL</span><span class="l2">FORT-AUBE</span></div>
-    <p class="credits-story">Partie seule, avec une hache et rien d’autre, Sasha a bâti une ville. Le Phare a ramené Mira, le Lac a rendu les siens, et le Grand Brasier a fait reculer le blizzard qui avait enterré le vieux monde.</p>
+    <p id="credits-story" class="credits-story">Partie seule, avec une hache et rien d’autre, Sasha a bâti une ville. Le Phare a ramené Mira, le Lac a rendu les siens, et le Grand Brasier a fait reculer le blizzard qui avait enterré le vieux monde.</p>
     <ul class="cast">
       <li><b>Sasha</b> la bâtisseuse</li><li><b>Brann</b> le vieux trappeur</li><li><b>Mira</b> la caravanière</li>
       <li><b>Lina</b> du comptoir</li><li><b>Tomas</b> le porteur</li><li><b>Yuki</b> la chasseuse</li>
-      <li><b>Oleg</b> le bûcheron</li><li><b>Piotr</b> le convoyeur</li><li><b>Anouk</b> du lac</li>
+      <li><b>Oleg</b> le bûcheron</li><li><b>Piotr</b> le mécanicien</li><li><b>Anouk</b> du lac</li>
+      <li><b>Ivan</b> l’apprenti</li><li><b>Gustav</b> le mineur</li><li><b>Flocon</b> l’ourson</li>
     </ul>
-    <p class="hint">Les caravanes continuent d’arriver. Fort-Aube peut encore s’embellir : lanternes, statue, ours de glace… et la Fête de l’Aube.</p>
-    <button id="credits-continue" class="btn primary">Continuer à bâtir Fort-Aube</button>
+    <p id="credits-hint" class="hint">Mais Brann regarde toujours vers le nord… L’histoire n’est pas finie.</p>
+    <button id="credits-continue" class="btn primary">Continuer</button>
   </div>
 </div>
 
@@ -67,7 +79,7 @@
   </div>
 </div>
 
-<script type="module" src="src/main.js?v=2"></script>
+<script type="module" src="src/main.js?v=5"></script>
 <script>
   // If modules fail (very old browser / WebGL missing), say so instead of a white page.
   window.addEventListener('error', function (e) {

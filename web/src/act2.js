@@ -26,12 +26,12 @@ const A = ACT2_POS;
 // Upgrade tiles of Act II (appended to the game's tile list).
 export const ACT2_TILES = [
   { id: 'courier', icon: 'person', cost: 1200, at: P(3.0, 4.6), req: (g) => g.act2.orders >= 1, label: 'Recruter Piotr' },
-  { id: 'lakeRoad', icon: 'expand', cost: 2500, at: P(12.4, 3.6), req: (g) => g.act2.orders >= 2, label: 'Route du Lac Gelé', beat: 'lakeTile' },
+  { id: 'lakeRoad', icon: 'expand', cost: 2500, at: P(12.4, 3.6), req: (g) => g.act2.orders >= 2, label: 'Route du Lac Gelé', beat: 'lakeTile', reveal: true },
   { id: 'fisher', icon: 'person', cost: 900, at: P(11.4, 20.2), req: (g) => g.stage >= 4, label: 'Recruter Anouk' },
   { id: 'rod', icon: 'fish', cost: 600, at: P(14.2, 21.0), req: (g) => g.stage >= 4 && g.stats.fished >= 5, label: 'Canne en os' },
   { id: 'fumoirUp', icon: 'fire', cost: 1400, at: P(13.6, 17.6), req: (g) => g.stage >= 4 && g.stats.smoked >= 8, label: 'Fumoir double', beat: 'fumoirTile' },
-  { id: 'brasier', icon: 'fire', cost: 6000, at: A.brasier, req: (g) => g.act2.blizzard, label: 'Grand Brasier', big: true, beat: 'brasierTile' },
-  { id: 'lanterns', icon: 'beacon', cost: 3000, at: P(-2.4, -3.4), req: (g) => g.act2.ended, label: 'Lanternes du fort' },
+  { id: 'brasier', icon: 'fire', cost: 6000, at: A.brasier, req: (g) => g.act2.blizzard, label: 'Grand Brasier', big: true, beat: 'brasierTile', reveal: true },
+  { id: 'lanterns', icon: 'beacon', cost: 3000, at: P(-7.6, -3.0), req: (g) => g.act2.ended, label: 'Lanternes du fort' },
   { id: 'statue', icon: 'person', cost: 5000, at: A.statue, req: (g) => g.act2.ended, label: 'Statue de Brann' },
   { id: 'sculpt', icon: 'snowflake', cost: 4000, at: A.lakeC, req: (g) => g.act2.ended, label: 'Ours de glace' },
   { id: 'festival', icon: 'fire', cost: 12000, at: P(12.4, 3.6), req: (g) => g.act2.ended && g.bought.lanterns && g.bought.statue && g.bought.sculpt, label: 'Fête de l’Aube', big: true },
@@ -486,19 +486,33 @@ const methods = {
       case 'statue': this.buildStatue(fresh); if (fresh) this.story.beat('statue'); break;
       case 'sculpt': this.buildSculptures(fresh); if (fresh) this.story.beat('sculpt'); break;
       case 'festival': this.act2.festival = true; this.rewardMult = 2; this.priceMult *= 1.25; if (fresh) this.story.beat('festival'); break;
-      default: break;
+      default: return false;
     }
     void p;
+    return true;
   },
 
   act2Stations(dt) {
     const p = this.player;
-    if (this.caravan && near(p, A.relay, 1.25)) this.deliverToCaravan(p, dt);
+    if (this.caravan && near(p, A.relay, 1.25) && !this.deliverToCaravan(p, dt)) this.sellSurplus(p, dt);
     if (this.fumoir) {
       if (near(p, A.fishPad, 1.2)) this.transfer(p, this.pads.fishPad, 'drop', dt, 0.05);
       if (near(p, A.smokedPad, 1.2)) this.transfer(p, this.pads.smokedPad, 'pick', dt, 0.05);
     }
     if (this.holes) { this.updateFishing(p, dt, this.catchTime); this.updateRodVisual(p); }
+  },
+
+  // The caravan buys back whatever food or wood Fort-Aube cannot use.
+  sellSurplus(c, dt) {
+    if (c.tt > 0) return;
+    const type = ['raw', 'cooked', 'fish', 'log'].find((t) => c.carry[t] > 0);
+    if (!type) return;
+    c.tt = 0.05;
+    const from = this.stackTop(c, type);
+    c.carry[type]--;
+    const to = { x: A.relay.x + rand(-0.3, 0.3), y: 0.6, z: A.relay.z + 1.2 };
+    this.fly(type, from, () => to, { dur: 0.35, arc: 1.4, onArrive: () => { this.money += 5; this.stats.earned += 5; this.audio.cash(); } });
+    if (!this.surplusSaid) { this.surplusSaid = true; this.story.beat('surplus', 0.2); }
   },
 
   act2Worker(w, dt, arrived, total) {
@@ -537,7 +551,7 @@ const methods = {
       } else if (w.state === 'toCounter' && arrived) {
         if (this.dropToCounter(w, dt) === 'done') w.state = 'idle';
       }
-    }
+    } else this.act3Worker(w, dt, arrived, total);
   },
 
   act2Objective(p) {
@@ -545,13 +559,15 @@ const methods = {
     const parked = this.act2.caravan === 'parked';
     const carriesForOrder = ['cooked', 'plank', 'smoked'].some((t) => p.carry[t] > 0 && this.orderLeft(t) > 0);
     if (parked && carriesForOrder) return { at: A.relay, text: 'Livre la commande de la caravane', icon: 'sled' };
-    if (p.carry.fish > 0 && this.fumoir && (this.load_total(p) >= p.cap * 0.6 || !p.fishing)) return { at: A.fishPad, text: 'Porte le poisson au fumoir', icon: 'fish' };
-    if (p.carry.smoked > 0) return { at: { x: -4.0, z: 4.3 }, text: 'Sers le poisson fumé au comptoir', icon: 'person' };
+    if (p.carry.fish > 0 && this.fumoir && this.pads.fishPad.n < this.pads.fishPad.pile.cap - 2 && (this.load_total(p) >= p.cap * 0.6 || !p.fishing)) return { at: A.fishPad, text: 'Porte le poisson au fumoir', icon: 'fish' };
+    if (p.carry.smoked > 0 && this.pads.counterFish.n < this.pads.counterFish.cap - 2) return { at: { x: -4.0, z: 4.3 }, text: 'Sers le poisson fumé au comptoir', icon: 'person' };
     return null;
   },
 
   act2LateObjective(p) {
     if (!this.act2.started) return null;
+    const junk = ['raw', 'cooked', 'fish', 'log'].reduce((n, t) => n + p.carry[t], 0);
+    if (this.load_total(p) >= p.cap * 0.85 && junk > 0) return { at: A.relay, text: 'Revends tes surplus au relais', icon: 'cash' };
     const parked = this.act2.caravan === 'parked';
     const courier = this.workers.some((w) => w.kind === 'courier');
     if (parked && !courier) {

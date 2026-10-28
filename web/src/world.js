@@ -10,11 +10,14 @@ export const STAGES = [
   { x0: -7, x1: 17, z0: -6, z1: 6 },
   { x0: -17, x1: 17, z0: -6, z1: 6 },
   { x0: -17, x1: 17, z0: -6, z1: 6 }, // stage 4: same fort, the frozen lake opens to the south-east
+  { x0: -33, x1: 17, z0: -6, z1: 6 }, // stage 5: the forge district to the west
+  { x0: -33, x1: 43, z0: -6, z1: 6 }, // stage 6: the electric quarter to the east
 ];
 export const BAND = 2.6;
 export const MEADOW = { x0: -13, x1: 21, z0: -25, z1: -6.6 };
 export const TREE_GAP = 3.1;
 export const WALK_GAP = 2.0;
+export const FRINGE = 3.0;
 export const PATH = { x0: -7.8, x1: -2.2, z0: 6, z1: 90 };
 export const GATE = { x0: -1.4, x1: 1.4 };
 export const COUNTER = { x0: -5.4, x1: -2.6, z: 6 };
@@ -25,6 +28,12 @@ export const ROAD = { x0: 3.4, x1: 8.2, z0: 6, z1: 90 };
 export const LAKE = { x0: 9.5, x1: 30, z0: 10.5, z1: 26 };
 export const CORRIDOR = { x0: 11.2, x1: 13.6, z0: 5.5, z1: 11.5 };
 export const SOUTH_GATE = { x0: 11.2, x1: 13.6 };
+// Act III: the west gate, the Iron Cliff mine, the icebreaker's glacier gate
+// and Station Aube far to the north.
+export const WEST_GATE = { z0: 0.6, z1: 3.4 };
+export const MINE = { x0: -46, x1: -34.5, z0: -8.5, z1: 8, fringe: 1.0 };
+export const SHIP_GATE = { x0: -30.8, x1: -27.2 };
+export const STATION = { x0: -40, x1: -18, z0: -98, z1: -76, fringe: 0.5 };
 
 function hash2(x, z) {
   const s = Math.sin(x * 127.1 + z * 311.7) * 43758.5453;
@@ -66,8 +75,10 @@ export function generateTrees() {
       let clearStage = Infinity;
       if (inRect(x, z, PATH, margin + 0.4)) clearStage = 1;
       for (let s = 3; s >= 2; s--) if (roundRectDist(x, z, STAGES[s], TREE_GAP) < 0) clearStage = Math.min(clearStage, s);
+      if (clearStage === Infinity && (roundRectDist(x, z, STAGES[5], TREE_GAP) < 0 || inRect(x, z, MINE, 2.4))) clearStage = 5;
       if (clearStage === Infinity && inRect(x, z, ROAD, 1.4)) clearStage = 3.5;
       if (clearStage === Infinity && (roundRectDist(x, z, LAKE, 1.7) < 0 || inRect(x, z, CORRIDOR, 1.6))) clearStage = 4;
+      if (clearStage === Infinity && roundRectDist(x, z, STAGES[6], TREE_GAP) < 0) clearStage = 6;
       const s = 0.85 + hash2(x * 3, z * 5) * 0.35;
       trees.push({ x, z, s, sy: 0.9 + hash2(z, x) * 0.3, rot: hash2(x, z * 2) * Math.PI * 2, variant: hash2(x * 7, z) < 0.5 ? 0 : 1, clearStage });
     }
@@ -93,9 +104,12 @@ export class World {
     scene.add(ground);
     this.ground = ground;
 
+    this.rocks = []; this.rockCircles = [];
     for (const [x, z, s] of ROCKS) {
       const r = makeRock(s); r.position.set(x, 0, z); scene.add(r);
-      this.circles.push({ x, z, r: 2.2 * s, rock: true });
+      const c = { x, z, r: 2.2 * s, rock: true };
+      this.circles.push(c);
+      this.rocks.push(r); this.rockCircles.push(c);
     }
 
     this.pathTex = packedSnowTexture();
@@ -106,7 +120,8 @@ export class World {
     const prev = this.stage;
     this.stage = stage;
     if (stage >= 1) {
-      if (stage <= 3 || prev < 3) this.buildGround(animate);
+      const a = STAGES[stage], b = STAGES[prev] || {};
+      if (prev < 1 || a.x0 !== b.x0 || a.x1 !== b.x1 || a.z0 !== b.z0 || a.z1 !== b.z1) this.buildGround(animate);
       this.buildFence(animate);
       if (prev < 1) this.buildPath(animate);
     }
@@ -157,13 +172,17 @@ export class World {
     const group = new THREE.Group();
     const segs = [];
     const add = (ax, az, bx, bz) => segs.push({ ax, az, bx, bz });
-    // north (towards the bear meadow) with a gate
-    add(r.x0, r.z0, GATE.x0, r.z0); add(GATE.x1, r.z0, r.x1, r.z0);
+    // north (towards the bear meadow) with a gate, and the icebreaker's gate
+    if (this.shipGate) { add(r.x0, r.z0, SHIP_GATE.x0, r.z0); add(SHIP_GATE.x1, r.z0, GATE.x0, r.z0); }
+    else add(r.x0, r.z0, GATE.x0, r.z0);
+    add(GATE.x1, r.z0, r.x1, r.z0);
     // south with the counter opening (and the lake gate from stage 4)
     add(r.x0, r.z1, COUNTER.x0, r.z1);
     if (this.stage >= 4) { add(COUNTER.x1, r.z1, SOUTH_GATE.x0, r.z1); add(SOUTH_GATE.x1, r.z1, r.x1, r.z1); }
     else add(COUNTER.x1, r.z1, r.x1, r.z1);
-    add(r.x0, r.z0, r.x0, r.z1); add(r.x1, r.z0, r.x1, r.z1);
+    if (this.stage >= 5) { add(r.x0, r.z0, r.x0, WEST_GATE.z0); add(r.x0, WEST_GATE.z1, r.x0, r.z1); }
+    else add(r.x0, r.z0, r.x0, r.z1);
+    add(r.x1, r.z0, r.x1, r.z1);
 
     let planks = 0;
     for (const s of segs) planks += Math.ceil(Math.hypot(s.bx - s.ax, s.bz - s.az) / 0.38);
@@ -214,6 +233,11 @@ export class World {
     for (const [x, sgn] of [[GATE.x0, 1], [GATE.x1, -1]]) {
       const leaf = new THREE.Mesh(leafGeo, leafM);
       leaf.position.set(x - sgn * 0.05, 0.75, r.z0 - 0.62); leaf.rotation.y = sgn * Math.PI / 2;
+      leaf.castShadow = true; group.add(leaf);
+    }
+    if (this.stage >= 5) for (const [z, sgn] of [[WEST_GATE.z0, 1], [WEST_GATE.z1, -1]]) {
+      const leaf = new THREE.Mesh(leafGeo, leafM);
+      leaf.position.set(r.x0 - 0.62, 0.75, z - sgn * 0.05);
       leaf.castShadow = true; group.add(leaf);
     }
     if (this.stage >= 4) for (const [x, sgn] of [[SOUTH_GATE.x0, 1], [SOUTH_GATE.x1, -1]]) {
@@ -273,14 +297,19 @@ export class World {
   }
 
   // ------------------------------------------------------------------------
+  // Open ground plus a fringe of forest the hero can walk into: trees there
+  // only block with their trunks, so every edge tree can be reached and cut.
   walkable(x, z) {
-    if (inRect(x, z, MEADOW, 1.0) && meadowDist(x, z) < -0.4) return true;
-    if (this.stage >= 4 && (roundRectDist(x, z, LAKE, -0.6) < 0 || inRect(x, z, CORRIDOR))) return true;
+    if (meadowDist(x, z) < FRINGE) return true;
+    if (this.stage >= 4 && (roundRectDist(x, z, LAKE, FRINGE - 0.6) < 0 || inRect(x, z, CORRIDOR))) return true;
+    if (this.extraZones) for (const zr of this.extraZones) if (roundRectDist(x, z, zr, zr.fringe ?? FRINGE) < 0) return true;
     const r = STAGES[this.stage];
-    return roundRectDist(x, z, r, WALK_GAP) < 0;
+    return roundRectDist(x, z, r, WALK_GAP + FRINGE * 0.85) < 0;
   }
 
   insideCamp(x, z) { return this.stage >= 1 && inRect(x, z, STAGES[this.stage]); }
+  atMine(x, z) { return this.stage >= 5 && !this.insideCamp(x, z) && x < STAGES[5].x0 + 0.2 && inRect(x, z, MINE, 3); }
+  atStation(x, z) { return inRect(x, z, STATION, 4); }
   atLake(x, z) { return this.stage >= 4 && !this.insideCamp(x, z) && (inRect(x, z, LAKE, 0.5) || inRect(x, z, CORRIDOR)); }
 
   // Move a circle with sliding along the walkable border and colliders.
@@ -327,9 +356,95 @@ export class World {
         const ddx = nx - c.x, ddz = nz - c.z, d = Math.hypot(ddx, ddz), min = c.r + rad;
         if (d < min && d > 1e-4) { nx = c.x + ddx / d * min; nz = c.z + ddz / d * min; }
       }
+      // tree trunks (and the lowest branches) are solid
+      if (this.forest) for (const t of this.forest.near(nx, nz, 1.7)) {
+        if (!t.alive || t.k < 0.6) continue;
+        const ddx = nx - t.x, ddz = nz - t.z, d = Math.hypot(ddx, ddz), min = 0.55 * t.s + rad;
+        if (d < min && d > 1e-4) { nx = t.x + ddx / d * min; nz = t.z + ddz / d * min; this.bumped = t; }
+      }
     }
     if (!this.walkable(nx, nz)) { nx = pos.x; nz = pos.z; }
     return { x: nx, z: nz };
+  }
+
+  // ------------------------------------------------------------------------
+  // Architecture checks: which ground can a walker of radius `rad` stand on,
+  // and which of it is connected to a given point.
+  freeAt(x, z, rad = 0.45) {
+    if (!this.walkable(x, z)) return false;
+    for (const s of this.segments) {
+      const vx = s.bx - s.ax, vz = s.bz - s.az, l2 = vx * vx + vz * vz;
+      const t = Math.max(0, Math.min(1, ((x - s.ax) * vx + (z - s.az) * vz) / l2));
+      if (Math.hypot(x - s.ax - vx * t, z - s.az - vz * t) < rad + 0.12) return false;
+    }
+    for (const c of this.circles) {
+      if (c.camp && this.stage < 1) continue;
+      if (Math.hypot(x - c.x, z - c.z) < c.r + rad) return false;
+    }
+    if (this.forest) for (const t of this.forest.near(x, z, 1.7)) {
+      if (t.alive && t.k >= 0.6 && Math.hypot(x - t.x, z - t.z) < 0.55 * t.s + rad) return false;
+    }
+    return true;
+  }
+
+  reachMap(b, from, step = 0.3, rad = 0.45) {
+    const nx = Math.ceil((b.x1 - b.x0) / step) + 1, nz = Math.ceil((b.z1 - b.z0) / step) + 1;
+    const free = new Uint8Array(nx * nz), seen = new Uint8Array(nx * nz);
+    for (let i = 0; i < nx; i++) for (let j = 0; j < nz; j++) free[j * nx + i] = this.freeAt(b.x0 + i * step, b.z0 + j * step, rad) ? 1 : 0;
+    const cell = (x, z) => [Math.round((x - b.x0) / step), Math.round((z - b.z0) / step)];
+    let [si, sj] = cell(from.x, from.z);
+    // start from the nearest free cell
+    let best = -1, bd = Infinity;
+    for (let i = 0; i < nx; i++) for (let j = 0; j < nz; j++) if (free[j * nx + i]) { const d = (i - si) ** 2 + (j - sj) ** 2; if (d < bd) { bd = d; best = j * nx + i; } }
+    if (best >= 0) {
+      const q = [best]; seen[best] = 1;
+      while (q.length) {
+        const k = q.pop(), i = k % nx, j = (k - i) / nx;
+        for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) {
+          const a = i + di, c = j + dj;
+          if (a < 0 || c < 0 || a >= nx || c >= nz) continue;
+          const kk = c * nx + a;
+          if (free[kk] && !seen[kk]) { seen[kk] = 1; q.push(kk); }
+        }
+      }
+    }
+    return { b, step, nx, nz, free, seen, cell };
+  }
+
+  // Free ground that cannot be reached: closed pockets.
+  pockets(map, minCells = 4) {
+    const { nx, nz, free, seen, b, step } = map;
+    const done = new Uint8Array(nx * nz), out = [];
+    for (let k = 0; k < nx * nz; k++) {
+      if (!free[k] || seen[k] || done[k]) continue;
+      const q = [k]; done[k] = 1; let n = 0, sx = 0, sz = 0;
+      while (q.length) {
+        const c = q.pop(), i = c % nx, j = (c - i) / nx;
+        n++; sx += b.x0 + i * step; sz += b.z0 + j * step;
+        for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) {
+          const a = i + di, cc = j + dj;
+          if (a < 0 || cc < 0 || a >= nx || cc >= nz) continue;
+          const kk = cc * nx + a;
+          if (free[kk] && !seen[kk] && !done[kk]) { done[kk] = 1; q.push(kk); }
+        }
+      }
+      if (n >= minCells) out.push({ x: +(sx / n).toFixed(1), z: +(sz / n).toFixed(1), cells: n });
+    }
+    return out;
+  }
+
+  // Nearest reachable free spot to (x, z), or null.
+  nearestReachable(map, x, z) {
+    const { nx, nz, seen, b, step } = map;
+    let best = null, bd = Infinity;
+    for (let k = 0; k < nx * nz; k++) {
+      if (!seen[k]) continue;
+      const i = k % nx, j = (k - i) / nx;
+      const px = b.x0 + i * step, pz = b.z0 + j * step;
+      const d = (px - x) ** 2 + (pz - z) ** 2;
+      if (d < bd) { bd = d; best = { x: px, z: pz }; }
+    }
+    return best;
   }
 
   // tiny internal tween helper

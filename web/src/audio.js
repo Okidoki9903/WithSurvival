@@ -87,5 +87,9 @@ export class Audio {
   whoosh() { if (!this.throttle('whoosh', 250)) return; this.noise(0.25, { vol: 0.12, freq: 900, q: 1.5 }); }
   shoot() { if (!this.throttle('shoot', 90)) return; this.tone(300, 0.08, { type: 'square', vol: 0.05, slide: -150 }); this.noise(0.08, { vol: 0.08, freq: 2000, q: 3 }); }
   boom() { this.noise(0.9, { vol: 0.5, freq: 150, q: 0.5, type: 'lowpass' }); this.tone(55, 0.8, { vol: 0.4, slide: -20 }); }
+  whistle() { if (!this.throttle('whistle', 3500)) return; this.tone(1180, 0.55, { type: 'triangle', vol: 0.05, slide: 40 }); this.tone(1490, 0.55, { type: 'triangle', vol: 0.04, slide: 40 }); this.noise(0.5, { vol: 0.05, freq: 5000, q: 0.6, type: 'highpass' }); }
+  cannon() { if (!this.throttle('cannon', 110)) return; this.noise(0.35, { vol: 0.28, freq: 260, q: 0.6, type: 'lowpass' }); this.tone(70, 0.3, { vol: 0.22, slide: -30 }); }
+  clank() { if (!this.throttle('clank', 260)) return; this.tone(180 + Math.random() * 60, 0.07, { type: 'square', vol: 0.035 }); }
+  heartbeat() { if (!this.throttle('heart', 900)) return; this.tone(55, 0.25, { vol: 0.3 }); this.tone(50, 0.25, { vol: 0.25, delay: 0.22 }); }
   fanfare() { [392, 523, 659, 784, 1046].forEach((f, i) => this.tone(f, 0.5, { type: 'triangle', vol: 0.13, delay: i * 0.12 })); }
 }
