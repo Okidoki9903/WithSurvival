@@ -1,40 +1,76 @@
-# WithSurvival
+# WithSurvival — Fort-Aube
 
-Une boucle de collecte et de production construite autour du petit enclos initial. Le joueur chasse, transporte une pile de viande, la dépose dans le broyeur, récupère les découpes, les fait cuire puis nourrit les clients. Les ventes laissent des billets à ramasser.
+Jeu 3D mobile/navigateur dans les Terres Blanches : chasse les ours polaires, fais tourner le chaudron, nourris les rescapés et transforme une clairière enneigée en ville.
 
-## Construction et progression
+Tout se joue en marchant, sans menu ni bouton d'action : glisse n'importe où sur l'écran (joystick flottant) ou utilise ZQSD / WASD / flèches.
 
-Les achats se font dans le monde : restez sur une dalle pointillée pour financer une construction avec vos billets. Le montant restant diminue réellement. Les paiements partiels sont sauvegardés ; une construction terminée ne paie pas automatiquement le niveau suivant avant que le joueur quitte puis revienne sur la dalle.
+## Boucle de jeu
 
-Le petit enclos reste le point de départ. Les convoyeurs et les collecteurs automatisent progressivement le travail. Au niveau 2 des collecteurs, avec le premier convoyeur, les prises peuvent rejoindre directement l'entrée du broyeur, dans la limite du stockage ; le surplus reste un butin réel à ramasser.
+- **Départ** : Sasha n'a rien sur le dos. Brann, vieux trappeur garé dans la clairière avec son traîneau, achète la viande d'ours (10 billets le morceau). Il faut 200 billets pour bâtir le camp ; ensuite Brann repart sur la piste et continue de guider par radio.
+- **Chasse** : approche-toi d'un ours, la hache frappe toute seule. L'ours explose en morceaux de viande qui s'empilent sur ton dos (la pile ondule quand tu cours).
+- **Chaudron** : passe sur la dalle « viande » pour déposer la viande crue. Le chaudron la cuit et sort les steaks sur la zone pointillée.
+- **Comptoir** : ramasse les steaks, puis tiens-toi dans la zone du comptoir. Les rescapés font la queue dehors, une bulle indique ce qu'ils veulent.
+- **Billets** : chaque client paie en billets qui s'empilent près du comptoir. Ramasse-les.
+- **Construire** : reste sur une dalle `$` pour la financer billet par billet (les paiements partiels sont gardés).
 
-Deux convoyeurs et cinq clients nourris permettent d'acheter la première extension. Les nouvelles parcelles sont attenantes : pêche, cultures, verger, scierie, grands animaux, carrière et atelier. Ouvrir le terrain donne accès à la récolte manuelle ; les machines de transformation, finition et vente doivent être construites sur leurs propres dalles. Le niveau 2 des trois étapes et un premier transport, puis dix ventes, permettent de poursuivre la route.
+## Machines du camp et leurs évolutions
 
-La production consomme les stocks réellement déposés. Les marchés laissent leur argent sur place ; ils ne créditent pas le portefeuille à distance. Les produits alimentaires peuvent rejoindre le comptoir du refuge. Les convoyeurs, les ouvriers, le stockage et les machines s'améliorent séparément.
+Chaque amélioration se finance sur une dalle posée juste à côté de la machine, et change son modèle 3D en plus de son effet.
 
-## Interface et commandes
+| Machine | Niveau 1 | Évolutions |
+|---|---|---|
+| Chaudron | Marmite sur un foyer de pierres | **Chaudron renforcé** (cerclé de cuivre, grand foyer, bois de chauffe, cuisson ×1,5) → **Second chaudron** (deux marmites en parallèle) |
+| Comptoir | Table sur un plancher | **Comptoir couvert** (auvent rayé, lanternes, service plus rapide, file plus longue) → **Étal du marché** (enseigne Fort-Aube, fanions, caisses de fruits, clients qui paient +30 %) |
+| Arbalètes | Tour de caisses et arbalète sur la palissade | **Balistes** (blindage d'acier, double arc doré, fanion, tir plus rapide et plus fort) |
+| Scierie (chapitre III) | Établi et scie circulaire sous abri | **Scie à vapeur** (chaudière en cuivre qui fume, courroie, seconde lame dorée, coupe ×2) |
+| Fumoir (chapitre VI) | Cabane de fumage, cheminée de pierre, claies de poissons | **Fumoir double** (seconde chambre, grande cheminée, fumage ×2) |
+| Grand Brasier (chapitre VII) | — | Anneau de pierres, bûcher géant, quatre torches : il brise le blizzard |
+| Réserve de bois | — | La pile de bûches grandit avec ce que la scierie a coupé |
 
-L'écran conserve le monde : argent vert en haut à droite, menu et pause discrets. Il n'y a ni catalogue obligatoire, ni barre de trois onglets, ni grand bouton contextuel, ni panneau de quête permanent. Une consigne transitoire et une flèche donnent les premières indications.
+## Progression et histoire
 
-Glissez sur le terrain pour déplacer le personnage au joystick ; toucher une ressource ou une dalle permet aussi de s'en approcher. Chasse, ramassage, dépôt et financement se déclenchent à proximité. Clavier : ZQSD, WASD ou flèches ; Espace pour esquiver. Le menu donne accès à l'inventaire réel et à la pause. Les menus suspendent la simulation.
+| Chapitre | Ce qui change |
+|---|---|
+| Prologue | Sasha, perdue après la tempête, chasse ses premiers ours et vend la viande à Brann pour réunir 200 billets, puis plante Fort-Aube. |
+| I · Le Premier Feu | Palissade, chaudron, comptoir. Lina (caissière) tient le comptoir, hache d'acier. |
+| II · Les Fourrures Blanches | Arbalètes automatiques sur la palissade, Tomas le porteur, grand sac, la Danse des Lames (anneau de haches tournoyantes). |
+| III · Le Froid Mordant | Agrandissement à l'est : cabanes, feux de camp, rescapés qui vivent dans le fort. Les clients veulent aussi du bois de chauffe : coupe les sapins en lisière, passe les bûches à la scierie, porte le bois fendu au comptoir. Oleg (bûcheron), Yuki (chasseuse), second chaudron, lames tempête. |
+| IV · Grand-Blanc | Agrandissement à l'ouest… et le colosse des glaces sort de la forêt. Évite ses coups au sol (cercle rouge). |
+| *Fin de l'acte I* | Le Phare de l'Aube s'allume et guide les caravanes perdues. |
+| V · La Caravane de l'Aube | La voix de la tempête était Mira, la sœur de Sasha : elle arrive avec Brann et une caravane tirée par des bœufs musqués. Les traîneaux passent de grosses commandes (steaks, bois fendu, puis poisson fumé) à livrer sur la dalle du relais, au sud. Piotr, convoyeur, peut les charger à ta place. |
+| VI · Le Lac Gelé | Une route et une porte sud mènent au lac où survit le reste de la caravane. Pêche sur la glace (reste immobile au bord d'un trou), nouveau **fumoir** sur la rive, Anouk la pêcheuse, canne en os, fumoir double. Les clients demandent aussi du poisson fumé. |
+| VII · Le Grand Blizzard | Le ciel se ferme : neige épaisse, brouillard, vent. Il faut financer le **Grand Brasier** sur la rive est du lac (6000 billets). |
+| Épilogue · Le Dégel | Le Brasier s'embrase, le blizzard recule, le soleil revient : générique de fin. |
+| Après la fin | Les caravanes continuent (commandes de plus en plus grosses) et la ville s'embellit : lanternes du fort, statue de Brann, ours de glace sur le lac, puis la Fête de l'Aube (feux d'artifice, commandes payées double). |
 
-Neige et sable unis, palissades enneigées, broyeur métallique, grill orange, piles portées et dalles blanches reprennent les éléments observés dans les références. Les vidéos privées et les graphismes propriétaires de ces références ne sont pas copiés dans le dépôt.
+La partie est sauvegardée automatiquement sur l'appareil (menu ‖ → « Recommencer l'aventure » pour repartir de zéro).
 
-## Développement
+## Technique
 
-```sh
-cd core
-cargo test --release
-cargo build --release --target wasm32-unknown-unknown
-cp target/wasm32-unknown-unknown/release/polar_camp_core.wasm ../web/game.wasm
-cd ../web
-python -m http.server 8765
+- Three.js (r170, embarqué dans `web/vendor`), aucun build : `web/` est servi tel quel.
+- Forêt de ~3 000 sapins enneigés en `InstancedMesh` découpés en blocs (culling), ombres douces qui suivent la caméra, halos additifs à la place d'un bloom.
+- Toutes les piles, billets et morceaux de viande passent par un seul rendu instancié par type d'objet.
+- Modèles, icônes, textures et sons sont procéduraux (aucun asset externe).
+- Qualité adaptative : si le téléphone peine, la résolution baisse automatiquement. Paramètres d'URL : `?q=low|medium|high`, `?bloom`, `?fresh` (nouvelle partie).
+
+```
+web/
+  index.html, style.css
+  src/main.js      rendu, caméra, boucle
+  src/game.js      gameplay (chasse, piles, chaudron, clients, dalles, ouvriers, boss)
+  src/world.js     carte, sol, palissades, zones marchables
+  src/forest.js    sapins instanciés
+  src/models.js    personnages, ours, chaudron, tourelles, cabanes, phare
+  src/act2.js      acte II : caravane, lac gelé, fumoir, blizzard, Grand Brasier, embellissements
+  src/story.js     chapitres et dialogues
 ```
 
-Sans éditeur de liens natif, les tests peuvent fonctionner sur wasm32-wasip1 avec Wasmtime comme CARGO_TARGET_WASM32_WASIP1_RUNNER.
+## Lancer et tester
 
-Tests navigateur : `npm install`, `npx playwright install chromium`, puis `npm run test:hud`, `npm run test:onboarding`, `npm run test:world`, `npm run test:districts`, `npm run test:wood` et `npm run test:context`. `GAME_URL` permet de tester une autre adresse. Les sauvegardes de scénario sont isolées ; aucun test ne remplace la sauvegarde personnelle du joueur. Captures dans `test-artifacts/`.
+```sh
+npm run serve          # http://localhost:8765
+npm ci && npx playwright install chromium
+npm test               # un pilote automatique joue la boucle et vérifie qu'elle progresse
+```
 
-Le workflow GitHub Pages teste et compile le moteur. Les branches main, master et claude/** publient le jeu ; codex/** permet une revue préalable. Les anciennes sauvegardes de base et de monde sont migrées, avec leurs ressources, ouvriers et paiements partiels.
-
-Un test de quatre heures simulées vérifie la stabilité. Il ne démontre pas quatre heures de plaisir en session utilisateur ni une qualité AAA. L'équilibrage et la ressemblance doivent aussi être jugés en jouant.
+Le workflow GitHub teste puis publie `web/` sur GitHub Pages (branches `main`, `master`, `claude/**`).
