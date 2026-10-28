@@ -297,7 +297,7 @@ const methods = {
     const inp = this.pads.fishPad, out = this.pads.smokedPad;
     this.smokeTimer -= dt;
     if (this.smokeTimer <= 0 && inp.n - (inp.inflight || 0) > 0 && out.n < out.pile.cap) {
-      this.smokeTimer = this.smokeTime;
+      this.smokeTimer = this.smokeTime * this.lv.smoke;
       const from = this.pickPos(inp);
       inp.n--;
       const door = { x: A.fumoir.x - 0.4, y: 0.8, z: A.fumoir.z + 0.6 };

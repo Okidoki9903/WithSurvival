@@ -8,44 +8,55 @@ import * as THREE from 'three';
 import { makeStreetLamp, makePlaza, makeYoungFir } from './models4.js';
 
 const P = (x, z) => ({ x, z });
-// Homes stand flush against the outer palisade, like the first cabins.
+// Four large quarters, one on each side of the fort, so the town grows in
+// every direction instead of along one street. Tall buildings only rise
+// against northern or western palisades: the camera looks from the south-east
+// and never has a tower between it and the hero. Homes: [x, z, fire x, fire z,
+// options] where rot turns a cabin against a west wall and tower marks a home
+// that becomes an apartment block in the age of towers.
+const W = { rot: Math.PI / 2, tower: true };
 export const DISTRICTS = {
+  // South-west, Act II: the caravaners' quarter and Lina's town hall
   distSud: {
-    rect: { x0: -33, x1: -17, z0: 6, z1: 16 },
-    homes: [[-30.0, 14.05, -30.2, 10.4], [-24.6, 14.05], [-19.6, 14.05, -19.4, 10.4]],
-    plaza: [-24.8, 10.0], firs: [[-31.6, 7.6], [-19.0, 9.2], [-27.8, 7.4], [-22.6, 7.6]],
-    lamps: [[-31.8, 8.0], [-18.2, 8.0]],
+    rect: { x0: -33, x1: -9, z0: 6, z1: 24 },
+    homes: [[-31.05, 11.0, -27.6, 11.0, W], [-31.05, 15.2, null, null, W], [-31.05, 19.4, -27.6, 19.6, W], [-25.6, 22.05], [-21.0, 22.05, -21.0, 18.6], [-16.4, 22.05]],
+    plaza: [-14.0, 17.0], firs: [[-10.4, 14.6], [-28.0, 7.8], [-18.8, 18.8]],
+    lamps: [[-28.0, 8.4], [-11.0, 13.8], [-20.0, 15.6], [-30.0, 23.0]],
   },
-  distNordEst: {
-    rect: { x0: 17, x1: 43, z0: -16, z1: -6 },
-    homes: [[20.6, -14.05, 23.4, -10.4], [26.6, -14.05], [32.6, -14.05], [38.6, -14.05, 36.4, -10.4]],
-    plaza: [30.0, -10.2], firs: [[18.4, -11.0], [41.6, -11.0], [26.4, -10.2], [33.6, -10.2]],
-    lamps: [[18.2, -8.0], [29.6, -7.8], [41.8, -8.0]],
-  },
+  // North-west, Act III: the smiths' quarter, the icebreaker's avenue through the middle
   distNord: {
-    rect: { x0: -33, x1: -14, z0: -16, z1: -6 },
-    homes: [[-30.4, -14.05, -30.4, -10.4], [-24.4, -14.05], [-18.4, -14.05]],
-    plaza: [-23.2, -10.2], firs: [[-15.4, -11.2], [-19.6, -10.2], [-26.8, -10.2]],
-    lamps: [[-31.8, -8.0], [-15.2, -8.0], [-23.2, -7.6]],
+    rect: { x0: -33, x1: -14, z0: -24, z1: -6 },
+    homes: [[-25.3, -22.05, -25.0, -18.4, { tower: true }], [-20.8, -22.05, null, null, { tower: true }], [-16.3, -22.05, -16.6, -18.4, { tower: true }]],
+    plaza: [-21.4, -14.2], firs: [[-32.0, -10.0], [-32.0, -15.0], [-32.0, -20.0]],
+    lamps: [[-26.6, -8.6], [-15.2, -8.0], [-21.4, -19.0], [-31.6, -23.0]],
   },
+  // North-east, Act IV: the electricians' quarter, radio mast and later the quarry
+  distNordEst: {
+    rect: { x0: 22, x1: 43, z0: -24, z1: -6 },
+    homes: [[28.6, -22.05, 28.6, -18.4, { tower: true }], [32.4, -22.05, null, null, { tower: true }]],
+    plaza: [30.0, -14.4], firs: [[33.6, -11.2]],
+    lamps: [[23.4, -8.0], [36.0, -17.0], [41.8, -8.0]],
+    fill: [[23.0, -23.0, 1.3], [25.9, -23.4, 0.9], [42.3, -23.3, 1.1]],
+  },
+  // South-east, Act V: the lakeside quarter with its vertical farms
   distLac: {
-    rect: { x0: 33, x1: 43, z0: 6, z1: 16 },
-    homes: [[36.0, 14.05], [40.5, 14.05]],
-    plaza: [38.2, 10.0], firs: [[34.4, 10.6], [42.0, 10.6]],
-    lamps: [[34.2, 8.0], [41.8, 8.0]],
+    rect: { x0: 33, x1: 50, z0: 6, z1: 24 },
+    homes: [[39.6, 22.05, 39.6, 18.6], [44.0, 22.05], [47.6, 22.05, 47.0, 18.6]],
+    plaza: [43.0, 13.4], firs: [[38.6, 15.0]],
+    lamps: [[38.6, 14.0], [48.6, 8.0], [43.0, 18.0]],
   },
 };
 
 const T = (id, icon, cost, at, req, label, extra = {}) => ({ id, icon, cost, at, req, label, ...extra });
 export const DISTRICT_TILES = [
-  // Act III: the miners and smiths need homes, south of the forge quarter
-  T('distSud', 'expand', 6000, P(-31.2, 4.8), (g) => g.stage >= 5 && g.stats.steel >= 6, 'Faubourg de la Forge', { beat: 'distSudTile', reveal: true }),
-  // Act IV: the electricians want to live next to their machines, north of the east quarter
-  T('distNordEst', 'expand', 14000, P(18.8, -4.6), (g) => g.bought.grid, 'Cité de la Foudre', { items: { wire: 10 }, beat: 'distNordEstTile', reveal: true }),
-  // Act V: the town spreads north of the forges as well as upwards
-  T('distNord', 'expand', 30000, P(-25.0, -4.8), (g) => g.bought.towers1, 'Les Hauts du Nord', { items: { concrete: 20, steel: 10 }, reveal: true }),
-  // Act VI: the newcomers of the railway settle by the lake
-  T('distLac', 'expand', 60000, P(33.7, 4.8), (g) => g.bought.railway, 'Quartier du Lac', { items: { concrete: 30, wire: 10 }, reveal: true }),
+  // Act II: the caravans bring families; the south-west of the fort opens for them
+  T('distSud', 'expand', 2500, P(-13.0, 4.4), (g) => g.bought.beacon && g.act2.orders >= 1, 'Quartier des Caravaniers', { beat: 'distSudTile', reveal: true, big: true }),
+  // Act III: north of the forges, the smiths' quarter
+  T('distNord', 'expand', 7000, P(-24.4, -4.7), (g) => g.stage >= 5 && g.stats.steel >= 6, 'Quartier des Forgerons', { items: { plank: 10 }, beat: 'distNordTile', reveal: true, big: true }),
+  // Act IV: north of the electric quarter
+  T('distNordEst', 'expand', 12000, P(29.2, -4.4), (g) => g.bought.eastGate && (g.stats.wire || 0) >= 4, 'Cité de la Foudre', { items: { wire: 10 }, beat: 'distNordEstTile', reveal: true, big: true }),
+  // Act V: by the lake, south of the electric quarter
+  T('distLac', 'expand', 30000, P(36.6, 4.4), (g) => g.act4 && g.act4.towers, 'Quartier du Lac', { items: { concrete: 20, steel: 10 }, reveal: true, big: true }),
 ];
 
 const methods = {
@@ -63,11 +74,12 @@ const methods = {
     }
     // homes: cabins at first, towers once the town has started to build upwards
     const floors = this.towerBlocks.length ? Math.max(...this.towerBlocks.map((t) => t.n)) : 0;
-    D.homes.forEach(([x, z, fx, fz], i) => {
-      const cab = this.addCabin(x, z, i, fresh, fx, fz, r);
+    D.homes.forEach(([x, z, fx, fz, opts], i) => {
+      const cab = this.addCabin(x, z, i, fresh, fx ?? undefined, fz ?? undefined, r, opts || {});
       const side = x > 0 ? 'towers1' : 'towers2';
-      if (cab && this.bought[side]) this.convertCabin(cab, floors || 2, fresh, 0.6 + i * 0.25);
+      if (cab && cab.towerable && this.bought[side]) this.convertCabin(cab, floors || 2, fresh, 0.6 + i * 0.25);
     });
+    for (const [x, z, rr] of D.fill || []) this.world.circles.push({ x, z, r: rr, camp: true });
     // a square with the rising sun and benches, and young firs planted by Oleg
     const pl = makePlaza(2.2); pl.group.position.set(D.plaza[0], 0, D.plaza[1]); this.scene.add(pl.group);
     this.world.circles.push({ x: D.plaza[0], z: D.plaza[1], r: 0.7, camp: true });
@@ -78,6 +90,9 @@ const methods = {
       if (fresh) this.popIn(f, 0.7 + Math.random() * 0.5);
     }
     this.districtLamps(D, fresh);
+    // Lina's town hall in the caravaners' quarter, the builders' yard with the smiths
+    if (id === 'distSud') this.buildTownHall(fresh);
+    if (id === 'distNord') this.buildBuilderYard(fresh);
     this.addPower(id, 1e9 * (1 + Object.keys(DISTRICTS).indexOf(id)));
     this.computeChoppable();
     if (this.updateResidents) this.updateResidents();

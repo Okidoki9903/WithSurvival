@@ -12,6 +12,8 @@ import { installCiv } from './civ.js';
 import { ACT4_TILES, installAct4 } from './act4.js';
 import { ACT6_TILES, installAct6 } from './act6.js';
 import { DISTRICT_TILES, installDistricts } from './districts.js';
+import { LEVEL_TILES, SHOP_TILES, installTownHall } from './townhall.js';
+import { installAutomation } from './automation.js';
 
 const P = (x, z) => ({ x, z });
 export const POS = {
@@ -42,7 +44,10 @@ const TURRETS = [
 ];
 // [x, z, campfire x, campfire z] — campfires sit where no tile or pad goes
 // Cabins stand right against the palisade: no thin slot behind them to get stuck in.
-const CABINS = { 2: [[8.6, 4.05, 8.8, 1.4], [15.4, 4.05], [15.2, -4.1, 13.0, -4.4]], 3: [[-10.2, 4.05, -8.0, 1.4], [-14.4, 4.05], [-14.6, -2.4, -14.6, 0.6]] };
+// Only the cabins against the north palisade may later grow into towers: the
+// camera looks from the south-east, so tall buildings there never hide the hero.
+// The south-west of the fort stays free: it opens onto the caravaners' quarter.
+const CABINS = { 2: [[8.6, 4.05, 8.8, 1.4], [15.4, 4.05], [15.2, -4.1, 13.0, -4.4, true]], 3: [[-14.6, -4.05, -14.0, -0.6, true]] };
 const WOOD_CRIB = P(15.9, 0.9);
 // The Beacon stands in the bear meadow beside the rocky outcrop, where the
 // colossus fell: it overlooks the forest without crowding the fort.
@@ -80,6 +85,8 @@ const TILES = [
   ...ACT4_TILES,
   ...ACT6_TILES,
   ...DISTRICT_TILES,
+  ...SHOP_TILES,
+  ...LEVEL_TILES,
 ];
 
 const PILE = {
@@ -111,6 +118,8 @@ export class Game {
     this.sawTime = 1.1;
     this.sawTimer = 0;
     this.cookTime = 0.9;
+    // multipliers bought level by level at the town hall (kept apart from the machines' own values)
+    this.lv = { cook: 1, saw: 1, smelt: 1, smoke: 1, price: 1, turret: 1, speed: 1, cust: 1, drill: 1, rent: 1, income: 1 };
     this.serveInterval = 0.2;
     this.priceMult = 1;
     this.queueBonus = 0;
@@ -148,8 +157,10 @@ export class Game {
     this.initAct3();
     this.initAct4();
     this.initAct6();
+    this.initTownHall();
     this.nav = new NavGrid(this.world);
     this.navStation = new NavGrid(this.world);
+    this.navWork = new NavGrid(this.world);
 
     this.player = this.makeCarrier(makeHuman({ parka: 0x2c5f9e, pants: 0x262b38, scarf: 0xe2702e }), POS.spawn);
     this.player.cap = 20;
@@ -379,6 +390,8 @@ export class Game {
       if (this.bought[def.id]) continue;
       if (this.tiles.some((t) => t.def === def)) continue;
       if (!def.req(this)) continue;
+      // town hall upgrades wait for a free slot in front of the town hall
+      if (def.slot && !this.slotFor(def)) continue;
       const tex = new TileTexture(def.icon, def.label);
       const size = def.big ? 2.6 : 2.0;
       const m = new THREE.Mesh(new THREE.PlaneGeometry(size, size).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: tex.tex, transparent: true, depthWrite: false }));
@@ -525,7 +538,7 @@ export class Game {
       case 'expand1': this.setStage(2, fresh); if (fresh) { this.setChapter(3, fresh); this.story.beat('expand1', 1.0); } break;
       case 'expand2': this.setStage(3, fresh); if (fresh) { this.setChapter(4, fresh); this.story.beat('expand2', 1.0); setTimeout(() => this.spawnBoss(), 6000); } break;
       case 'beacon': this.lightBeacon(fresh); break;
-      default: if (!this.act2Apply(id, fresh) && !this.industryApply(id, fresh) && !this.act3Apply(id, fresh) && !this.act4Apply(id, fresh) && !this.act6Apply(id, fresh)) this.districtApply(id, fresh); break;
+      default: if (!this.act2Apply(id, fresh) && !this.industryApply(id, fresh) && !this.act3Apply(id, fresh) && !this.act4Apply(id, fresh) && !this.act6Apply(id, fresh) && !this.districtApply(id, fresh)) this.townHallApply(id, fresh); break;
     }
   }
 
@@ -546,6 +559,23 @@ export class Game {
   }
 
   // Bounds of the navigation grid: the fort, the meadow and every open zone.
+  navBounds() {
+    const r = STAGES[this.stage];
+    const b = { x0: Math.min(r.x0 - 5, MEADOW.x0 - 4), x1: Math.max(r.x1 + 5, MEADOW.x1 + 4), z0: MEADOW.z0 - 3, z1: r.z1 + 6 };
+    if (this.stage >= 4) { b.x1 = Math.max(b.x1, 31); b.z1 = 28; }
+    for (const zr of [...(this.world.extraZones || []), ...this.world.districts]) if (zr.z1 > -50) { b.x0 = Math.min(b.x0, zr.x0 - 3); b.x1 = Math.max(b.x1, zr.x1 + 3); b.z0 = Math.min(b.z0, zr.z0 - 3); b.z1 = Math.max(b.z1, zr.z1 + 3); }
+    return b;
+  }
+
+  // Full walking route for a worker inside the fort and its districts.
+  navPath(from, to) {
+    if (this.region(from) === 'station' || this.region(to) === 'station') return null;
+    const b = this.navBounds();
+    if (to.x < b.x0 || to.x > b.x1 || to.z < b.z0 || to.z > b.z1 || from.x < b.x0 || from.x > b.x1 || from.z < b.z0 || from.z > b.z1) return null;
+    this.navWork.ensure(b);
+    return this.navWork.path(from, to);
+  }
+
   navNext(p, at) {
     if (this.region(p) === 'station' || this.region(at) === 'station') {
       const zr = (this.world.extraZones || []).find((z) => z.z1 < -50);
@@ -553,10 +583,7 @@ export class Game {
       this.navStation.ensure({ x0: zr.x0 - 2, x1: zr.x1 + 2, z0: zr.z0 - 2, z1: zr.z1 + 2 });
       return this.navStation.next(p, at);
     }
-    const r = STAGES[this.stage];
-    const b = { x0: Math.min(r.x0 - 5, MEADOW.x0 - 4), x1: Math.max(r.x1 + 5, MEADOW.x1 + 4), z0: MEADOW.z0 - 3, z1: r.z1 + 6 };
-    if (this.stage >= 4) { b.x1 = Math.max(b.x1, 31); b.z1 = 28; }
-    for (const zr of [...(this.world.extraZones || []), ...this.world.districts]) if (zr.z1 > -50) { b.x0 = Math.min(b.x0, zr.x0 - 3); b.z0 = Math.min(b.z0, zr.z0 - 3); b.z1 = Math.max(b.z1, zr.z1 + 3); }
+    const b = this.navBounds();
     if (at.x < b.x0 || at.x > b.x1 || at.z < b.z0 || at.z > b.z1 || p.x < b.x0 || p.x > b.x1 || p.z < b.z0 || p.z > b.z1) return null;
     this.nav.ensure(b);
     return this.nav.next(p, at);
@@ -566,7 +593,8 @@ export class Game {
     const m = this.reachMapNow();
     const out = this.world.pockets(m);
     // every tile and drop zone must be reachable by the hero
-    const spots = this.tiles.map((t) => [t.def.id, t.def.at]);
+    const atStation = this.region(this.player) === 'station';
+    const spots = this.tiles.filter((t) => !atStation || this.world.atStation(t.def.at.x, t.def.at.z)).map((t) => [t.def.id, t.def.at]);
     const live = { logPad: !!this.saw, plankPad: !!this.saw, fishPad: !!this.fumoir, smokedPad: !!this.fumoir, cashPad: !this.register, orePad: !!this.forge, steelPad: !!this.forge, dockPad: !!this.cart, canPad: !!this.cannery };
     if (this.region(this.player) !== 'station') for (const [k, pad] of Object.entries(this.pads)) if (pad && pad.x !== undefined && !k.startsWith('counter') && live[k] !== false) spots.push([k, pad]);
     for (const [id, at] of spots) {
@@ -640,26 +668,29 @@ export class Game {
         this.world.circles.push({ x: WOOD_CRIB.x, z: WOOD_CRIB.z, r: 1.1, camp: true });
       }
     }
-    if (CABINS[stage]) CABINS[stage].forEach(([x, z, fx, fz], i) => this.addCabin(x, z, i, fresh, fx, fz));
-    // fill the dead nook behind the west cabins with barrels instead of a trap
-    if (stage >= 3 && !this.nookProps) { this.nookProps = true; this.addBarrels(-12.3, 5.2, fresh); }
+    if (CABINS[stage]) CABINS[stage].forEach(([x, z, fx, fz, tower], i) => this.addCabin(x, z, i, fresh, fx, fz, null, { tower }));
     this.computeChoppable();
   }
 
-  addCabin(x, z, i, fresh, fx, fz, zone = null) {
+  // opts.rot turns the cabin to stand against a west or east palisade;
+  // opts.tower marks a home that may later become an apartment tower.
+  addCabin(x, z, i, fresh, fx, fz, zone = null, opts = {}) {
     if (this.cabins.some((c) => c.x === x && c.z === z)) return;
     const g = makeCabin(i);
     g.position.set(x, 0, z);
+    const rot = opts.rot || 0;
+    g.rotation.y = rot;
     this.scene.add(g);
     const fire = makeCampfire();
     fire.group.position.set(fx ?? 0, 0, fz ?? 0);
     fire.group.visible = fx !== undefined;
     this.scene.add(fire.group);
     if (fire.group.visible) this.campfires.push(fire);
-    const cab = { x, z, g, smokeT: Math.random() };
+    const cab = { x, z, g, smokeT: Math.random(), rot, towerable: !!opts.tower };
     this.cabins.push(cab);
     // two circles hug the long side of the cabin, leaving room along the fence
-    this.world.circles.push({ x: x - 0.8, z, r: 1.45, camp: true }, { x: x + 0.8, z, r: 1.45, camp: true });
+    if (rot) this.world.circles.push({ x, z: z - 0.8, r: 1.45, camp: true }, { x, z: z + 0.8, r: 1.45, camp: true });
+    else this.world.circles.push({ x: x - 0.8, z, r: 1.45, camp: true }, { x: x + 0.8, z, r: 1.45, camp: true });
     if (fresh) {
       g.scale.setScalar(0.001);
       fire.group.scale.setScalar(0.001);
@@ -776,6 +807,9 @@ export class Game {
     return { out: [POS.gateIn, POS.gateOut], lake: [ACT2_POS.sgIn, ACT2_POS.sgOut], mine: this.westGate || [POS.gateIn, POS.gateOut] };
   }
   route(w, to) {
+    // follow the streets of the navigation grid when it knows the way
+    const path = this.navPath(w, to);
+    if (path && path.length) { w.path = path; return; }
     const ra = this.region(w), rb = this.region(to);
     const G = this.gates();
     const via = [];
@@ -794,7 +828,7 @@ export class Game {
       const reach = w.path.length > 1 ? 0.5 : (tgt.reach || 0.35);
       if (d < reach) w.path.shift();
       else {
-        const sp = Math.min(d / dt, w.speed * (this.workerSpeed || 1));
+        const sp = Math.min(d / dt, w.speed * (this.workerSpeed || 1) * this.lv.speed);
         w.vx = dx / d * sp; w.vz = dz / d * sp;
         w.x += w.vx * dt; w.z += w.vz * dt;
         w.facing = lerpAngle(w.facing, Math.atan2(dx, dz), Math.min(1, dt * 10));
@@ -1340,7 +1374,7 @@ export class Game {
     const waiting = this.customers.filter((c) => c.state !== 'leave');
     this.custTimer -= dt;
     if (this.custTimer <= 0 && waiting.length < maxQ) {
-      this.custTimer = (this.bought.counter3 ? 1.6 : this.bought.counter2 ? 2.3 : 3.2) * (this.chapter >= 3 ? 0.8 : 1) * (this.beaconLit ? 0.6 : 1);
+      this.custTimer = (this.bought.counter3 ? 1.6 : this.bought.counter2 ? 2.3 : 3.2) * (this.chapter >= 3 ? 0.8 : 1) * (this.beaconLit ? 0.6 : 1) * this.lv.cust;
       const colors = [0x2f74b8, 0x3a86c8, 0x2a68a8, 0x4a90cf, 0x2d5f99];
       const m = makeHuman({ parka: colors[Math.floor(Math.random() * colors.length)], tool: null, scale: rand(0.92, 1.0) });
       const woodFlow = this.pads.counterLog.n > 0 || this.pads.plankPad.n > 0 || this.player.carry.plank > 0 || this.workers.some((w) => w.kind === 'lumberjack');
@@ -1385,6 +1419,8 @@ export class Game {
         // a customer waiting too long for wood settles for a steak
         c.waitT = (c.waitT || 0) + dt;
         if (c.want !== 'cooked' && c.got === 0 && !c.incoming && pad.n === 0 && c.waitT > 3 && this.pads.counterSteak.n > 0) { c.want = 'cooked'; pad = this.pads.counterSteak; }
+        // half served and nothing more on the counter: pay for what you got and let the queue move
+        if (c.got > 0 && !c.incoming && pad.n === 0 && c.waitT > 5) { c.qty = c.got; this.payCustomer(c); continue; }
         c.serveT -= dt;
         if (c.serveT <= 0 && pad.n - (pad.inflight || 0) > 0 && c.got + (c.incoming || 0) < c.qty) {
           c.serveT = this.serveInterval;
@@ -1423,7 +1459,7 @@ export class Game {
     return tex;
   }
 
-  price() { return (this.beaconLit ? 15 : 10) * (this.chapter >= 3 ? 1.5 : 1) * this.priceMult; }
+  price() { return (this.beaconLit ? 15 : 10) * (this.chapter >= 3 ? 1.5 : 1) * this.priceMult * this.lv.price; }
 
   payCustomer(c) {
     c.state = 'leave'; c.leaveStep = 0; c.checkT = 1.2;
@@ -1482,7 +1518,7 @@ export class Game {
       if (k >= 1) {
         this.scene.remove(bo.mesh); bo.mesh.geometry.dispose();
         this.bolts.splice(i, 1);
-        if (!b.dead) this.damageBear(b, b.boss ? this.turretDmg * 2 : this.turretDmg, { turret: true, pad: bo.turret.pad });
+        if (!b.dead) this.damageBear(b, (b.boss ? this.turretDmg * 2 : this.turretDmg) * this.lv.turret, { turret: true, pad: bo.turret.pad });
         if (this.cannons) {
           // the steam cannon's ball splashes the bears around its target
           this.fx.ring(b.x, b.z, { r0: 0.4, r1: 2.2, color: 0xffd0a0, life: 0.35 });
@@ -1630,7 +1666,7 @@ export class Game {
     this.updateFuel(dt, hasMeat || this.cookBusy > 0);
     this.cookTimer -= dt * pots * (this.burning() ? 1.5 : 1);
     if (this.cookTimer <= 0 && hasMeat && out.n < out.pile.cap) {
-      this.cookTimer = this.cookTime;
+      this.cookTimer = this.cookTime * this.lv.cook;
       this.cookBusy = 1.5;
       const second = this.grill2 && (this.potFlip = !this.potFlip);
       const gr = second ? this.grill2 : this.grill;
@@ -1679,7 +1715,7 @@ export class Game {
     saw.log.visible = saw.cutting > 0;
     if (saw.cutting > 0) {
       saw.cutting -= dt;
-      saw.log.position.x = -0.75 + (1 - Math.max(0, saw.cutting) / this.sawTime) * 0.9;
+      saw.log.position.x = -0.75 + Math.max(0, 1 - Math.max(0, saw.cutting) / (this.sawTime * this.lv.saw)) * 0.9;
       if (Math.random() < dt * 30) this.fx.puff(POS.sawmill.x, 1.1, POS.sawmill.z + 0.3, { n: 1, color: [0.93, 0.8, 0.6], size: [0.25, 0.6], speed: 2, up: 1.5, g: 4, life: 0.5, alpha: 0.9 });
       if (saw.cutting <= 0) {
         this.stats.sawn++;
@@ -1692,8 +1728,8 @@ export class Game {
         this.sawTimer = 0.15;
         const from = this.pickPos(logs);
         logs.n--;
-        this.fly('log', from, () => ({ x: POS.sawmill.x - 0.75, y: 1.05, z: POS.sawmill.z }), { dur: 0.35, arc: 1.2, onArrive: () => { saw.cutting = this.sawTime; } });
-        saw.cutting = 0.0001 + this.sawTime + 0.35;
+        this.fly('log', from, () => ({ x: POS.sawmill.x - 0.75, y: 1.05, z: POS.sawmill.z }), { dur: 0.35, arc: 1.2, onArrive: () => { saw.cutting = this.sawTime * this.lv.saw; } });
+        saw.cutting = 0.0001 + this.sawTime * this.lv.saw + 0.35;
       }
     }
     if (saw.chimney && Math.random() < dt * 4) { const v = saw.chimney.clone().applyMatrix4(saw.group.matrixWorld); this.fx.smoke(v.x, v.y, v.z); }
@@ -1714,7 +1750,8 @@ export class Game {
       const b = this.nearestBear(p, 80, true);
       return { at: b ? { x: b.x, z: b.z } : null, text: `Chasse les ours · ${this.money}/200 billets`, icon: 'meat', hunt: true };
     }
-    const affordable = this.tiles.filter((t) => t.def.cost - t.paid > 0 && this.money >= Math.min(t.def.cost - t.paid, 60) && this.money >= (t.def.cost - t.paid) * 0.5).sort((a, b) => (a.def.cost - a.paid) - (b.def.cost - b.paid))[0];
+    // the story's buildings first, then the town hall's levels and the shops
+    const affordable = this.tiles.filter((t) => t.def.cost - t.paid > 0 && this.money >= Math.min(t.def.cost - t.paid, 60) && this.money >= (t.def.cost - t.paid) * 0.5).sort((a, b) => ((a.def.slot || a.def.id.startsWith('shop_')) - (b.def.slot || b.def.id.startsWith('shop_'))) || (a.def.cost - a.paid) - (b.def.cost - b.paid))[0];
     const starving = this.pads.rawPad.n === 0 && this.pads.cookedPad.n === 0 && this.pads.counterSteak.n < 2;
     const room = (pad) => pad.n < (pad.pile ? pad.pile.cap : pad.cap) - 2;
     if (p.carry.raw > 0 && room(this.pads.rawPad) && (this.load_total(p) >= p.cap * 0.6 || (starving && p.carry.raw >= 5))) return { at: POS.rawPad, text: 'Dépose la viande près du chaudron', icon: 'meat' };
@@ -1849,6 +1886,7 @@ export class Game {
     this.updateAct3(dt);
     this.updateAct4(dt);
     this.updateAct6(dt);
+    this.updateShops(dt);
     this.updateCiv(dt);
     this.updateCustomers(dt);
     this.updateTiles(dt);
@@ -1975,3 +2013,5 @@ installCiv(Game);
 installAct4(Game);
 installAct6(Game);
 installDistricts(Game);
+installTownHall(Game);
+installAutomation(Game);

@@ -112,6 +112,6 @@ export class CameraRig {
     if (f && this.focusBlend > 0.5) CUT.uCutB.value.set(f.x, 1.2, f.z);
     else CUT.uCutB.value.set(p.x, 1.15 + (p.elev || 0), p.z);
     CUT.uCutOn.value = top || this.sky > 0.3 ? 0 : 1;
-    CUT.uCutR.value = 1.7 + (this.zoom - 1) * 0.6;
+    CUT.uCutR.value = 2.1 + (this.zoom - 1) * 0.7;
   }
 }
