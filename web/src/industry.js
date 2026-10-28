@@ -241,7 +241,7 @@ const methods = {
     if (B) {
       const busy = this.cookBusy > 0;
       if (Math.random() < dt * (busy ? 6 : 1.5)) { const v = B.chimney.clone().applyMatrix4(B.group.matrixWorld); this.fx.smoke(v.x, v.y, v.z); }
-      if (busy && Math.random() < dt * 0.25) { const v = B.whistle.clone().applyMatrix4(B.group.matrixWorld); this.fx.puff(v.x, v.y, v.z, { n: 6, size: [0.5, 1.6], speed: 1.2, up: 3, g: -1, life: 0.8, alpha: 0.7 }); }
+      if (busy && Math.random() < dt * 0.25) { const v = B.whistle.clone().applyMatrix4(B.group.matrixWorld); this.fx.puff(v.x, v.y, v.z, { n: 6, size: [0.5, 1.6], speed: 1.2, up: 3, g: -1, life: 0.8, alpha: 0.7 }); if (Math.hypot(this.player.x - IND_POS.boiler.x, this.player.z - IND_POS.boiler.z) < 14) this.audio.whistle(); }
       const pressure = this.burning() ? 1 : busy ? 0.6 : 0.25;
       B.needle.rotation.z += ((-1.2 + pressure * 2.4) - B.needle.rotation.z) * Math.min(1, dt * 3);
       B.door.material.color.setRGB(1.2 + pressure * 0.5, 0.4 + pressure * 0.25, 0.06);

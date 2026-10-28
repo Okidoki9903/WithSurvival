@@ -187,9 +187,12 @@ export function makeCanopy(cols, height = 3.6) {
   for (let i = 0; i < 4; i++) { const a = v[i], b = v[(i + 1) % 4]; tris.push(a.x, a.y, a.z, ctr.x, ctr.y, ctr.z, b.x, b.y, b.z); }
   geo.setAttribute('position', new THREE.Float32BufferAttribute(tris, 3));
   geo.computeVertexNormals();
-  const roof = mesh(geo, new THREE.MeshLambertMaterial({ color: 0xeef3f8, side: THREE.DoubleSide }));
+  // a glass roof, so the cauldrons stay in sight beneath it
+  const roof = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0xbfe2f7, transparent: true, opacity: 0.26, roughness: 0.08, metalness: 0.35, side: THREE.DoubleSide, depthWrite: false }));
+  roof.renderOrder = 7;
   g.add(roof);
-  for (let i = 0; i < 4; i++) g.add(makePipe(v[i], v[(i + 1) % 4], 0.07, iron));
+  for (let i = 0; i < 4; i++) { g.add(makePipe(v[i], v[(i + 1) % 4], 0.07, iron)); g.add(makePipe(v[i], ctr, 0.05, iron)); }
+  for (let i = 0; i < 4; i++) { const a = v[i].clone().lerp(v[(i + 1) % 4], 0.5); g.add(makePipe(a, ctr, 0.035, iron)); }
   const gears = [];
   for (let i = 0; i < 2; i++) {
     const gear = new THREE.Group();

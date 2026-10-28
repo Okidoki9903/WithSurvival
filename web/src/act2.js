@@ -546,8 +546,8 @@ const methods = {
     const parked = this.act2.caravan === 'parked';
     const carriesForOrder = ['cooked', 'plank', 'smoked'].some((t) => p.carry[t] > 0 && this.orderLeft(t) > 0);
     if (parked && carriesForOrder) return { at: A.relay, text: 'Livre la commande de la caravane', icon: 'sled' };
-    if (p.carry.fish > 0 && this.fumoir && (this.load_total(p) >= p.cap * 0.6 || !p.fishing)) return { at: A.fishPad, text: 'Porte le poisson au fumoir', icon: 'fish' };
-    if (p.carry.smoked > 0) return { at: { x: -4.0, z: 4.3 }, text: 'Sers le poisson fumé au comptoir', icon: 'person' };
+    if (p.carry.fish > 0 && this.fumoir && this.pads.fishPad.n < this.pads.fishPad.pile.cap - 2 && (this.load_total(p) >= p.cap * 0.6 || !p.fishing)) return { at: A.fishPad, text: 'Porte le poisson au fumoir', icon: 'fish' };
+    if (p.carry.smoked > 0 && this.pads.counterFish.n < this.pads.counterFish.cap - 2) return { at: { x: -4.0, z: 4.3 }, text: 'Sers le poisson fumé au comptoir', icon: 'person' };
     return null;
   },
 

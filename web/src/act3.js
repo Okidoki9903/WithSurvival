@@ -102,6 +102,13 @@ const methods = {
     if (!c) return;
     const p = this.player;
     if (this.act3.leftCub) return;
+    if (this.cutscene && this.ship) {
+      // Flocon rides on the icebreaker's deck
+      const sp = this.ship.group.position;
+      c.x = sp.x - 0.7; c.z = sp.z + 0.9;
+      c.model.root.position.set(c.x, 1.7, c.z); c.model.root.rotation.y = Math.PI; c.model.pose(dt, 0, -1);
+      return;
+    }
     const back = { x: p.x - Math.sin(p.facing) * 1.5 + Math.cos(p.facing) * 0.6, z: p.z - Math.cos(p.facing) * 1.5 - Math.sin(p.facing) * 0.6 };
     const dx = back.x - c.x, dz = back.z - c.z, d = Math.hypot(dx, dz);
     let moving = 0;
@@ -338,7 +345,7 @@ const methods = {
       if (c.load === 0) c.state = 'back';
     }
     c.group.position.set(c.x, 0, WGZ);
-    if (moving && Math.random() < dt * 3) this.audio.drop(2);
+    if (moving && Math.random() < dt * 4 && Math.abs(this.player.x - c.x) < 12) this.audio.clank();
   },
 
   // ---- steam drill: the cliff mines itself ------------------------------
@@ -535,6 +542,7 @@ const methods = {
     st.heart.rotation.y += dt * (s.ending === 'A' ? 0.1 : 0.6);
     st.rings.forEach((r, i) => { r.rotation.z += dt * (s.ending === 'A' ? 0.05 : 0.8 + i * 0.4); r.rotation.y += dt * 0.3; });
     st.core.scale.setScalar(1 + Math.sin(this.time * 3) * 0.04);
+    if (s.ending !== 'A' && this.region(this.player) === 'station' && Math.sin(this.time * 3) > 0.97) this.audio.heartbeat();
     st.screen.material.color.setRGB(0.4, 1.0 + Math.sin(this.time * 9) * 0.3, 0.6);
     for (const t of this.towers || []) {
       t.lamp.visible = t.on && Math.sin(this.time * 2 + t.x) > -0.3;
@@ -730,8 +738,9 @@ const methods = {
     }
     if (s.phase === 'voyage' || s.phase === 'ending') return { at: null, text: s.phase === 'voyage' ? 'Cap au nord' : 'Le monde change…', icon: 'ship' };
     if (!this.forge) return null;
-    if (p.carry.ore > 0 && (this.load_total(p) >= p.cap * 0.5 || !this.nearestOreNode(p, 6))) {
-      const dock = this.cart && dist(p, A3.dock) < dist(p, A3.orePad);
+    const oreRoom = this.pads.orePad.n < this.pads.orePad.pile.cap - 2, dockRoom = this.cart && this.pads.dockPad.n < this.pads.dockPad.pile.cap - 2;
+    if (p.carry.ore > 0 && (oreRoom || dockRoom) && (this.load_total(p) >= p.cap * 0.5 || !this.nearestOreNode(p, 6))) {
+      const dock = dockRoom && (!oreRoom || dist(p, A3.dock) < dist(p, A3.orePad));
       return { at: dock ? A3.dock : A3.orePad, text: 'Porte le minerai à la forge', icon: 'ore' };
     }
     const ship = this.tiles.find((t) => t.def.id.startsWith('ship') || t.def.id === 'depart');

@@ -1420,7 +1420,7 @@ export class Game {
         if (t.cd <= 0) {
           t.cd = this.turretCd;
           this.audio.shoot();
-          if (this.cannons) { this.fx.puff(origin.x + Math.sin(t.aim) * 1.2, 2.1, origin.z + Math.cos(t.aim) * 1.2, { n: 5, size: [0.6, 1.6], speed: 2, alpha: 0.8 }); this.audio.hit(); }
+          if (this.cannons) { this.fx.puff(origin.x + Math.sin(t.aim) * 1.2, 2.1, origin.z + Math.cos(t.aim) * 1.2, { n: 5, size: [0.6, 1.6], speed: 2, alpha: 0.8 }); this.audio.cannon(); }
           const bolt = this.cannons ? new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 6), mat(0x2b2b30)) : new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.9, 5).rotateX(Math.PI / 2), mat(0x3a2a1c));
           bolt.position.set(origin.x, 2.05, origin.z);
           this.scene.add(bolt);
@@ -1672,14 +1672,15 @@ export class Game {
     }
     const affordable = this.tiles.filter((t) => this.money >= Math.min(t.def.cost - t.paid, 60) && this.money >= (t.def.cost - t.paid) * 0.5).sort((a, b) => (a.def.cost - a.paid) - (b.def.cost - b.paid))[0];
     const starving = this.pads.rawPad.n === 0 && this.pads.cookedPad.n === 0 && this.pads.counterSteak.n < 2;
-    if (p.carry.raw > 0 && (this.load_total(p) >= p.cap * 0.6 || (starving && p.carry.raw >= 5))) return { at: POS.rawPad, text: 'Dépose la viande près du chaudron', icon: 'meat' };
-    if (p.carry.log > 0 && (!this.saw || this.pads.fuelPad.n < 4) && (this.load_total(p) >= p.cap * 0.4 || p.carry.log >= 3 || !this.saw)) return { at: IND_POS.fuelPad, text: 'Nourris le feu du chaudron', icon: 'fire' };
-    if (p.carry.log > 0 && this.saw && (this.load_total(p) >= p.cap * 0.6 || p.carry.log >= 6)) return { at: POS.logPad, text: 'Apporte les bûches à la scierie', icon: 'log' };
+    const room = (pad) => pad.n < (pad.pile ? pad.pile.cap : pad.cap) - 2;
+    if (p.carry.raw > 0 && room(this.pads.rawPad) && (this.load_total(p) >= p.cap * 0.6 || (starving && p.carry.raw >= 5))) return { at: POS.rawPad, text: 'Dépose la viande près du chaudron', icon: 'meat' };
+    if (p.carry.log > 0 && room(this.pads.fuelPad) && (!this.saw || this.pads.fuelPad.n < 4) && (this.load_total(p) >= p.cap * 0.4 || p.carry.log >= 3 || !this.saw)) return { at: IND_POS.fuelPad, text: 'Nourris le feu du chaudron', icon: 'fire' };
+    if (p.carry.log > 0 && this.saw && room(this.pads.logPad) && (this.load_total(p) >= p.cap * 0.6 || p.carry.log >= 6)) return { at: POS.logPad, text: 'Apporte les bûches à la scierie', icon: 'log' };
     const a3 = this.act3Objective(p);
     if (a3) return a3;
     const a2 = this.act2Objective(p);
     if (a2) return a2;
-    if (p.carry.cooked > 0 || p.carry.plank > 0) return { at: POS.cashier, text: 'Sers les rescapés au comptoir', icon: 'person' };
+    if ((p.carry.cooked > 0 && room(this.pads.counterSteak)) || (p.carry.plank > 0 && room(this.pads.counterLog))) return { at: POS.cashier, text: 'Sers les rescapés au comptoir', icon: 'person' };
     if (this.saw && this.pads.plankPad.n >= 3 && !this.workers.some((w) => w.kind === 'porter')) return { at: POS.plankPad, text: 'Ramasse le bois fendu', icon: 'log' };
     if (this.pads.cashPad.n >= 6 && this.stats.served < 30) return { at: POS.cashPad, text: 'Ramasse les billets', icon: 'cash' };
     if (affordable) return { at: affordable.def.at, text: affordable.def.label, icon: affordable.def.icon };
@@ -1692,7 +1693,7 @@ export class Game {
     if (a2l) return a2l;
     const tp = this.pads.turrets.find((t) => t.n >= 6);
     if (tp && !this.workers.some((w) => w.kind === 'porter')) return { at: tp, text: 'Récupère la viande des arbalètes', icon: 'meat' };
-    if (p.carry.log > 0 && this.saw) return { at: POS.logPad, text: 'Apporte les bûches à la scierie', icon: 'log' };
+    if (p.carry.log > 0 && this.saw && room(this.pads.logPad)) return { at: POS.logPad, text: 'Apporte les bûches à la scierie', icon: 'log' };
     if (this.wood && this.pads.counterLog.n < 3 && this.pads.plankPad.n < 3 && this.pads.logPad.n < 3 && this.customers.some((c) => c.want === 'plank') && !this.workers.some((w) => w.kind === 'lumberjack')) {
       const t = this.nearestChoppable(p);
       if (t) return { at: { x: t.x, z: t.z }, text: 'Coupe du bois en lisière', icon: 'axe' };
