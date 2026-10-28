@@ -282,3 +282,39 @@ export function makeWindTurbine(h = 9) {
 }
 
 export { makePipe };
+
+// District square: a paved circle, a sun statue on a pedestal and benches.
+export function makePlaza(r = 2.4) {
+  const g = new THREE.Group();
+  const pave = mesh(new THREE.CylinderGeometry(r, r, 0.06, 28), mat(0xb9b3a8), { cast: false, receive: true }); pave.position.y = 0.03; g.add(pave);
+  const ring = mesh(new THREE.TorusGeometry(r - 0.05, 0.08, 4, 32).rotateX(Math.PI / 2), darkConcrete(), { cast: false }); ring.position.y = 0.07; g.add(ring);
+  const ped = mesh(new THREE.CylinderGeometry(0.5, 0.62, 0.9, 8), concreteM()); ped.position.y = 0.45; g.add(ped);
+  const sun = new THREE.Group(); sun.position.y = 1.45; g.add(sun);
+  const gold = new THREE.MeshStandardMaterial({ color: 0xffc94a, metalness: 0.8, roughness: 0.3 });
+  sun.add(mesh(new THREE.SphereGeometry(0.32, 14, 10), gold));
+  for (let i = 0; i < 8; i++) { const ray = mesh(new THREE.ConeGeometry(0.08, 0.36, 5), gold); const a = i * Math.PI / 4; ray.position.set(Math.cos(a) * 0.5, Math.sin(a) * 0.5, 0); ray.rotation.z = a - Math.PI / 2; sun.add(ray); }
+  const wood = mat(0x8a5a36), iron = ironM();
+  for (let k = 0; k < 4; k++) {
+    const b = new THREE.Group(); const a = k * Math.PI / 2 + Math.PI / 4;
+    b.position.set(Math.cos(a) * (r - 0.6), 0, Math.sin(a) * (r - 0.6)); b.rotation.y = -a + Math.PI / 2;
+    const seat = mesh(new THREE.BoxGeometry(1.0, 0.07, 0.34), wood); seat.position.y = 0.42; b.add(seat);
+    const back = mesh(new THREE.BoxGeometry(1.0, 0.3, 0.06), wood); back.position.set(0, 0.62, -0.15); b.add(back);
+    for (const x of [-0.42, 0.42]) { const leg = mesh(new THREE.BoxGeometry(0.06, 0.42, 0.3), iron); leg.position.set(x, 0.21, 0); b.add(leg); }
+    const snow = mesh(new THREE.BoxGeometry(0.98, 0.04, 0.3), snowM(), { cast: false }); snow.position.y = 0.48; b.add(snow);
+    g.add(b);
+  }
+  return { group: g, sun };
+}
+
+// A young fir planted by Oleg in the streets.
+export function makeYoungFir(s = 1) {
+  const g = new THREE.Group();
+  const trunk = mesh(new THREE.CylinderGeometry(0.08 * s, 0.1 * s, 0.5 * s, 6), mat(0x6b4a2e)); trunk.position.y = 0.25 * s; g.add(trunk);
+  const green = mat(0x3f7a52), snow = snowM();
+  for (let i = 0; i < 3; i++) {
+    const c = mesh(new THREE.ConeGeometry((0.7 - i * 0.18) * s, 0.8 * s, 8), green); c.position.y = (0.75 + i * 0.45) * s; g.add(c);
+    const cap = mesh(new THREE.ConeGeometry((0.45 - i * 0.12) * s, 0.3 * s, 8), snow, { cast: false }); cap.position.y = (1.0 + i * 0.45) * s; g.add(cap);
+  }
+  const box = mesh(new THREE.BoxGeometry(0.7 * s, 0.25, 0.7 * s), mat(0x7a5233)); box.position.y = 0.12; g.add(box);
+  return g;
+}

@@ -11,6 +11,7 @@ import { NavGrid } from './nav.js';
 import { installCiv } from './civ.js';
 import { ACT4_TILES, installAct4 } from './act4.js';
 import { ACT6_TILES, installAct6 } from './act6.js';
+import { DISTRICT_TILES, installDistricts } from './districts.js';
 
 const P = (x, z) => ({ x, z });
 export const POS = {
@@ -78,6 +79,7 @@ const TILES = [
   ...ACT3_TILES,
   ...ACT4_TILES,
   ...ACT6_TILES,
+  ...DISTRICT_TILES,
 ];
 
 const PILE = {
@@ -523,7 +525,7 @@ export class Game {
       case 'expand1': this.setStage(2, fresh); if (fresh) { this.setChapter(3, fresh); this.story.beat('expand1', 1.0); } break;
       case 'expand2': this.setStage(3, fresh); if (fresh) { this.setChapter(4, fresh); this.story.beat('expand2', 1.0); setTimeout(() => this.spawnBoss(), 6000); } break;
       case 'beacon': this.lightBeacon(fresh); break;
-      default: if (!this.act2Apply(id, fresh) && !this.industryApply(id, fresh) && !this.act3Apply(id, fresh) && !this.act4Apply(id, fresh)) this.act6Apply(id, fresh); break;
+      default: if (!this.act2Apply(id, fresh) && !this.industryApply(id, fresh) && !this.act3Apply(id, fresh) && !this.act4Apply(id, fresh) && !this.act6Apply(id, fresh)) this.districtApply(id, fresh); break;
     }
   }
 
@@ -536,7 +538,7 @@ export class Game {
       const zr = this.world.extraZones.find((z) => z.z1 < -50);
       return this.world.reachMap({ x0: zr.x0 - 2, x1: zr.x1 + 2, z0: zr.z0 - 2, z1: zr.z1 + 2 }, { x: zr.x0 + 9.4, z: zr.z1 - 4.2 }, 0.35);
     }
-    if (this.world.extraZones) for (const zr of this.world.extraZones) {
+    for (const zr of [...(this.world.extraZones || []), ...this.world.districts]) {
       if (zr.z1 < -50) continue;
       b.x0 = Math.min(b.x0, zr.x0 - 3); b.x1 = Math.max(b.x1, zr.x1 + 3); b.z0 = Math.min(b.z0, zr.z0 - 3); b.z1 = Math.max(b.z1, zr.z1 + 3);
     }
@@ -554,7 +556,7 @@ export class Game {
     const r = STAGES[this.stage];
     const b = { x0: Math.min(r.x0 - 5, MEADOW.x0 - 4), x1: Math.max(r.x1 + 5, MEADOW.x1 + 4), z0: MEADOW.z0 - 3, z1: r.z1 + 6 };
     if (this.stage >= 4) { b.x1 = Math.max(b.x1, 31); b.z1 = 28; }
-    for (const zr of this.world.extraZones || []) if (zr.z1 > -50) { b.x0 = Math.min(b.x0, zr.x0 - 3); b.z0 = Math.min(b.z0, zr.z0 - 3); b.z1 = Math.max(b.z1, zr.z1 + 3); }
+    for (const zr of [...(this.world.extraZones || []), ...this.world.districts]) if (zr.z1 > -50) { b.x0 = Math.min(b.x0, zr.x0 - 3); b.z0 = Math.min(b.z0, zr.z0 - 3); b.z1 = Math.max(b.z1, zr.z1 + 3); }
     if (at.x < b.x0 || at.x > b.x1 || at.z < b.z0 || at.z > b.z1 || p.x < b.x0 || p.x > b.x1 || p.z < b.z0 || p.z > b.z1) return null;
     this.nav.ensure(b);
     return this.nav.next(p, at);
@@ -644,7 +646,7 @@ export class Game {
     this.computeChoppable();
   }
 
-  addCabin(x, z, i, fresh, fx, fz) {
+  addCabin(x, z, i, fresh, fx, fz, zone = null) {
     if (this.cabins.some((c) => c.x === x && c.z === z)) return;
     const g = makeCabin(i);
     g.position.set(x, 0, z);
@@ -665,7 +667,8 @@ export class Game {
       this.world.tween(delay + 0.7, (f) => { const k = Math.max(0, (f * (delay + 0.7) - delay) / 0.7); g.scale.setScalar(Math.max(0.001, backOut(k))); fire.group.scale.setScalar(Math.max(0.001, backOut(k))); });
       setTimeout(() => this.fx.puff(x, 0.6, z, { n: 20, speed: 5, size: [2, 4.5] }), delay * 1000);
     }
-    for (let n = 0; n < 2; n++) this.addNpc(x, z, fresh);
+    for (let n = 0; n < 2; n++) this.addNpc(x, z, fresh, zone);
+    return cab;
   }
 
   addBarrels(x, z, fresh) {
@@ -1971,3 +1974,4 @@ installAct3(Game);
 installCiv(Game);
 installAct4(Game);
 installAct6(Game);
+installDistricts(Game);

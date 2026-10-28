@@ -94,6 +94,7 @@ export class World {
     this.stage = 0;
     this.segments = [];   // fence/rail colliders
     this.circles = [];    // solid props
+    this.districts = [];  // walled quarters added around the fort
     this.fence = null;
     this.campGround = null;
 
@@ -167,22 +168,40 @@ export class World {
     } else if (old) this.scene.remove(old);
   }
 
+  // The palisade surrounds the main fort and every district: each edge is
+  // a wall minus its gates and minus the stretches shared with a
+  // neighbouring rectangle, so districts open widely onto the town.
   buildFence(animate) {
     const r = STAGES[this.stage];
     const group = new THREE.Group();
     const segs = [];
-    const add = (ax, az, bx, bz) => segs.push({ ax, az, bx, bz });
+    const rects = [r, ...this.districts];
+    const holesOn = (self, axis, c) => {
+      const out = [];
+      for (const o of rects) {
+        if (o === self) continue;
+        if (axis === 'z' && (Math.abs(o.z0 - c) < 1e-6 || Math.abs(o.z1 - c) < 1e-6)) out.push([o.x0, o.x1]);
+        if (axis === 'x' && (Math.abs(o.x0 - c) < 1e-6 || Math.abs(o.x1 - c) < 1e-6)) out.push([o.z0, o.z1]);
+      }
+      return out;
+    };
+    const wall = (self, axis, c, a, b, gates = []) => {
+      let parts = [[a, b]];
+      for (const [h0, h1] of [...gates, ...holesOn(self, axis, c)]) {
+        parts = parts.flatMap(([p0, p1]) => (h1 <= p0 || h0 >= p1 ? [[p0, p1]] : [[p0, Math.max(p0, h0)], [Math.min(p1, h1), p1]]).filter(([u, v]) => v - u > 0.05));
+      }
+      for (const [u, v] of parts) segs.push(axis === 'z' ? { ax: u, az: c, bx: v, bz: c } : { ax: c, az: u, bx: c, bz: v });
+    };
     // north (towards the bear meadow) with a gate, and the icebreaker's gate
-    if (this.shipGate) { add(r.x0, r.z0, SHIP_GATE.x0, r.z0); add(SHIP_GATE.x1, r.z0, GATE.x0, r.z0); }
-    else add(r.x0, r.z0, GATE.x0, r.z0);
-    add(GATE.x1, r.z0, r.x1, r.z0);
+    wall(r, 'z', r.z0, r.x0, r.x1, [[GATE.x0, GATE.x1], ...(this.shipGate ? [[SHIP_GATE.x0, SHIP_GATE.x1]] : [])]);
     // south with the counter opening (and the lake gate from stage 4)
-    add(r.x0, r.z1, COUNTER.x0, r.z1);
-    if (this.stage >= 4) { add(COUNTER.x1, r.z1, SOUTH_GATE.x0, r.z1); add(SOUTH_GATE.x1, r.z1, r.x1, r.z1); }
-    else add(COUNTER.x1, r.z1, r.x1, r.z1);
-    if (this.stage >= 5) { add(r.x0, r.z0, r.x0, WEST_GATE.z0); add(r.x0, WEST_GATE.z1, r.x0, r.z1); }
-    else add(r.x0, r.z0, r.x0, r.z1);
-    add(r.x1, r.z0, r.x1, r.z1);
+    wall(r, 'z', r.z1, r.x0, r.x1, [[COUNTER.x0, COUNTER.x1], ...(this.stage >= 4 ? [[SOUTH_GATE.x0, SOUTH_GATE.x1]] : [])]);
+    wall(r, 'x', r.x0, r.z0, r.z1, this.stage >= 5 ? [[WEST_GATE.z0, WEST_GATE.z1]] : []);
+    wall(r, 'x', r.x1, r.z0, r.z1);
+    for (const d of this.districts) {
+      wall(d, 'z', d.z0, d.x0, d.x1); wall(d, 'z', d.z1, d.x0, d.x1);
+      wall(d, 'x', d.x0, d.z0, d.z1); wall(d, 'x', d.x1, d.z0, d.z1);
+    }
 
     let planks = 0;
     for (const s of segs) planks += Math.ceil(Math.hypot(s.bx - s.ax, s.bz - s.az) / 0.38);
@@ -303,11 +322,25 @@ export class World {
     if (meadowDist(x, z) < FRINGE) return true;
     if (this.stage >= 4 && (roundRectDist(x, z, LAKE, FRINGE - 0.6) < 0 || inRect(x, z, CORRIDOR))) return true;
     if (this.extraZones) for (const zr of this.extraZones) if (roundRectDist(x, z, zr, zr.fringe ?? FRINGE) < 0) return true;
+    for (const d of this.districts) if (roundRectDist(x, z, d, WALK_GAP + FRINGE * 0.85) < 0) return true;
     const r = STAGES[this.stage];
     return roundRectDist(x, z, r, WALK_GAP + FRINGE * 0.85) < 0;
   }
 
-  insideCamp(x, z) { return this.stage >= 1 && inRect(x, z, STAGES[this.stage]); }
+  insideCamp(x, z) { return this.stage >= 1 && (inRect(x, z, STAGES[this.stage]) || this.districts.some((d) => inRect(x, z, d))); }
+
+  // A new walled district attached to the fort: its own ground and walls.
+  addDistrict(d, animate) {
+    if (this.districts.includes(d)) return;
+    this.districts.push(d);
+    const w = d.x1 - d.x0 + 0.6, h = d.z1 - d.z0 + 0.6;
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ map: campGroundTexture(w, h) }));
+    m.position.set((d.x0 + d.x1) / 2, 0.011, (d.z0 + d.z1) / 2);
+    m.receiveShadow = true;
+    this.scene.add(m);
+    if (animate) { m.scale.set(0.001, 1, 0.001); this.tween(0.6, (f) => { const k = Math.max(0.001, backOut(f)); m.scale.set(k, 1, k); }); }
+    this.buildFence(animate);
+  }
   atMine(x, z) { return this.stage >= 5 && !this.insideCamp(x, z) && x < STAGES[5].x0 + 0.2 && inRect(x, z, MINE, 3); }
   atStation(x, z) { return inRect(x, z, STATION, 4); }
   atLake(x, z) { return this.stage >= 4 && !this.insideCamp(x, z) && (inRect(x, z, LAKE, 0.5) || inRect(x, z, CORRIDOR)); }
