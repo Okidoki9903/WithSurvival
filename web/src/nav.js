@@ -169,6 +169,46 @@ export class NavGrid {
     return { x: g.b.x0 + i * this.step, z: g.b.z0 + j * this.step, final: false };
   }
 
+  // Whole route for a worker: waypoints down the distance field, pulled
+  // tight with grid line-of-sight, ending exactly at `to`. Null if unreachable.
+  path(from, to) {
+    const g = this.grid;
+    if (!g) return null;
+    const tk = this.nearestFree(this.cell(to.x, to.z));
+    const fk = this.nearestFree(this.cell(from.x, from.z), 4);
+    if (tk < 0 || fk < 0) return null;
+    if (this.fieldKey !== tk) { this.field(tk); this.fieldKey = tk; }
+    const D = g.dist;
+    if (!isFinite(D[fk])) return null;
+    const cells = [fk];
+    let k = fk;
+    for (let s = 0; s < 4000 && D[k] > 0; s++) {
+      const i = k % g.nx, j = (k - i) / g.nx;
+      let nk = k, nd = D[k];
+      for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+        const a = i + di, c = j + dj;
+        if (a < 0 || c < 0 || a >= g.nx || c >= g.nz) continue;
+        if (di && dj && (!g.free[j * g.nx + a] || !g.free[c * g.nx + i])) continue;
+        const kk = c * g.nx + a;
+        if (D[kk] < nd) { nd = D[kk]; nk = kk; }
+      }
+      if (nk === k) break;
+      k = nk; cells.push(k);
+    }
+    const pts = [];
+    let a = 0;
+    while (a < cells.length - 1) {
+      let b = cells.length - 1;
+      while (b > a + 1 && !this.clearLine(cells[a], cells[b])) b--;
+      pts.push(cells[b]);
+      a = b;
+    }
+    const out = pts.map((c) => { const i = c % g.nx, j = (c - i) / g.nx; return { x: g.b.x0 + i * this.step, z: g.b.z0 + j * this.step }; });
+    if (out.length) out.pop();
+    out.push({ x: to.x, z: to.z, reach: to.reach });
+    return out;
+  }
+
   // Where a walker at `p` should stand to be connected to `anchor`, or null if it already is.
   rescue(p, anchor) {
     const g = this.grid;

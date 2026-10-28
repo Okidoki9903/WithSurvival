@@ -52,18 +52,25 @@ Il y a trente et un ans, le monde brûlait. Le Projet Aube (le soleil levant imp
 | XI · Le Cœur de l'Hiver | Voyage vers le nord, la Station Aube, le dernier message de Véra… et un choix, en marchant sur l'une des deux dalles. |
 | Épilogues | **Le Ciel Rendu** : Brann descend fermer la vanne, le Voile tombe, le printemps revient partout. **La Ville-Lumière** : le Cœur chauffe Fort-Aube pour toujours, des serres fleurissent, mais le monde reste gelé. |
 
-## Une ville qui grandit dans les deux sens
+## Une ville qui grandit de tous les côtés
 
-Fort-Aube ne s'étire pas seulement d'ouest en est : à partir de l'acte III, des **quartiers fortifiés** s'ouvrent au nord et au sud de l'enceinte, autour de la prairie aux ours et du lac. Chacun s'achète sur une dalle posée contre la palissade qu'il remplace ; le mur commun disparaît et le quartier arrive avec ses maisons, sa place au soleil levant, ses bancs, les jeunes sapins plantés par Oleg, puis des réverbères et des immeubles.
+Le fort d'origine reste compact pendant l'acte I. Ensuite, à chaque acte, un **grand quartier fortifié** s'ouvre sur un côté différent, autour de la prairie aux ours et du lac : la ville ne s'étire plus en ruban, elle s'étend en longueur comme en largeur, avec de l'espace entre les bâtiments. La palissade commune disparaît quand un quartier s'ouvre, et les immeubles ne poussent que contre les palissades nord et ouest, pour ne jamais masquer le personnage (la caméra regarde depuis le sud-est).
 
-| Quartier | Acte | Où |
-|---|---|---|
-| Faubourg de la Forge | III | au sud des forges |
-| Cité de la Foudre | IV | au nord du Quartier de la Foudre |
-| Les Hauts du Nord | V | au nord des forges |
-| Quartier du Lac | VI | à l'est du lac |
+| Quartier | Acte | Côté | Ce qu'on y trouve |
+|---|---|---|---|
+| Quartier des Caravaniers | II | sud-ouest | la **Maison commune** de Lina, trois boutiques, maisons, place au soleil levant |
+| Quartier des Forgerons | III | nord-ouest | le **chantier des bâtisseurs**, trois boutiques, l'avenue du Brise-Glace |
+| Cité de la Foudre | IV | nord-est | antenne radio, carrière, cimenterie, concasseur, deux boutiques, immeubles |
+| Quartier du Lac | V | sud-est | fermes verticales, trois boutiques, maisons au bord du lac |
 
-La ville finale entoure la prairie et le lac : elle s'étend en longueur, en largeur… et en hauteur avec les tours.
+## Où dépenser son argent
+
+- **Maison commune** (acte II) : quatre emplacements devant le bâtiment proposent toujours les améliorations les moins chères disponibles parmi une vingtaine de lignes à niveaux : enseigne du marché (prix), cadence des chaudrons, sac, hache, bottes des ouvriers, porteurs, chasseurs, bûcherons et mineurs supplémentaires, lames de scie, carreaux des arbalètes, affiches (plus de clients), fumoir, forge, foreuse, bâtisseurs, intendance de Lina, confort des logements (loyers), commerce (revenus des boutiques), tréfilerie, cimenterie, chaîne des panneaux. Plus de 70 niveaux en tout.
+- **Boutiques** : onze parcelles dans les quartiers (auberge, boulangerie, pelleterie, coutellerie, bains, école, atelier, cinéma, marché couvert, dispensaire, bibliothèque). Chacune monte d'un étage à chaque niveau et verse ses recettes à chaque jour de paie ; certaines accélèrent aussi la ville (l'auberge attire des clients, l'école forme les ouvriers, le marché couvert fait monter les prix).
+
+## Automatisation complète
+
+Chaque étape du processus peut tourner seule : chasse (arbalètes, chasseurs), viande vers le chaudron (treuil, porteurs), cuisson, comptoir (tapis, Lina, caisse), bois (bûcherons, scierie, foyer nourri par Oleg), pêche et fumoir (filets, téléphérique), caravanes (Piotr), fer (mineurs, wagonnet, foreuse, forge), conserves, cuivre et fil (Oskar, foreuse électrique), pierre et ciment (Kaja, concasseur), panneaux et Arches (drones). Les **bâtisseurs** portent l'acier, le bois, les conserves, le fil, les parpaings et les panneaux jusqu'aux chantiers qui les attendent, et l'**intendance de Lina** finance chaque chantier dès que ses matériaux sont livrés. Les ouvriers suivent les rues (grille de navigation) au lieu de traverser les murs.
 
 ## L'échelle de Kardashev (actes IV à IX)
 
@@ -106,7 +113,9 @@ web/
   src/civ.js       moteur de civilisation : indice de Kardashev, ères, population, loyers, usines génériques
   src/act4.js      actes IV-V : cuivre, fil, centrale, réseau, nuit, ciment, immeubles, Tour de l'Aube, ascenseur
   src/act6.js      actes VI-IX : train, fusion, cosmodrome, drones, fusées, ascenseur spatial, essaim, Arches
-  src/districts.js quartiers nord et sud (enceinte en plusieurs rectangles, places, maisons)
+  src/districts.js quartiers sur les quatre côtés (enceinte en plusieurs rectangles, places, maisons)
+  src/townhall.js  Maison commune (améliorations à niveaux) et boutiques
+  src/automation.js bâtisseurs et chantiers, src/models6.js : mairie, boutiques, chantier
   src/sky.js       ciel : blizzard, dégel, jour et nuit, étoiles, Soleil, essaim de Dyson, anneau, colonies
   src/models*.js, machines.js  modèles 3D procéduraux
   src/story.js     chapitres, dialogues, Carnet

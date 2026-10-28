@@ -279,7 +279,7 @@ const methods = {
     this.smeltT -= dt;
     const busy = inp.n - (inp.inflight || 0) > 0;
     if (this.smeltT <= 0 && busy && out.n < out.pile.cap) {
-      this.smeltT = this.smeltTime;
+      this.smeltT = this.smeltTime * this.lv.smelt;
       const from = this.pickPos(inp);
       inp.n--;
       const mouth = { x: A3.forge.x, y: 0.7, z: A3.forge.z + 0.6 };
@@ -363,7 +363,7 @@ const methods = {
     if (Math.random() < dt * (working ? 5 : 1)) { const v = d.chimney.clone().applyMatrix4(d.group.matrixWorld); this.fx.smoke(v.x, v.y, v.z); }
     d.t -= dt;
     if (working && d.t <= 0) {
-      d.t = 2.2;
+      d.t = 2.2 * this.lv.drill;
       const at = { x: A3.drill.x - 2.1, y: 0.9, z: A3.drill.z - 0.3 };
       this.fx.puff(at.x, at.y, at.z, { n: 5, size: [0.5, 1.3], speed: 2.5, color: [0.7, 0.68, 0.66], alpha: 0.7 });
       this.stats.mined++;
@@ -700,6 +700,7 @@ const methods = {
   },
 
   act3Worker(w, dt, arrived, total) {
+    if (w.kind === 'builder') { this.builderWorker(w, dt, arrived, total); return; }
     if (w.kind !== 'miner') return;
     // Gustav mines iron; the later miners work the copper and stone veins
     const res = w.res || 'ore';

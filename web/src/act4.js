@@ -16,21 +16,21 @@ const P = (x, z) => ({ x, z });
 export const ACT4_POS = {
   eastTile: P(16.0, -1.4),
   mill: P(22.5, -4.7), copperIn: P(24.8, -1.4), wireOut: P(20.2, -1.4),
-  cement: P(29.6, -4.6), stoneIn: P(31.8, -1.4), concreteOut: P(27.4, -1.4),
+  cement: P(39.6, -21.8), stoneIn: P(37.6, -17.6), concreteOut: P(34.4, -17.6),
   plant: P(37.2, -1.6), plantTile: P(37.2, 1.4),
-  drill: P(41.8, -4.4), drillPad: P(41.4, -1.4),
-  radio: P(31.0, 4.6),
-  gridTile: P(23.0, 1.8), electricTile: P(26.2, 1.8), floorsTile: P(29.0, 1.6),
-  vfarm1: P(19.4, 4.5), vfarm2: P(28.0, 4.5),
+  drill: P(41.8, -4.4), drillPad: P(41.0, -1.2),
+  radio: P(24.8, -21.4),
+  gridTile: P(23.0, 1.8), electricTile: P(27.0, 1.8), floorsTile: P(35.6, -10.0),
+  vfarm1: P(34.5, 11.0), vfarm2: P(34.5, 17.6),
   dawn: P(11.8, -13.2), dawnTile: P(11.8, -9.4), lift: P(11.8, -9.9),
   turbinesTile: P(-6.0, -9.4),
-  towers1Tile: P(12.0, 2.4), towers2Tile: P(-12.0, 1.0),
+  towers1Tile: P(30.6, -9.0), towers2Tile: P(-22.0, -9.4),
 };
 const E = ACT4_POS;
-const COPPER = [[36.0, 5.0], [38.6, 5.0], [41.2, 5.0], [41.9, 2.4]];
-const STONE = [[22.6, 5.0], [25.0, 5.0]];
+const COPPER = [[41.9, 2.4], [41.9, 4.9], [39.3, 5.0]];
+const STONE = [[41.6, -16.2], [41.6, -13.4], [41.6, -10.6]];
 const TURBINES = [[-9.5, -12.0], [-3.5, -16.5], [3.0, -12.2], [19.0, -20.0], [-10.0, -20.5]];
-const LAMPS = [[18.4, -2.6], [22.6, 3.6], [28.0, 3.4], [34.6, -1.0], [-1.0, -4.8], [7.0, -4.9], [-9.0, -4.8], [-20.0, -4.9], [-28.0, 0.0], [5.8, 8.0], [5.8, 16.0], [12.4, 9.5], [-3.6, 7.8]];
+const LAMPS = [[18.4, -2.6], [22.6, 3.6], [30.0, 4.6], [34.6, -1.0], [-1.0, -4.8], [7.0, -4.9], [-9.0, -4.8], [-20.0, -4.9], [-28.0, 0.0], [5.8, 8.0], [5.8, 16.0], [12.4, 9.5], [-3.6, 7.8]];
 const PYLONS = [[37.2, -7.6], [27.0, -7.6], [17.0, -7.6], [7.0, -7.6], [-3.0, -7.6], [-13.0, -7.6], [-23.0, -7.6], [-31.0, -7.6]];
 const DAY = 150;
 
@@ -39,22 +39,23 @@ const A4 = (g) => g.act4 || {};
 export const ACT4_TILES = [
   // Act IV — lightning
   T('eastGate', 'expand', 10000, E.eastTile, (g) => A4(g).phase && A4(g).phase !== 'none', 'Quartier de la Foudre', { big: true, beat: 'eastTile', reveal: true }),
-  T('oskar', 'person', 4000, P(34.0, 3.6), (g) => g.stage >= 6 && (g.stats.copper || 0) >= 6, 'Recruter Oskar'),
+  T('oskar', 'person', 4000, P(37.2, 4.2), (g) => g.stage >= 6 && (g.stats.copper || 0) >= 6, 'Recruter Oskar'),
   T('plant1', 'fire', 6000, E.plantTile, (g) => g.stage >= 6 && (g.stats.wire || 0) >= 4, 'Salle des turbines', { items: { steel: 20, plank: 20 }, beat: 'plantTile', reveal: true }),
   T('plant2', 'gear', 8000, E.plantTile, (g) => g.bought.plant1, 'Alternateurs', { items: { wire: 20, steel: 10 } }),
   T('plant3', 'bolt', 10000, E.plantTile, (g) => g.bought.plant2, 'Transformateurs', { items: { wire: 30 } }),
   T('copperDrill', 'gear', 7000, E.drill, (g) => g.bought.plant2, 'Foreuse électrique', { items: { steel: 15, wire: 10 } }),
   T('grid', 'bolt', 9000, E.gridTile, (g) => g.bought.plant3, 'Réseau électrique', { items: { wire: 30, steel: 10 }, reveal: true }),
-  T('radio', 'beacon', 8000, E.radio, (g) => g.bought.plant3, 'Antenne radio', { items: { steel: 15, wire: 20 } }),
+  T('radio', 'beacon', 8000, E.radio, (g) => g.bought.plant3 && g.bought.distNordEst, 'Antenne radio', { items: { steel: 15, wire: 20 } }),
   T('electric', 'gear', 12000, E.electricTile, (g) => g.bought.grid, 'Machines électriques', { items: { wire: 25, steel: 10 } }),
   // Act V — towers
-  T('quarry', 'pickaxe', 20000, E.cement, (g) => A4(g).towers, 'Carrière et cimenterie', { items: { steel: 20, wire: 10 }, beat: 'quarryTile', reveal: true }),
-  T('kaja', 'person', 9000, P(22.4, 2.6), (g) => g.bought.quarry && (g.stats.concrete || 0) >= 4, 'Recruter Kaja'),
+  T('quarry', 'pickaxe', 20000, E.cement, (g) => A4(g).towers && g.bought.distNordEst, 'Carrière et cimenterie', { items: { steel: 20, wire: 10 }, beat: 'quarryTile', reveal: true }),
+  T('stoneDrill', 'gear', 30000, P(39.0, -9.2), (g) => g.bought.quarry, 'Concasseur électrique', { items: { steel: 20, wire: 10 } }),
+  T('kaja', 'person', 9000, P(36.2, -13.6), (g) => g.bought.quarry && (g.stats.concrete || 0) >= 4, 'Recruter Kaja'),
   T('towers1', 'tower', 25000, E.towers1Tile, (g) => g.bought.quarry && (g.stats.concrete || 0) >= 6, 'Immeubles de l’Est', { items: { concrete: 30, steel: 15 }, reveal: true }),
   T('towers2', 'tower', 25000, E.towers2Tile, (g) => g.bought.towers1, 'Immeubles de l’Ouest', { items: { concrete: 30, steel: 15 }, reveal: true }),
-  T('vfarm1', 'leaf', 20000, E.vfarm1, (g) => g.bought.towers1, 'Ferme verticale', { items: { concrete: 20, wire: 10, plank: 10 } }),
+  T('vfarm1', 'leaf', 20000, E.vfarm1, (g) => g.bought.towers1 && g.bought.distLac, 'Ferme verticale', { items: { concrete: 20, wire: 10, plank: 10 } }),
   T('floors1', 'tower', 30000, E.floorsTile, (g) => g.bought.towers2, 'Surélever les tours', { items: { concrete: 40, wire: 10 } }),
-  T('vfarm2', 'leaf', 30000, E.vfarm2, (g) => g.bought.floors1, 'Seconde ferme verticale', { items: { concrete: 25, wire: 15 } }),
+  T('vfarm2', 'leaf', 30000, E.vfarm2, (g) => g.bought.floors1 && g.bought.vfarm1, 'Seconde ferme verticale', { items: { concrete: 25, wire: 15 } }),
   T('turbines', 'wind', 30000, E.turbinesTile, (g) => g.bought.towers1, 'Éoliennes', { items: { steel: 25, wire: 20 } }),
   T('floors2', 'tower', 45000, E.floorsTile, (g) => g.bought.floors1 && g.bought.vfarm1, 'Surélever encore', { items: { concrete: 50, steel: 20 } }),
   T('dawn1', 'tower', 40000, E.dawnTile, (g) => g.bought.towers2, 'Tour de l’Aube · fondations', { items: { concrete: 40, steel: 20 }, beat: 'dawnTile', reveal: true }),
@@ -275,7 +276,7 @@ const methods = {
     this.cookTime = (this.cookTime || 0.4) * 0.7;
     this.sawTime = (this.sawTime || 0.5) * 0.7;
     this.smeltTime = (this.smeltTime || 1) * 0.7;
-    if (this.wireFactory) this.wireFactory.mult = 1.5;
+    if (this.wireFactory) this.wireFactory.mult += 0.5;
     this.priceMult *= 1.2;
     this.addPower('electric', 2.5e11);
     if (fresh) { this.story.beat('electric', 0.5); this.fx.ring(this.player.x, this.player.z, { r0: 1, r1: 14, color: 0x9fe0ff, life: 1.2, opacity: 0.8 }); }
@@ -296,6 +297,7 @@ const methods = {
     const cw = makeCementWorks(); cw.group.position.set(E.cement.x, 0, E.cement.z); this.scene.add(cw.group);
     this.cementWorks = cw;
     for (const dx of [-1.1, 1.1]) this.world.circles.push({ x: E.cement.x + dx, z: E.cement.z - 0.1, r: 1.3, camp: true });
+    this.world.circles.push({ x: E.cement.x + 2.7, z: E.cement.z - 1.5, r: 1.0, camp: true });
     this.cementFactory = new Factory(this, {
       id: 'cement', at: E.cement, time: 1.4,
       inputs: [{ type: 'stone', at: E.stoneIn, cap: 45 }],
@@ -306,7 +308,31 @@ const methods = {
     if (fresh) { this.popIn(g, 0.3); this.popIn(cw.group, 0.6); this.cementFactory.meshes.forEach((m) => this.popIn(m, 0.9)); this.story.beat('quarry', 0.6); }
   },
 
+  // The electric crusher bites the ridge and throws stone straight to the cement works.
+  buildStoneDrill(fresh) {
+    const d = makeDrill(); d.group.position.set(41.2, 0, -7.9); d.group.rotation.y = Math.PI; this.scene.add(d.group);
+    this.stoneDrill = { ...d, t: 1 };
+    this.world.circles.push({ x: 41.4, z: -7.9, r: 1.8, camp: true });
+    this.addPower('stoneDrill', 2e12);
+    if (fresh) { this.popIn(d.group); this.showcase(40, -10, 1.4); this.story.beat('stoneDrill', 0.4); }
+  },
+
+  updateStoneDrill(dt) {
+    const d = this.stoneDrill, pad = this.pads.cement_stone;
+    if (!d || !pad) return;
+    const working = pad.n < pad.pile.cap - 1;
+    d.bit.rotation.x += dt * (working ? 20 : 2);
+    d.t -= dt;
+    if (working && d.t <= 0) {
+      d.t = 1.6;
+      const at = { x: 42.6, y: 0.9, z: -7.5 };
+      this.fx.puff(at.x, at.y, at.z, { n: 4, size: [0.5, 1.2], speed: 2.5, color: [0.75, 0.73, 0.7], alpha: 0.7 });
+      this.fly('stone', at, this.incoming(pad), { dur: 0.9, arc: 3.2, onArrive: () => { pad.inflight--; } });
+    }
+  },
+
   updateCement(dt) {
+    this.updateStoneDrill(dt);
     const c = this.cementWorks;
     if (!c) return;
     const busy = this.cementFactory.busy > 0;
@@ -316,7 +342,7 @@ const methods = {
 
   // Cabins become apartment towers that keep growing.
   raiseTowers(which, fresh) {
-    const list = this.cabins.filter((c) => (which === 1 ? c.x > 0 : c.x < 0));
+    const list = this.cabins.filter((c) => c.towerable && (which === 1 ? c.x > 0 : c.x < 0));
     list.forEach((c, i) => this.convertCabin(c, 2, fresh, 0.3 + i * 0.25));
     this.updateResidents();
     this.addPower(`towers${which}`, 4e12);
@@ -328,7 +354,7 @@ const methods = {
     if (c.tower) return;
     const t = makeTowerBase();
     t.group.position.set(c.x, 0, c.z);
-    t.group.rotation.y = c.z > 0 ? 0 : Math.PI;
+    t.group.rotation.y = c.rot ? (c.x < 0 ? Math.PI / 2 : -Math.PI / 2) : c.z > 0 ? 0 : Math.PI;
     this.scene.add(t.group);
     c.g.visible = false;
     c.tower = t;
@@ -457,13 +483,14 @@ const methods = {
     switch (id) {
       case 'eastGate': this.openEast(fresh); return true;
       case 'oskar': { const w = this.addWorker('miner', fresh, 'oskar'); w.res = 'copper'; w.dest = 'wire_copper'; w.x = 34; w.z = 3; if (fresh) this.story.beat('oskar'); return true; }
-      case 'kaja': { const w = this.addWorker('miner', fresh, 'kaja'); w.res = 'stone'; w.dest = 'cement_stone'; w.x = 23.8; w.z = 3.0; if (fresh) this.story.beat('kaja'); return true; }
+      case 'kaja': { const w = this.addWorker('miner', fresh, 'kaja'); w.res = 'stone'; w.dest = 'cement_stone'; w.x = 38.4; w.z = -12.0; if (fresh) this.story.beat('kaja'); return true; }
       case 'plant1': case 'plant2': case 'plant3': this.plantStage(Number(id[5]), fresh); return true;
       case 'copperDrill': this.buildCopperDrill(fresh); return true;
       case 'grid': this.buildGrid(fresh); return true;
       case 'radio': this.buildRadio(fresh); return true;
       case 'electric': this.electrify(fresh); return true;
       case 'quarry': this.buildQuarry(fresh); return true;
+      case 'stoneDrill': this.buildStoneDrill(fresh); return true;
       case 'towers1': this.raiseTowers(1, fresh); return true;
       case 'towers2': this.raiseTowers(2, fresh); return true;
       case 'floors1': this.addFloors(3, fresh); if (fresh) this.story.beat('floors1', 0.6); return true;

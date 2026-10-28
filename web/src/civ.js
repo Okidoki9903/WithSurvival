@@ -129,7 +129,7 @@ const methods = {
       c.rentT -= dt;
       if (c.rentT <= 0) {
         c.rentT = 12;
-        const rent = Math.round(c.residents * 2 * this.priceMult) * 5;
+        const rent = Math.round(c.residents * 2 * this.priceMult * this.lv.rent) * 5;
         this.money += rent; this.stats.earned += rent;
         if (this.region(this.player) === 'camp' && rent > 0) this.fx.label(`+$${rent} loyers`, this.player.x, 3.2, this.player.z, { cls: 'cash' });
       }

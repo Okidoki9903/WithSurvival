@@ -199,7 +199,8 @@ export class World {
     wall(r, 'x', r.x0, r.z0, r.z1, this.stage >= 5 ? [[WEST_GATE.z0, WEST_GATE.z1]] : []);
     wall(r, 'x', r.x1, r.z0, r.z1);
     for (const d of this.districts) {
-      wall(d, 'z', d.z0, d.x0, d.x1); wall(d, 'z', d.z1, d.x0, d.x1);
+      // the icebreaker's road north runs through the northern quarters too
+      wall(d, 'z', d.z0, d.x0, d.x1, this.shipGate ? [[SHIP_GATE.x0, SHIP_GATE.x1]] : []); wall(d, 'z', d.z1, d.x0, d.x1);
       wall(d, 'x', d.x0, d.z0, d.z1); wall(d, 'x', d.x1, d.z0, d.z1);
     }
 
@@ -333,6 +334,14 @@ export class World {
   addDistrict(d, animate) {
     if (this.districts.includes(d)) return;
     this.districts.push(d);
+    // boulders inside the new walls are quarried away
+    this.rocks.forEach((r, i) => {
+      const c = this.rockCircles[i];
+      if (!c || !inRect(c.x, c.z, d, c.r)) return;
+      this.scene.remove(r);
+      this.circles = this.circles.filter((x) => x !== c);
+      this.rockCircles[i] = null;
+    });
     const w = d.x1 - d.x0 + 0.6, h = d.z1 - d.z0 + 0.6;
     const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ map: campGroundTexture(w, h) }));
     m.position.set((d.x0 + d.x1) / 2, 0.011, (d.z0 + d.z1) / 2);

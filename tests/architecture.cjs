@@ -22,7 +22,7 @@ async function run(browser, ending) {
       const pk = g.archReport().filter((x) => x.unreachable || world.insideCamp(x.x, x.z));
       if (pk.length) bad.push(`${id}: ${JSON.stringify(pk)}`);
     };
-    for (let guard = 0; guard < 200; guard++) {
+    for (let guard = 0; guard < 400; guard++) {
       // story flags that gate later tiles
       if (g.bought.expand2) g.bossDown = true;
       if (g.bought.beacon) g.act2.orders = Math.max(g.act2.orders, 3);
