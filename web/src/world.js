@@ -11,6 +11,7 @@ export const STAGES = [
   { x0: -17, x1: 17, z0: -6, z1: 6 },
   { x0: -17, x1: 17, z0: -6, z1: 6 }, // stage 4: same fort, the frozen lake opens to the south-east
   { x0: -33, x1: 17, z0: -6, z1: 6 }, // stage 5: the forge district to the west
+  { x0: -33, x1: 43, z0: -6, z1: 6 }, // stage 6: the electric quarter to the east
 ];
 export const BAND = 2.6;
 export const MEADOW = { x0: -13, x1: 21, z0: -25, z1: -6.6 };
@@ -77,6 +78,7 @@ export function generateTrees() {
       if (clearStage === Infinity && (roundRectDist(x, z, STAGES[5], TREE_GAP) < 0 || inRect(x, z, MINE, 2.4))) clearStage = 5;
       if (clearStage === Infinity && inRect(x, z, ROAD, 1.4)) clearStage = 3.5;
       if (clearStage === Infinity && (roundRectDist(x, z, LAKE, 1.7) < 0 || inRect(x, z, CORRIDOR, 1.6))) clearStage = 4;
+      if (clearStage === Infinity && roundRectDist(x, z, STAGES[6], TREE_GAP) < 0) clearStage = 6;
       const s = 0.85 + hash2(x * 3, z * 5) * 0.35;
       trees.push({ x, z, s, sy: 0.9 + hash2(z, x) * 0.3, rot: hash2(x, z * 2) * Math.PI * 2, variant: hash2(x * 7, z) < 0.5 ? 0 : 1, clearStage });
     }

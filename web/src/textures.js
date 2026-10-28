@@ -273,6 +273,87 @@ const ICONS = {
     c.lineWidth = 0.07; c.beginPath(); c.moveTo(0, -0.5); c.lineTo(0, 0.7); c.stroke();
     c.globalCompositeOperation = 'source-over';
   },
+  copper(c) {
+    c.beginPath(); c.moveTo(-0.85, 0.5); c.lineTo(-0.55, -0.35); c.lineTo(0.0, -0.75); c.lineTo(0.6, -0.45); c.lineTo(0.9, 0.25); c.lineTo(0.45, 0.72); c.lineTo(-0.45, 0.75); c.closePath(); c.fill();
+    c.globalCompositeOperation = 'destination-out';
+    c.beginPath(); c.moveTo(-0.3, 0.3); c.lineTo(0, -0.35); c.lineTo(0.3, 0.3); c.closePath(); c.fill();
+    c.globalCompositeOperation = 'source-over';
+  },
+  wire(c) {
+    c.fillRect(-0.85, -0.75, 0.25, 1.5); c.fillRect(0.6, -0.75, 0.25, 1.5);
+    c.lineWidth = 0.13;
+    for (let i = 0; i < 5; i++) { const x = -0.45 + i * 0.22; c.beginPath(); c.moveTo(x, -0.5); c.lineTo(x + 0.12, 0.5); c.stroke(); }
+  },
+  stone(c) {
+    roundRect(c, -0.9, -0.15, 0.85, 0.65, 0.08); c.fill();
+    roundRect(c, 0.05, -0.15, 0.85, 0.65, 0.08); c.fill();
+    roundRect(c, -0.45, -0.85, 0.9, 0.62, 0.08); c.fill();
+  },
+  concrete(c) {
+    roundRect(c, -0.9, -0.5, 1.8, 1.0, 0.08); c.fill();
+    c.globalCompositeOperation = 'destination-out';
+    roundRect(c, -0.65, -0.25, 0.5, 0.5, 0.06); c.fill(); roundRect(c, 0.15, -0.25, 0.5, 0.5, 0.06); c.fill();
+    c.globalCompositeOperation = 'source-over';
+  },
+  panel(c) {
+    c.save(); c.transform(1, 0, -0.35, 1, 0, 0);
+    c.fillRect(-0.7, -0.7, 1.5, 1.2);
+    c.globalCompositeOperation = 'destination-out'; c.lineWidth = 0.08;
+    for (const x of [-0.2, 0.3]) { c.beginPath(); c.moveTo(x, -0.7); c.lineTo(x, 0.5); c.stroke(); }
+    c.beginPath(); c.moveTo(-0.7, -0.1); c.lineTo(0.8, -0.1); c.stroke();
+    c.restore();
+    c.fillRect(-0.1, 0.5, 0.2, 0.4);
+  },
+  bolt(c) {
+    c.beginPath(); c.moveTo(0.2, -0.95); c.lineTo(-0.55, 0.12); c.lineTo(-0.05, 0.12); c.lineTo(-0.25, 0.95); c.lineTo(0.55, -0.15); c.lineTo(0.05, -0.15); c.closePath(); c.fill();
+  },
+  tower(c) {
+    c.fillRect(-0.45, -0.9, 0.9, 1.8);
+    c.fillRect(-0.85, 0.1, 0.4, 0.8); c.fillRect(0.45, -0.3, 0.4, 1.2);
+    c.globalCompositeOperation = 'destination-out';
+    for (let y = -0.75; y < 0.7; y += 0.32) for (const x of [-0.25, 0.08]) c.fillRect(x, y, 0.16, 0.18);
+    c.globalCompositeOperation = 'source-over';
+  },
+  rocket(c) {
+    c.beginPath(); c.moveTo(0, -0.95); c.quadraticCurveTo(0.42, -0.5, 0.32, 0.45); c.lineTo(-0.32, 0.45); c.quadraticCurveTo(-0.42, -0.5, 0, -0.95); c.fill();
+    c.beginPath(); c.moveTo(-0.32, 0.05); c.lineTo(-0.7, 0.6); c.lineTo(-0.32, 0.5); c.fill();
+    c.beginPath(); c.moveTo(0.32, 0.05); c.lineTo(0.7, 0.6); c.lineTo(0.32, 0.5); c.fill();
+    c.beginPath(); c.moveTo(-0.18, 0.55); c.lineTo(0, 0.95); c.lineTo(0.18, 0.55); c.fill();
+    c.globalCompositeOperation = 'destination-out'; c.beginPath(); c.arc(0, -0.3, 0.14, 0, Math.PI * 2); c.fill(); c.globalCompositeOperation = 'source-over';
+  },
+  atom(c) {
+    c.lineWidth = 0.1;
+    for (let i = 0; i < 3; i++) { c.save(); c.rotate(i * Math.PI / 3); c.beginPath(); c.ellipse(0, 0, 0.9, 0.34, 0, 0, Math.PI * 2); c.stroke(); c.restore(); }
+    c.beginPath(); c.arc(0, 0, 0.18, 0, Math.PI * 2); c.fill();
+  },
+  star(c) {
+    c.beginPath();
+    for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 0.4 : 0.95; c.lineTo(Math.cos(a) * r, Math.sin(a) * r); }
+    c.closePath(); c.fill();
+  },
+  train(c) {
+    roundRect(c, -0.85, -0.7, 1.7, 1.2, 0.25); c.fill();
+    c.globalCompositeOperation = 'destination-out';
+    roundRect(c, -0.6, -0.5, 1.2, 0.45, 0.08); c.fill();
+    c.beginPath(); c.arc(-0.45, 0.22, 0.12, 0, Math.PI * 2); c.arc(0.45, 0.22, 0.12, 0, Math.PI * 2); c.fill();
+    c.globalCompositeOperation = 'source-over';
+    c.lineWidth = 0.1; c.beginPath(); c.moveTo(-0.5, 0.55); c.lineTo(-0.8, 0.95); c.moveTo(0.5, 0.55); c.lineTo(0.8, 0.95); c.stroke();
+  },
+  leaf(c) {
+    c.beginPath(); c.moveTo(-0.7, 0.8); c.quadraticCurveTo(-0.9, -0.6, 0.85, -0.85); c.quadraticCurveTo(0.7, 0.8, -0.7, 0.8); c.fill();
+    c.globalCompositeOperation = 'destination-out'; c.lineWidth = 0.08; c.beginPath(); c.moveTo(-0.6, 0.7); c.lineTo(0.55, -0.55); c.stroke(); c.globalCompositeOperation = 'source-over';
+  },
+  wind(c) {
+    c.fillRect(-0.06, -0.15, 0.12, 1.1);
+    for (let i = 0; i < 3; i++) { c.save(); c.translate(0, -0.2); c.rotate(i * Math.PI * 2 / 3); c.beginPath(); c.ellipse(0, -0.42, 0.11, 0.42, 0, 0, Math.PI * 2); c.fill(); c.restore(); }
+  },
+  globe(c) {
+    c.lineWidth = 0.1;
+    c.beginPath(); c.arc(0, 0, 0.85, 0, Math.PI * 2); c.stroke();
+    c.beginPath(); c.ellipse(0, 0, 0.38, 0.85, 0, 0, Math.PI * 2); c.stroke();
+    c.beginPath(); c.moveTo(-0.85, 0); c.lineTo(0.85, 0); c.stroke();
+    c.beginPath(); c.moveTo(-0.72, -0.42); c.lineTo(0.72, -0.42); c.moveTo(-0.72, 0.42); c.lineTo(0.72, 0.42); c.stroke();
+  },
   pickaxe(c) {
     c.lineWidth = 0.15; c.lineCap = 'round';
     c.beginPath(); c.moveTo(-0.6, 0.8); c.lineTo(0.3, -0.3); c.stroke();

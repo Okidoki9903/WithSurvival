@@ -82,8 +82,8 @@ export class Sky {
     this.scene.background = this.fogCol;
     this.scene.fog.color.copy(this.fogCol);
     const sky = game.skyBlend || 0;
-    this.scene.fog.near = THREE.MathUtils.lerp(80, 4, w) + sky * 120;
-    this.scene.fog.far = THREE.MathUtils.lerp(190, 52, w) + sky * 400;
+    this.scene.fog.near = THREE.MathUtils.lerp(80, 4, w) + sky * 30;
+    this.scene.fog.far = THREE.MathUtils.lerp(190, 52, w) + sky * 60;
     this.dome.material.uniforms.horizon.value.copy(this.fogCol);
     this.dome.material.uniforms.top.value.setHex(0x8fb6e0).lerp(NIGHT, night).lerp(STORM, w * 0.8);
     this.stormEl.style.opacity = String(Math.min(1, w * 1.1));

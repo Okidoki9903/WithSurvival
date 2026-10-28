@@ -1,7 +1,7 @@
 // WithSurvival gameplay: hunting, carried stacks, the cauldron, the counter,
 // customers, paid tiles, workers, crossbows, spinning blades and the colossus.
 import * as THREE from 'three';
-import { makeHuman, makeBear, makeGrill, makeTurret, makeCounter, makeCabin, makeBeacon, makeCampfire, ITEM_HEIGHT, mat, hdr, upgradeGrill, makeAwning, makeMarketDecor, upgradeTurret, makeSled, makeWoodCrib, makeHearth, makeDeck, makeSawmill, upgradeSawmill } from './models.js';
+import { makeHuman, makeBear, makeGrill, makeTurret, makeCounter, makeCabin, makeBeacon, makeCampfire, ITEM_HEIGHT, CARRY_TYPES, mat, hdr, upgradeGrill, makeAwning, makeMarketDecor, upgradeTurret, makeSled, makeWoodCrib, makeHearth, makeDeck, makeSawmill, upgradeSawmill } from './models.js';
 import { padTexture, TileTexture, bubbleTexture, bracketTexture, radialGlowTexture } from './textures.js';
 import { STAGES, MEADOW, COUNTER, LANE_QUEUE, LANE_EXIT, inRect, backOut } from './world.js';
 import { ACT2_TILES, ACT2_POS, installAct2 } from './act2.js';
@@ -9,6 +9,8 @@ import { INDUSTRY_TILES, IND_POS, installIndustry } from './industry.js';
 import { ACT3_TILES, installAct3 } from './act3.js';
 import { NavGrid } from './nav.js';
 import { installCiv } from './civ.js';
+import { ACT4_TILES, installAct4 } from './act4.js';
+import { ACT6_TILES, installAct6 } from './act6.js';
 
 const P = (x, z) => ({ x, z });
 export const POS = {
@@ -74,6 +76,8 @@ const TILES = [
   ...ACT2_TILES,
   ...INDUSTRY_TILES,
   ...ACT3_TILES,
+  ...ACT4_TILES,
+  ...ACT6_TILES,
 ];
 
 const PILE = {
@@ -140,6 +144,8 @@ export class Game {
     this.initAct2();
     this.initIndustry();
     this.initAct3();
+    this.initAct4();
+    this.initAct6();
     this.nav = new NavGrid(this.world);
     this.navStation = new NavGrid(this.world);
 
@@ -178,7 +184,7 @@ export class Game {
   makeCarrier(model, at) {
     return {
       model, x: at.x, z: at.z, vx: 0, vz: 0, facing: 0,
-      carry: { raw: 0, cooked: 0, log: 0, plank: 0, fish: 0, smoked: 0, ore: 0, steel: 0, can: 0 }, reserved: 0, cap: 10,
+      carry: Object.fromEntries(CARRY_TYPES.map((t) => [t, 0])), reserved: 0, cap: 10,
       sway: { x: 0, z: 0, vx: 0, vz: 0 }, pvx: 0, pvz: 0,
       swing: -1, swingCd: 0, moving: 0,
     };
@@ -401,7 +407,7 @@ export class Game {
     return need > 0 ? have / need : (tile.done ? 1 : tile.freeT / 0.8);
   }
   drawTile(tile) {
-    const icons = { steel: 'ingot', plank: 'log', can: 'can', ore: 'ore', cooked: 'steak', smoked: 'fish' };
+    const icons = { steel: 'ingot', plank: 'log', can: 'can', ore: 'ore', cooked: 'steak', smoked: 'fish', copper: 'copper', wire: 'wire', stone: 'stone', concrete: 'concrete', panel: 'panel' };
     const items = this.tileItemsLeft(tile).map(([t, n]) => ({ icon: icons[t] || t, left: Math.max(0, n + (tile.itemIn[t] || 0)) }));
     tile.tex.draw(tile.def.cost - tile.paid, this.tileProgress(tile), tile.active, items, tile.def.free);
   }
@@ -421,7 +427,7 @@ export class Game {
       const s = backOut(tile.appear) * (1 + (tile.active ? Math.sin(this.time * 10) * 0.03 : 0));
       tile.mesh.scale.set(s, 1, s);
       const def = tile.def;
-      const inside = Math.abs(p.x - def.at.x) < tile.half * 0.85 && Math.abs(p.z - def.at.z) < tile.half * 0.85 && !this.cutscene;
+      const inside = Math.abs(p.x - def.at.x) < tile.half * 0.85 && Math.abs(p.z - def.at.z) < tile.half * 0.85 && !this.cutscene && !p.deck && !p.riding;
       const remaining = def.cost - tile.paid - tile.inflight;
       const wantItem = this.tileItemsLeft(tile).find(([t, n]) => n > 0 && p.carry[t] > 0);
       const active = inside && !tile.done && ((this.money > 0 && remaining > 0) || !!wantItem || !!def.free);
@@ -517,7 +523,7 @@ export class Game {
       case 'expand1': this.setStage(2, fresh); if (fresh) { this.setChapter(3, fresh); this.story.beat('expand1', 1.0); } break;
       case 'expand2': this.setStage(3, fresh); if (fresh) { this.setChapter(4, fresh); this.story.beat('expand2', 1.0); setTimeout(() => this.spawnBoss(), 6000); } break;
       case 'beacon': this.lightBeacon(fresh); break;
-      default: if (!this.act2Apply(id, fresh) && !this.industryApply(id, fresh)) this.act3Apply(id, fresh); break;
+      default: if (!this.act2Apply(id, fresh) && !this.industryApply(id, fresh) && !this.act3Apply(id, fresh) && !this.act4Apply(id, fresh)) this.act6Apply(id, fresh); break;
     }
   }
 
@@ -745,6 +751,8 @@ export class Game {
     }[kind];
     if (name === 'ivan') Object.assign(looks, { parka: 0x7d8f3a, scarf: 0xd23b3b });
     if (name === 'nadia') Object.assign(looks, { parka: 0x2f7a6a, scarf: 0xf2c94c });
+    if (name === 'oskar') Object.assign(looks, { parka: 0x2fb8a0, scarf: 0xc27a3a, fur: 0x5a4a3a });
+    if (name === 'kaja') Object.assign(looks, { parka: 0x9d988f, scarf: 0xf2d24b, fur: 0xdcd2c0 });
     const spawnAt = kind === 'miner' ? { x: -37.6, z: 4.0 } : kind === 'hunter' || kind === 'lumberjack' ? POS.gateIn : kind === 'fisher' ? ACT2_POS.fishPad : kind === 'courier' ? ACT2_POS.relay : P(POS.cashier.x + 1, POS.cashier.z - 1);
     const w = this.makeCarrier(makeHuman(looks), spawnAt);
     w.kind = kind; w.name = name; w.state = 'idle'; w.path = []; w.cap = kind === 'porter' ? 12 : kind === 'lumberjack' ? 16 : 10; w.timer = 0; w.speed = kind === 'hunter' ? 5 : 4.5;
@@ -757,6 +765,7 @@ export class Game {
       w.model.root.scale.setScalar(0.001);
       this.world.tween(0.5, (f) => w.model.root.scale.setScalar(Math.max(0.001, backOut(f))));
     }
+    return w;
   }
 
   // Each outer region opens onto the fort through one gate: [inside, outside].
@@ -933,7 +942,7 @@ export class Game {
   columns(c) {
     const cols = [];
     if (c.isPlayer && this.money > 0) cols.push('cash');
-    for (const t of ['raw', 'cooked', 'log', 'plank', 'fish', 'smoked', 'ore', 'steel', 'can']) if (c.carry[t] > 0 || this.reservedType(c, t)) cols.push(t);
+    for (const t of CARRY_TYPES) if (c.carry[t] > 0 || this.reservedType(c, t)) cols.push(t);
     return cols;
   }
   reservedType(c, t) { return c.reserved > 0 && this.flying.some((f) => f.dest === c && f.type === t); }
@@ -1006,6 +1015,8 @@ export class Game {
     if (type === 'ore') { this.stats.mined++; this.story.beat('firstOre'); }
     if (type === 'raw') this.story.beat('firstMeat');
     if (type === 'log') this.story.beat('firstLog');
+    if (type === 'copper') { this.stats.copper = (this.stats.copper || 0) + 1; this.story.beat('firstCopper'); }
+    if (type === 'stone') this.story.beat('firstStone');
   }
 
   updateItems(dt) {
@@ -1174,7 +1185,7 @@ export class Game {
         if (d2 < min * min && d2 > 1e-4) { const d = Math.sqrt(d2), push = (min - d) * 3; b.x += dx / d * push * dt; b.z += dz / d * push * dt; }
       }
       const dp = dist(b, p), minp = b.radius + 0.5;
-      if (dp < minp && dp > 1e-4) { const push = (minp - dp); b.x += (b.x - p.x) / dp * push * 0.9; b.z += (b.z - p.z) / dp * push * 0.9; }
+      if (dp < minp && dp > 1e-4 && !p.deck && !p.riding) { const push = (minp - dp); b.x += (b.x - p.x) / dp * push * 0.9; b.z += (b.z - p.z) / dp * push * 0.9; }
       const ml = Math.hypot(mx, mz);
       b.moving = 0;
       if (ml > 0.01 && b.attack < 0 && !b.boss) {
@@ -1497,7 +1508,8 @@ export class Game {
     const kx = p.knock.x, kz = p.knock.z;
     p.knock.x *= Math.exp(-dt * 6); p.knock.z *= Math.exp(-dt * 6);
     this.world.bumped = null;
-    this.world.move(p, (p.vx + kx) * dt, (p.vz + kz) * dt, 0.45);
+    if (p.deck) this.deckMove(p, (p.vx + kx) * dt, (p.vz + kz) * dt);
+    else if (!p.riding) this.world.move(p, (p.vx + kx) * dt, (p.vz + kz) * dt, 0.45);
     // brushing past a fir shakes snow off its branches
     const bt = this.world.bumped;
     if (bt && bt !== this.lastBump && !bt.anim && Math.hypot(p.vx, p.vz) > 2) {
@@ -1508,6 +1520,8 @@ export class Game {
     const sp = Math.hypot(p.vx, p.vz);
     p.moving = sp / speed;
     if (sp > 0.5) p.facing = lerpAngle(p.facing, Math.atan2(p.vx, p.vz), Math.min(1, dt * 14));
+    // high above the town (sky deck, lift): nothing to reach on the ground
+    if (p.deck || p.riding) { this.blades.visible = false; this.carrierVisual(p, dt); return; }
 
     // auto attack
     p.swingCd -= dt;
@@ -1703,6 +1717,10 @@ export class Game {
     if (p.carry.raw > 0 && room(this.pads.rawPad) && (this.load_total(p) >= p.cap * 0.6 || (starving && p.carry.raw >= 5))) return { at: POS.rawPad, text: 'Dépose la viande près du chaudron', icon: 'meat' };
     if (p.carry.log > 0 && room(this.pads.fuelPad) && (!this.saw || this.pads.fuelPad.n < 4) && (this.load_total(p) >= p.cap * 0.4 || p.carry.log >= 3 || !this.saw)) return { at: IND_POS.fuelPad, text: 'Nourris le feu du chaudron', icon: 'fire' };
     if (p.carry.log > 0 && this.saw && room(this.pads.logPad) && (this.load_total(p) >= p.cap * 0.6 || p.carry.log >= 6)) return { at: POS.logPad, text: 'Apporte les bûches à la scierie', icon: 'log' };
+    const a6 = this.act6Objective(p);
+    if (a6) return a6;
+    const a4 = this.act4Objective(p);
+    if (a4) return a4;
     const a3 = this.act3Objective(p);
     if (a3) return a3;
     const a2 = this.act2Objective(p);
@@ -1714,7 +1732,7 @@ export class Game {
     if (this.pads.cookedPad.n >= 3 && !this.workers.some((w) => w.kind === 'porter')) return { at: POS.cookedPad, text: 'Ramasse les steaks cuits', icon: 'steak' };
     if (!this.register && this.pads.cashPad.n >= 6) return { at: POS.cashPad, text: 'Ramasse les billets', icon: 'cash' };
     if (this.boss && !this.boss.dead && this.boss.state !== 'enter') return { at: this.boss, text: 'Abats Grand-Blanc !', icon: 'blades' };
-    const a3l = this.act3LateObjective(p);
+    const a3l = this.act3LateObjective(p) || this.act6LateObjective(p) || this.act4LateObjective(p);
     if (a3l) return a3l;
     const a2l = this.act2LateObjective(p);
     if (a2l) return a2l;
@@ -1826,6 +1844,8 @@ export class Game {
     this.updateAct2(dt);
     this.updateIndustry(dt);
     this.updateAct3(dt);
+    this.updateAct4(dt);
+    this.updateAct6(dt);
     this.updateCiv(dt);
     this.updateCustomers(dt);
     this.updateTiles(dt);
@@ -1909,7 +1929,7 @@ export class Game {
     return {
       v: 1, money: this.money, carry: { ...p.carry }, bought: Object.keys(this.bought), paid: this.paidPartial, items: this.itemsPartial,
       pads: { raw: this.pads.rawPad.n, cooked: this.pads.cookedPad.n, cash: this.pads.cashPad.n, steak: this.pads.counterSteak.n, log: this.pads.counterLog.n, logs: this.pads.logPad.n, planks: this.pads.plankPad.n, turrets: this.pads.turrets.map((t) => t.n) },
-      stats: this.stats, bossDown: this.bossDown, beats: this.story.serialize(), chapter: this.chapter, act2: this.act2Serialize(), ind: this.industrySerialize(), act3: this.act3Serialize(), civ: this.civSerialize(),
+      stats: this.stats, bossDown: this.bossDown, beats: this.story.serialize(), chapter: this.chapter, act2: this.act2Serialize(), ind: this.industrySerialize(), act3: this.act3Serialize(), act4: this.act4Serialize(), act6: this.act6Serialize(), civ: this.civSerialize(),
     };
   }
 
@@ -1927,6 +1947,8 @@ export class Game {
     this.act2Load(s.act2);
     this.industryLoad(s.ind);
     this.act3Load(s.act3);
+    this.act4Load(s.act4);
+    this.act6Load(s.act6);
     const b = this.bought;
     const a3 = this.act3;
     this.chapter = Math.max(this.chapter, a3.ending === 'A' && a3.phase === 'done' ? 13 : a3.ending === 'B' && a3.phase === 'done' ? 14 : a3.phase === 'station' || a3.phase === 'ending' ? 12 : b.ship4 ? 11 : b.westGate ? 10 : a3.heard ? 9 : b.brasier ? 8 : this.act2.blizzard ? 7 : b.lakeRoad ? 6 : b.beacon ? 5 : b.expand2 ? 4 : b.expand1 ? 3 : b.turret1 ? 2 : 1);
@@ -1947,3 +1969,5 @@ installAct2(Game);
 installIndustry(Game);
 installAct3(Game);
 installCiv(Game);
+installAct4(Game);
+installAct6(Game);

@@ -1,5 +1,5 @@
 // Architecture test: buys every upgrade of the game in order (through both
-// endings) and checks after each one that no building closes off a pocket of
+// endings and the Kardashev acts up to the Arches) and checks after each one that no building closes off a pocket of
 // walkable ground and that every tile and drop pad stays reachable.
 // Usage: node tests/architecture.cjs [url]
 const { chromium } = require('playwright');
@@ -22,7 +22,7 @@ async function run(browser, ending) {
       const pk = g.archReport().filter((x) => x.unreachable || world.insideCamp(x.x, x.z));
       if (pk.length) bad.push(`${id}: ${JSON.stringify(pk)}`);
     };
-    for (let guard = 0; guard < 120; guard++) {
+    for (let guard = 0; guard < 200; guard++) {
       // story flags that gate later tiles
       if (g.bought.expand2) g.bossDown = true;
       if (g.bought.beacon) g.act2.orders = Math.max(g.act2.orders, 3);
@@ -31,6 +31,14 @@ async function run(browser, ending) {
       if (g.stage >= 5) { g.stats.steel = 99; g.stats.mined = 99; }
       if (g.act3.phase === 'voyage') { g.arriveStation(false); g.act3.veraHeard = true; g.act3.chooseReady = true; }
       g.stats.cooked = 99; g.stats.kills = 99; g.stats.served = 99; g.stats.sawn = 99;
+      // the Kardashev acts
+      if (g.act3.phase === 'done') { g.creditsSeen = true; if (g.act4.phase === 'none') g.startAct4(false); }
+      g.stats.copper = 99; g.stats.wire = 99; g.stats.concrete = 99; g.stats.panels = 99;
+      g.act4Story(0);
+      if (g.bought.dawn4) g.act4.deckSeen = true;
+      if (g.bought.fusion3 && !g.act6.aube) { g.act6.typeI = true; g.becomeAube(false); }
+      if (g.bought.rocket1) g.act6.launched = Math.max(1, g.act6.launched);
+      if (g.bought.massDriver) g.civ.swarm = Math.max(g.civ.swarm, 8);
       g.refreshTiles();
       const tiles = g.tiles.filter((t) => t.def.id !== (ending === 'A' ? 'choiceB' : 'choiceA'));
       const t = tiles[0];
@@ -41,7 +49,7 @@ async function run(browser, ending) {
       if (g.act3.phase === 'ending') g.returnHome(false);
       check(t.def.id);
     }
-    return { bad, bought: Object.keys(g.bought).length, phase: g.act3.phase };
+    return { bad, bought: Object.keys(g.bought).length, phase: g.act3.phase, last: !!g.bought.shipyard, k: g.kardashev().toFixed(2) };
   }, ending);
   await page.close();
   return { ...report, errors };
@@ -52,10 +60,10 @@ async function run(browser, ending) {
   let ok = true;
   for (const ending of ['A', 'B']) {
     const r = await run(browser, ending);
-    console.log(`ending ${ending}: ${r.bought} upgrades, phase ${r.phase}`);
+    console.log(`ending ${ending}: ${r.bought} upgrades, phase ${r.phase}, K ${r.k}`);
     if (r.errors.length) { ok = false; console.error('Page errors:\n' + r.errors.join('\n')); }
     if (r.bad.length) { ok = false; console.error('Architecture problems:\n' + r.bad.join('\n')); }
-    if (r.phase !== 'done') { ok = false; console.error('The story did not reach its end'); }
+    if (r.phase !== 'done' || !r.last) { ok = false; console.error('The story did not reach its end'); }
   }
   await browser.close();
   if (!ok) process.exit(1);

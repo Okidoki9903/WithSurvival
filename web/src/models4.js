@@ -49,6 +49,19 @@ export function makeCopperNode(seed = 1) {
   return g;
 }
 
+export function makeStoneNode(seed = 1) {
+  const g = new THREE.Group();
+  const m = new THREE.MeshLambertMaterial({ color: 0x9d988f, flatShading: true });
+  for (let i = 0; i < 3; i++) {
+    const r = mesh(new THREE.DodecahedronGeometry(0.55 - i * 0.1, 0), m);
+    const a = seed + i * 2.1;
+    r.position.set(Math.cos(a) * 0.35 * i, 0.45 - i * 0.08, Math.sin(a) * 0.35 * i); r.rotation.set(a, a * 1.3, 0); r.scale.set(1.2, 0.85, 1); g.add(r);
+  }
+  const cap = mesh(new THREE.DodecahedronGeometry(0.45, 0), new THREE.MeshLambertMaterial({ color: 0xf2f6fb, flatShading: true }));
+  cap.scale.set(1.2, 0.3, 1); cap.position.y = 0.88; g.add(cap);
+  return g;
+}
+
 // Wire mill: copper is drawn through dies and wound on spools.
 export function makeWireMill() {
   const g = new THREE.Group();
@@ -264,7 +277,7 @@ export function makeWindTurbine(h = 9) {
   const rotor = new THREE.Group(); rotor.position.set(0, h, 0.6); g.add(rotor);
   for (let i = 0; i < 3; i++) { const b = mesh(new THREE.BoxGeometry(0.22, 3.6, 0.06), mat(0xf7f9fb)); b.geometry.translate(0, 1.8, 0); b.rotation.z = i * Math.PI * 2 / 3; rotor.add(b); }
   rotor.add(mesh(new THREE.SphereGeometry(0.2, 8, 6), mat(0xd23b3b)));
-  const tip = glow(0xff3030, 0.8, 0.8); tip.position.set(0, h + 0.4, 0); g.add(tip);
+  const tip = glow(0xff3030, 0.45, 0.6); tip.position.set(0, h + 0.35, 0); g.add(tip);
   return { group: g, rotor };
 }
 

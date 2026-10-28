@@ -186,10 +186,8 @@ function updateSnow(dt) {
 // ---------------------------------------------------------------------------
 const clock = new THREE.Clock();
 let frames = 0, fpsT = 0, lowFps = 0;
-function frame() {
-  requestAnimationFrame(frame);
-  const dt = Math.min(clock.getDelta(), 1 / 20);
-  if (started && !paused) game.update(dt, input.read());
+function step(dt, move) {
+  if (started && !paused) game.update(dt, move || input.read());
   else if (!started) { game.drawItems(); game.player.model.pose(dt, 0); }
   world.update(dt);
   forest.update(dt);
@@ -197,6 +195,11 @@ function frame() {
   updateCamera(dt);
   updateSnow(dt);
   updateWeather(dt);
+}
+function frame() {
+  requestAnimationFrame(frame);
+  const dt = Math.min(clock.getDelta(), 1 / 20);
+  step(dt);
   if (composer) composer.render(dt); else renderer.render(scene, camera);
   // adaptive quality: drop bloom and resolution if the device struggles
   frames++; fpsT += dt;
@@ -215,4 +218,5 @@ document.getElementById('loading')?.remove();
 startEl.classList.add('ready');
 
 // Hooks for automated browser tests.
-window.__ws = { game, world, forest, camera, renderer, input, start, rig, get started() { return started; } };
+// step(seconds, move) fast-forwards the whole simulation, camera and sky included.
+window.__ws = { game, world, forest, camera, renderer, input, start, rig, step: (sec, move) => { for (let i = 0; i < sec * 60; i++) step(1 / 60, move); }, get started() { return started; } };

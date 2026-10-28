@@ -235,10 +235,10 @@ const methods = {
     return npc;
   },
 
-  nearestOreNode(from, reach) {
+  nearestOreNode(from, reach, type = null) {
     let best = null, bd = Infinity;
     for (const n of this.oreNodes || []) {
-      if (!n.alive) continue;
+      if (!n.alive || (type && (n.type || 'ore') !== type)) continue;
       const d = Math.hypot(n.x - from.x, n.z - from.z) - 0.95;
       if (d < reach && d < bd) { bd = d; best = n; }
     }
@@ -255,7 +255,7 @@ const methods = {
     this.world.tween(0.15, (f) => n.g.scale.setScalar(1 + (1 - f) * 0.06));
     if (n.hp <= 0) {
       n.alive = false; n.t = 26;
-      this.burst('ore', n.x, 0.9, n.z, 4, { owner: src, speed: 3.2 });
+      this.burst(n.type || 'ore', n.x, 0.9, n.z, 4, { owner: src, speed: 3.2 });
       this.world.tween(0.3, (f) => n.g.scale.setScalar(Math.max(0.001, 1 - f)));
       this.audio.whoosh();
     }
@@ -701,11 +701,13 @@ const methods = {
 
   act3Worker(w, dt, arrived, total) {
     if (w.kind !== 'miner') return;
-    this.magnet(w, w.state === 'collect' ? 5 : 3.2, 'ore');
-    const dest = () => (this.cart ? this.pads.dockPad : this.pads.orePad);
+    // Gustav mines iron; the later miners work the copper and stone veins
+    const res = w.res || 'ore';
+    this.magnet(w, w.state === 'collect' ? 5 : 3.2, res);
+    const dest = () => (res !== 'ore' ? this.pads[w.dest] : this.cart ? this.pads.dockPad : this.pads.orePad);
     if (w.state === 'idle') {
       if (total >= w.cap) { w.state = 'deliver'; this.route(w, dest()); return; }
-      const n = (this.oreNodes || []).filter((o) => o.alive && !this.workers.some((x) => x !== w && x.node === o)).sort((a, b) => dist(a, w) - dist(b, w))[0];
+      const n = (this.oreNodes || []).filter((o) => o.alive && (o.type || 'ore') === res && !this.workers.some((x) => x !== w && x.node === o)).sort((a, b) => dist(a, w) - dist(b, w))[0];
       if (n) { w.state = 'walk'; w.node = n; const ang = Math.atan2(w.x - n.x, w.z - n.z); this.route(w, { x: n.x + Math.sin(ang) * 1.45, z: n.z + Math.cos(ang) * 1.45, reach: 0.3 }); }
       else if (total > 0) { w.state = 'deliver'; this.route(w, dest()); }
       else { w.state = 'wait'; w.timer = 2; }
@@ -718,9 +720,9 @@ const methods = {
       if (w.swing >= 0.5 && !w.hitDone) { w.hitDone = true; this.mineOre(n, w); if (!n.alive) { w.timer = 2.5; w.state = 'collect'; w.node = null; } }
     } else if (w.state === 'collect') {
       w.timer -= dt;
-      const it = this.loose.find((x) => x.type === 'ore' && !x.claimed && x.owner === w && x.age > 0.3);
+      const it = this.loose.find((x) => x.type === res && !x.claimed && x.owner === w && x.age > 0.3);
       if (it && dist(w, it) > 2.5) w.path = [{ x: it.x, z: it.z, reach: 1.5 }];
-      if (w.timer <= 0 || !this.loose.some((x) => x.type === 'ore' && !x.claimed && x.owner === w)) w.state = 'idle';
+      if (w.timer <= 0 || !this.loose.some((x) => x.type === res && !x.claimed && x.owner === w)) w.state = 'idle';
     } else if (w.state === 'deliver' && arrived) {
       if (this.transfer(w, dest(), 'drop', dt) === 'done') w.state = 'idle';
     }
@@ -778,7 +780,7 @@ const methods = {
       if (t) return { at: { x: t.x, z: t.z }, text: 'Coupe du bois pour le chantier', icon: 'axe' };
     }
     if (need.has('steel')) {
-      const n = this.nearestOreNode(p, 200);
+      const n = this.nearestOreNode(p, 200, 'ore');
       if (n && !this.workers.some((w) => w.kind === 'miner')) return { at: n, text: 'Mine le fer de la falaise', icon: 'ore' };
     }
     return null;

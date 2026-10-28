@@ -6,6 +6,8 @@ import { CUT } from './cutaway.js';
 
 const YAW = THREE.MathUtils.degToRad(38);
 const _v = new THREE.Vector3();
+// Same direction as the sun disc drawn by the sky: looking up means looking there.
+const SUN_DIR = new THREE.Vector3(-0.62, 0.42, -0.79).normalize();
 
 export class CameraRig {
   constructor(camera, sun, sunOffset, shadowCam, shadowSize, snow) {
@@ -37,7 +39,7 @@ export class CameraRig {
     let z = game.stage === 0 ? 0.86 : 1;
     // keep a tall stack in frame
     let tall = 0;
-    for (const t of ['raw', 'cooked', 'log', 'plank', 'fish', 'smoked', 'ore', 'steel', 'can']) tall = Math.max(tall, (p.carry[t] || 0) * 0.13);
+    for (const t in p.carry) tall = Math.max(tall, (p.carry[t] || 0) * 0.13);
     z += THREE.MathUtils.clamp((tall - 2.2) * 0.05, 0, 0.28);
     if (game.region && game.region(p) !== 'camp' && game.stage >= 1) z += 0.08;
     if (game.boss && !game.boss.dead) z = Math.max(z, 1.25);
@@ -91,7 +93,8 @@ export class CameraRig {
       cam.position.set(this.target.x + Math.sin(this.yaw) * cp * d, Math.sin(pitch) * d + this.ty, this.target.z + Math.cos(this.yaw) * cp * d);
       const s = game.shake;
       if (s > 0) cam.position.add(_v.set((Math.random() - 0.5) * s, (Math.random() - 0.5) * s, (Math.random() - 0.5) * s));
-      cam.lookAt(this.target.x, 0.8 + this.ty, this.target.z);
+      const up = this.sky * 90;
+      cam.lookAt(this.target.x + SUN_DIR.x * up, 0.8 + this.ty + SUN_DIR.y * up, this.target.z + SUN_DIR.z * up);
     }
     // shadows follow the view, snapped to texels to avoid shimmering
     const sc = this.shadowCam;

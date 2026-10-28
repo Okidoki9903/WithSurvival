@@ -21,6 +21,11 @@ export const CAST = {
   ivan: { name: 'Ivan', role: 'apprenti porteur', color: '#7d8f3a', initial: 'I' },
   gustav: { name: 'Gustav', role: 'mineur', color: '#8a7a6a', initial: 'G' },
   vera: { name: 'Véra Solenne', role: 'enregistrement · Station Aube', color: '#9fd8ff', initial: 'V' },
+  radio: { name: 'Radio', role: 'voix lointaine', color: '#9aa5b0', initial: '≋' },
+  oskar: { name: 'Oskar', role: 'mineur de cuivre', color: '#2fb8a0', initial: 'O' },
+  kaja: { name: 'Kaja', role: 'tailleuse de pierre', color: '#9d988f', initial: 'K' },
+  aube: { name: 'Aube', role: 'toi · fille de Sasha', color: '#f2a527', initial: 'A' },
+  mother: { name: 'Sasha', role: 'ta mère · maire de Fort-Aube', color: '#2f6db0', initial: 'S' },
 };
 
 export const CHAPTERS = [
@@ -39,6 +44,18 @@ export const CHAPTERS = [
   { num: 'Chapitre XI', title: 'Le Cœur de l’Hiver', sub: 'Au bout du monde blanc, la machine qui a éteint le ciel bat toujours.' },
   { num: 'Épilogue', title: 'Le Ciel Rendu', sub: 'Le Voile tombe. Le printemps reviendra partout. Brann est resté au cœur de l’hiver.' },
   { num: 'Épilogue', title: 'La Ville-Lumière', sub: 'Le Cœur bat pour Fort-Aube. Le seul endroit chaud d’un monde de glace.' },
+  { num: 'Chapitre XII', title: 'Le Fil de Cuivre', sub: 'Une radio, des voix lointaines, et une échelle pour mesurer une civilisation.' },
+  { num: 'Chapitre XIII', title: 'L’Âge de la Foudre', sub: 'Le cuivre devient fil, le fil porte la foudre. Fort-Aube découvre la nuit.' },
+  { num: 'Chapitre XIV', title: 'Plus Haut', sub: 'Il n’y a plus de place entre les palissades. Alors on construit vers le ciel.' },
+  { num: 'Chapitre XV', title: 'La Tour de l’Aube', sub: 'Sur les fondations du Phare, une tour qui regarde par-dessus la forêt.' },
+  { num: 'Chapitre XVI', title: 'Le Réseau', sub: 'La route des caravanes devient une voie ferrée. Les villes se donnent la main.' },
+  { num: 'Chapitre XVII', title: 'Le Soleil en Bouteille', sub: 'Là où brûlait le Grand Brasier, on allume une étoile.' },
+  { num: 'Vingt ans plus tard', title: 'Aube', sub: 'Tu es la fille de Sasha. Le monde que ta mère a rebâti t’attend en haut.' },
+  { num: 'Chapitre XVIII', title: 'Le Cosmodrome', sub: 'La prairie des ours devient une rampe vers les étoiles.' },
+  { num: 'Chapitre XIX', title: 'L’Ascenseur', sub: 'La Tour de l’Aube ne s’arrête plus au ciel. Elle monte jusqu’à l’orbite.' },
+  { num: 'Chapitre XX', title: 'L’Essaim', sub: 'Des millions de miroirs autour du Soleil. Plus jamais d’hiver qu’on n’ait choisi.' },
+  { num: 'Chapitre XXI', title: 'Les Arches', sub: 'Fort-Aube part habiter d’autres soleils.' },
+  { num: 'Épilogue', title: 'Une Nouvelle Aube', sub: 'Type III. Et quelque part, une planète gelée attend son premier feu.' },
 ];
 
 // Lines triggered once by game events.
@@ -274,6 +291,156 @@ export const BEATS = {
     ['yuki', 'Flocon regarde vers le nord. Les ours remontent vers les glaces qui restent. Un jour, il faudra le laisser partir.'],
     ['lina', 'J’ai gardé les billets de Brann. Je ne les dépenserai jamais.'],
   ],
+  // ---- Act IV · the Age of Lightning ----
+  radio1: [
+    ['ivan', 'Sasha ! Viens vite ! La boîte noire de ta mère… j’ai bricolé la radio avec le cuivre du Brise-Glace. Écoute !'],
+    ['radio', '…ici Port-Glace… quatre cents âmes… on a vu votre lumière dans le ciel du sud… si quelqu’un entend…'],
+    ['ivan', 'On n’est pas seuls. On n’a jamais été seuls.'],
+  ],
+  kardashev: [
+    ['piotr', 'Ta mère avait une échelle épinglée au mur de son atelier. L’échelle de Kardashev : on mesure une civilisation à l’énergie qu’elle maîtrise.'],
+    ['piotr', 'Une planète entière, c’est le Type I. Une étoile, le Type II. Une galaxie, le Type III. Nous, avec nos chaudrons et notre forge… on n’en est même pas à un demi.'],
+    ['piotr', 'Le vieux monde est monté vite, en brûlant tout. Il a fini par éteindre le ciel pour se refroidir. Nous, on montera autrement.'],
+  ],
+  eastTile: [['ivan', 'Quand la forêt brûlait encore, la roche de l’est était verte. Du cuivre ! Avec du cuivre on fait du fil, et avec du fil on transporte la foudre.']],
+  east: [
+    ['piotr', 'Une tréfilerie : le cuivre entre d’un côté, le fil sort de l’autre. Ta mère disait que le fil est l’invention la plus humble et la plus puissante du monde.'],
+    ['ivan', 'Mine le cuivre de la crête et porte-le à la tréfilerie. Il nous faudra des kilomètres de fil.'],
+  ],
+  firstCopper: [['ivan', 'Tu sens comme il est froid ? Le cuivre garde le froid et laisse passer tout le reste. Même la foudre.']],
+  firstWire: [['piotr', 'La première bobine. Avec ça, l’énergie n’a plus besoin d’être brûlée là où on en a besoin. Elle voyage.']],
+  oskar: [['oskar', 'Je creusais le cuivre à Port-Glace avant le Gel. La radio disait que vous cherchiez des bras. Me voilà.']],
+  plantTile: [['piotr', 'La chaleur du Brasier fait déjà bouillir l’eau. Ajoutons une turbine et des aimants, et la vapeur deviendra lumière.']],
+  plant1: [['piotr', 'La salle des turbines est debout. La vapeur entre, la turbine tourne. Il reste à transformer ce mouvement en courant.']],
+  plant2: [['ivan', 'Les alternateurs chantent ! Tu entends ce bourdonnement ? C’est le bruit de la foudre apprivoisée.']],
+  plant3: [
+    ['piotr', 'Transformateurs branchés. Fort-Aube produit son propre courant.'],
+    ['lina', 'Une centrale. Il y a trente ans, j’aurais ri. Aujourd’hui je pleure un peu.'],
+  ],
+  copperDrill: [['oskar', 'Une foreuse électrique ! Elle mord la roche toute seule et le câble emporte le cuivre jusqu’à la tréfilerie.']],
+  grid: [
+    ['yuki', 'Des lampes dans les rues… La nuit tombe, et il fait clair. Je n’avais pas vu de nuit sans peur depuis toute petite.'],
+    ['lina', 'Le marché pourra ouvrir après le coucher du soleil. On vit plus longtemps, Sasha. Chaque jour dure plus longtemps.'],
+  ],
+  radioMast: [
+    ['radio', '…Kiruna vous reçoit… Ville-Ouest vous reçoit… Nouvelle-Solenne vous reçoit…'],
+    ['mira', 'Toutes ces villes… J’ai marché vers chacune d’elles sans jamais savoir si elles existaient encore.'],
+    ['ivan', 'Elles demandent comment on a fait. Comment on a rallumé la lumière.'],
+  ],
+  electric: [['piotr', 'Chaudrons, scies, forge : tout tourne au courant maintenant. Plus vite, sans fumée. Ta mère aurait adoré ce bruit.']],
+  // ---- Act V · the Age of Towers ----
+  noRoom: [
+    ['lina', 'Trois caravanes aujourd’hui, Sasha. Trois ! Il n’y a plus un mètre carré libre entre les palissades.'],
+    ['piotr', 'Alors on arrête de construire à côté. On construit au-dessus. Il nous faut de la pierre et du ciment.'],
+  ],
+  quarryTile: [['gustav', 'La crête n’a pas que du cuivre. Il y a de la bonne pierre dessous. Avec un four, on en fera du ciment.']],
+  quarry: [['piotr', 'La cimenterie tourne : pierre broyée, cuite, et voilà des parpaings. Les cabanes vont pouvoir grandir.']],
+  firstStone: [['gustav', 'Une belle pierre grise. Le vieux monde en a fait des villes entières.']],
+  firstConcrete: [['piotr', 'Un parpaing. Ça n’a l’air de rien. Empile-en dix mille et tu as une ville qui touche le ciel.']],
+  kaja: [['kaja', 'Je taillais la pierre pour les ponts de Kiruna. Donnez-moi la carrière, je vous donne les murs.']],
+  towers1: [
+    ['lina', 'Les cabanes deviennent des immeubles ! Des appartements, des boutiques en bas… et des loyers. On redevient une vraie ville.'],
+    ['tomas', 'Mon frère aurait eu une chambre au troisième. Avec une fenêtre.'],
+  ],
+  towers2: [['nadia', 'Côté ouest aussi ! Les familles de la caravane ont enfin un toit qui ne craint pas le vent.']],
+  floors1: [['piotr', 'Trois étages de plus. Plus on monte, moins on prend de forêt. Oleg sera content.']],
+  floors2: [['lina', 'Six cents habitants. Six cents ! Je n’arrive plus à compter les billets à la main.']],
+  vfarm1: [['oleg', 'Des champs empilés les uns sur les autres, sous des lampes. Mes graines n’ont jamais poussé aussi haut. Ni aussi vite.']],
+  vfarm2: [['oleg', 'Une deuxième ferme. Plus besoin de raser la forêt pour manger. La forêt reste, et la ville grandit vers le haut.']],
+  turbines: [
+    ['yuki', 'Le vent qui nous a gelés pendant trente ans fait tourner nos lampes.'],
+    ['oleg', 'C’est ça, le secret : ne plus se battre contre l’hiver. Le faire travailler.'],
+  ],
+  dawnTile: [['piotr', 'Le Phare est posé sur du béton du vieux monde, avec le soleil levant gravé dedans. Ces fondations peuvent porter une tour bien plus haute.']],
+  dawn1: [['kaja', 'Fondations coulées autour du Phare. On ne l’éteindra pas : la tour va grandir autour de lui.']],
+  dawn2: [['ivan', 'La charpente d’acier monte au-dessus des sapins ! On la voit depuis le lac !']],
+  dawn3: [['lina', 'La verrière brille au soleil couchant. Les caravanes disent qu’on la voit à une journée de marche.']],
+  dawn4: [
+    ['piotr', 'La couronne est posée, et la flamme du Phare brûle tout en haut. Un ascenseur t’attend au pied de la tour.'],
+    ['mira', 'Monte, Sasha. Tu as construit tout ça. Il est temps que tu le voies d’en haut.'],
+  ],
+  deck: [
+    ['sasha', 'D’ici je vois tout. Le lac, la falaise, la route… et la forêt, qu’on n’a presque plus besoin de couper.'],
+    ['sasha', 'Et là-bas, au nord, au sud, à l’est… d’autres lumières. Port-Glace. Kiruna. Ils ont allumé leurs lampes, eux aussi.'],
+  ],
+  // ---- Act VI · the network and the atom ----
+  railTile: [['mira', 'La route des caravanes… Si on posait des rails dessus ? Un train ne gèle pas, ne se perd pas, et ne laisse personne derrière.']],
+  railway: [['mira', 'Le premier train ! Il emporte trois fois plus que mes traîneaux. Et personne n’aura plus jamais à couper la corde.']],
+  link1: [['radio', '…Port-Glace est reliée ! Le premier train est arrivé avec des conserves et des bobines. Les enfants ont couru derrière jusqu’au port…']],
+  link2: [['radio', '…Kiruna reliée. Nos forges et les vôtres sur la même ligne. Merci, Fort-Aube…']],
+  link3: [['radio', '…Ville-Ouest reliée. On croyait être les derniers. On était juste loin…']],
+  link4: [
+    ['radio', '…ici Nouvelle-Solenne. Nous sommes les enfants de ceux qui ont fui la ville sous le lac. Nous connaissions le nom de Véra…'],
+    ['mira', 'Le réseau est complet. Cinq villes, une seule lumière.'],
+  ],
+  fusionTile: [
+    ['piotr', 'Les carnets de ta mère, et tout ce que la Station Aube nous a appris… On peut faire mieux que brûler. On peut allumer une étoile.'],
+    ['piotr', 'Là où brûlait le Grand Brasier. C’est là que tout a commencé à se réchauffer. C’est là que ça doit continuer.'],
+  ],
+  fusion1: [['kaja', 'L’enceinte est coulée. Un mur de béton assez épais pour contenir un soleil.']],
+  fusion2: [['ivan', 'Le tore est en place, les aimants aussi. Le plasma tournera dedans sans jamais toucher les parois.']],
+  fusion3: [
+    ['piotr', 'Allumage… Il tient. IL TIENT ! Un soleil en bouteille, sans fumée, sans cendres.'],
+    ['anouk', 'Le lac ne gèlera plus jamais complètement. Les poissons vont adorer.'],
+  ],
+  typeI: [
+    ['sasha', 'Type I. Toute l’énergie que la Terre peut donner… et on n’a pas brûlé le ciel pour l’avoir.'],
+    ['piotr', 'Ta mère voulait sauver le monde avec des Tours qui l’ont gelé. Toi, tu l’as sauvé avec des cabanes, des chaudrons et de la patience.'],
+  ],
+  aube: [
+    ['mother', 'Vingt ans, Aube. Vingt ans que je te raconte l’hiver, Brann, Grand-Blanc et les billets de Lina. Tu as les mains de ta grand-mère.'],
+    ['ivan', 'Le monde est réparé, Aube. Il reste le ciel. Les vieux plans de la Station parlaient de fusées. Ta mère dit que c’est ton tour.'],
+    ['aube', 'Alors on monte. Plus haut que la Tour.'],
+  ],
+  cosmodrome: [['ivan', 'La prairie aux ours devient un cosmodrome. Les ours ? Yuki leur a gardé toute la forêt du nord. Ils s’en fichent bien, des fusées.']],
+  drones: [['ivan', 'Des drones ! Ils prennent le fil à la tréfilerie et l’acier à la forge, tout seuls. On n’a plus besoin de tout porter sur le dos, Aube.']],
+  firstPanel: [['ivan', 'Le premier panneau solaire. Un miroir qui boit la lumière. Garde-le précieusement : il en faudra des milliers.']],
+  countdown: [['ivan', 'Fusée Aube-1 sur le pas de tir. Trois… deux… un…']],
+  orbit: [
+    ['ivan', 'En orbite ! Une station tourne au-dessus de nos têtes. Regarde le ciel, Aube : cet anneau, c’est nous.'],
+    ['mother', 'Ta grand-mère regardait le ciel en se demandant comment le refroidir. Toi tu y montes. Je suis si fière.'],
+  ],
+  elevator: [
+    ['aube', 'La Tour de l’Aube ne s’arrête plus au ciel. Un câble monte jusqu’à l’anneau, et des cabines grimpent dessus comme des perles.'],
+    ['ivan', 'Plus besoin de brûler du carburant pour monter. On grimpe, tout simplement.'],
+  ],
+  // ---- Act VIII · the swarm ----
+  massDriver: [
+    ['ivan', 'La catapulte solaire. Des aimants qui lancent les panneaux droit vers l’orbite, sans une goutte de carburant.'],
+    ['aube', 'Chaque volée de miroirs ira tourner autour du Soleil. Un jour, ils l’entoureront complètement : un essaim de Dyson.'],
+  ],
+  firstVolley: [['aube', 'Les premiers miroirs sont partis ! Regarde le Soleil… Ces petits éclats dorés, ce sont nos panneaux.']],
+  halfSwarm: [['ivan', 'La moitié de l’essaim est en place. La lumière captée là-haut redescend par l’ascenseur. Fort-Aube n’a jamais eu aussi chaud, et le ciel n’a jamais été aussi bleu.']],
+  typeII: [
+    ['aube', 'Type II. Toute la lumière du Soleil. Plus jamais d’hiver qu’on n’ait choisi.'],
+    ['mother', 'Il y a longtemps, une femme seule s’est réveillée sous la neige avec une hache. Elle n’aurait jamais cru ça.'],
+  ],
+  // ---- Act IX · the Arches ----
+  shipyard: [
+    ['ivan', 'Le chantier des Arches. Des vaisseaux-villes, avec des fermes, des tours, des réacteurs. Chacun emportera une Fort-Aube vers une autre étoile.'],
+    ['aube', 'Remplissons-les : des panneaux pour l’énergie, des conserves pour le voyage, de l’acier pour la coque. Les drones aideront.'],
+  ],
+  arche1: [['ivan', 'Arche I sur le pas de tir. Destination : une étoile jaune à douze années-lumière.']],
+  arche2: [['ivan', 'Arche II prête. Mira a demandé à partir. Elle dit qu’elle a encore des routes à ouvrir.']],
+  arche3: [['ivan', 'Arche III. Oleg y a mis une graine de chaque arbre de la forêt.']],
+  arche4: [['ivan', 'Arche IV. Les petits-enfants de Flocon voyagent dans la soute, endormis dans la neige artificielle.']],
+  arche5: [['ivan', 'Arche V, la dernière de cette génération. Elle part vers la plus lointaine.']],
+  colony1: [['radio', '…ici Arche I. Atterrissage réussi. Une planète bleue, tempérée. Nous l’appelons Brann…']],
+  colony2: [['radio', '…Arche II, Mira au micro. Une planète de déserts rouges. Il y a déjà des routes à tracer.']],
+  colony3: [['radio', '…Arche III. Les graines d’Oleg ont germé sous un ciel vert. La première forêt d’ailleurs…']],
+  colony4: [['radio', '…Arche IV. Un monde océan. Anouk aurait adoré. Les ours aussi.']],
+  colony5: [
+    ['radio', '…Arche V. Signal faible… La planète est blanche, glacée… Une colonie a perdu le contact il y a longtemps… on voit… une fumée. Un seul feu…'],
+    ['aube', 'Un seul feu dans la neige. Comme au début.'],
+  ],
+  typeIII: [
+    ['aube', 'Type III. Des milliers de soleils qui portent le nom de Fort-Aube.'],
+    ['mother', 'On n’a pas conquis les étoiles, Aube. On les a réchauffées.'],
+  ],
+  epilogue: [
+    ['radio', '…sur la planète blanche, une femme se réveille sous la neige. Elle n’a pas de traîneau. Pas de caravane. Juste une hache…'],
+    ['radio', '…et une vieille radio qui grésille…'],
+  ],
   afterB: [
     ['lina', 'Des serres ! Des tomates, Sasha. Des TOMATES.'],
     ['mira', 'Je repars sur les routes. Il reste tant de monde à ramener vers la lumière.'],
@@ -310,6 +477,22 @@ export const JOURNAL = [
   { beat: 'veraLast', title: 'Le dernier message', text: 'Maman n’a pas pu fermer la vanne seule. Elle nous a laissé le choix. Je porte sa bague maintenant. Elle est trop grande pour mon doigt.' },
   { beat: 'endingA', title: 'Le Ciel Rendu', text: 'Brann est descendu dans le puits. Il a dit : « Cette fois, je reste. » Le Voile tombe. Partout, la neige va fondre. Maman, il est revenu te chercher, finalement.' },
   { beat: 'endingB', title: 'La Ville-Lumière', text: 'Le Cœur bat sous Fort-Aube. Il fera chaud ici pour toujours. Ailleurs, l’hiver continue. Chaque nuit, je me demande si maman aurait choisi pareil.' },
+  { beat: 'radio1', title: 'Port-Glace', text: 'Une voix dans la radio d’Ivan, comme le premier jour. Mais ce n’était pas Mira. C’était une ville entière, quelque part au nord, qui avait vu notre lumière.' },
+  { beat: 'kardashev', title: 'L’échelle', text: 'Piotr m’a dessiné l’échelle de maman dans la neige. Type I, II, III. Le vieux monde est monté en brûlant tout, puis il a éteint le ciel pour se refroidir. Nous, on montera sans rien brûler. C’est la seule promesse que je peux faire à maman.' },
+  { beat: 'firstWire', title: 'Le fil', text: 'Un fil de cuivre. Maman disait que c’est l’invention la plus humble et la plus puissante du monde : un chemin pour l’énergie. Je comprends ce qu’elle voulait dire.' },
+  { beat: 'grid', title: 'La première nuit', text: 'Pour la première fois, la nuit est tombée sur Fort-Aube et personne n’a eu peur. Les lampes des rues brillaient. Yuki s’est assise dessous et elle a lu jusqu’au matin.' },
+  { beat: 'radioMast', title: 'Les autres', text: 'Kiruna. Ville-Ouest. Nouvelle-Solenne. Le monde n’était pas mort. Il était juste silencieux, chacun seul dans son coin de neige.' },
+  { beat: 'noRoom', title: 'Vers le haut', text: 'Plus de place. Avant, on aurait abattu la forêt pour s’étaler. Oleg m’a regardée. Alors on construit vers le ciel, et la forêt reste.' },
+  { beat: 'towers1', title: 'Les immeubles', text: 'Les cabanes de Fort-Aube ont des étages maintenant. Tomas a choisi un appartement au troisième, avec une fenêtre. Il ne m’a pas dit pourquoi. Je crois que je sais.' },
+  { beat: 'vfarm1', title: 'Les champs empilés', text: 'Des fraises au cinquième étage. Oleg pleure chaque fois qu’il monte.' },
+  { beat: 'deck', title: 'D’en haut', text: 'Du sommet de la Tour de l’Aube, j’ai vu toute ma vie : la clairière où Brann m’a trouvée, le lac de Solenne, la falaise de fer. Et sur l’horizon, d’autres lumières qui répondaient à la nôtre.' },
+  { beat: 'link4', title: 'Le Réseau', text: 'Cinq villes reliées par des rails. Nouvelle-Solenne connaissait le nom de maman. Ils ont mis son portrait sur la locomotive.' },
+  { beat: 'typeI', title: 'Type I', text: 'Une civilisation planétaire. Lina a sorti les billets de Brann de sa boîte et les a posés sur la table du conseil. Personne n’a rien dit. Personne n’en avait besoin.' },
+  { beat: 'aube', title: 'Aube', text: 'Je m’appelle Aube. Ma mère a rebâti le monde avec une hache. Moi, je vais le faire monter jusqu’aux étoiles. J’ai hérité de sa radio et de la bague de ma grand-mère.' },
+  { beat: 'orbit', title: 'L’anneau', text: 'Il y a un anneau au-dessus de Fort-Aube. La nuit, on le voit passer, brillant, entre les étoiles. Maman le regarde pendant des heures.' },
+  { beat: 'typeII', title: 'L’Essaim', text: 'Le Soleil est entouré de nos miroirs. Le ciel que ma grand-mère voulait refroidir, nous l’avons apprivoisé. Plus jamais de Grand Gel. Plus jamais d’incendie.' },
+  { beat: 'colony5', title: 'Un seul feu', text: 'La dernière Arche a trouvé une planète blanche. Une colonie oubliée. Une seule fumée dans la neige. Quelque part là-bas, quelqu’un commence tout juste à grimper l’échelle.' },
+  { beat: 'typeIII', title: 'Une nouvelle aube', text: 'Maman dit qu’on n’a pas conquis les étoiles : on les a réchauffées. Je crois qu’elle a raison. Tout a commencé par un feu, un chaudron, et une femme qui refusait d’avoir froid.' },
 ];
 
 export class Story {
