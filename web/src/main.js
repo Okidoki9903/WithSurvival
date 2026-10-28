@@ -117,8 +117,15 @@ soundBtn.addEventListener('pointerdown', (e) => { e.stopPropagation(); audio.unl
 const menu = document.getElementById('menu');
 document.getElementById('btn-menu').addEventListener('pointerdown', (e) => { e.stopPropagation(); paused = true; menu.classList.add('on'); });
 document.getElementById('menu-resume').addEventListener('click', () => { paused = false; menu.classList.remove('on'); });
-document.getElementById('menu-reset').addEventListener('click', () => {
-  if (!confirm('Recommencer toute l’aventure ?')) return;
+const resetBtn = document.getElementById('menu-reset');
+resetBtn.addEventListener('click', () => {
+  // two taps instead of a confirm() dialog (blocked in embedded viewers)
+  if (!resetBtn.dataset.armed) {
+    resetBtn.dataset.armed = '1';
+    resetBtn.textContent = 'Touchez encore : tout effacer';
+    setTimeout(() => { delete resetBtn.dataset.armed; resetBtn.textContent = 'Recommencer l’aventure'; }, 3000);
+    return;
+  }
   started = false;
   try { localStorage.removeItem(SAVE_KEY); } catch { /* ignore */ }
   location.reload();
