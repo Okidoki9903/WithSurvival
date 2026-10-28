@@ -466,7 +466,7 @@ const methods = {
     for (const t of this.itemTiles()) for (const [k, n] of this.tileItemsLeft(t)) if (n > 0) need.add(k);
     if (this.driverFactory && this.civ.swarm < 8) need.add('panel');
     if (this.archeFactory) need.add('panel');
-    if (need.has('panel') && this.pads.panel_out.n >= 1) return { at: S.panelOut, text: 'Ramasse les panneaux solaires', icon: 'panel' };
+    if (!this.couriers() && need.has('panel') && this.pads.panel_out.n >= 1) return { at: S.panelOut, text: 'Ramasse les panneaux solaires', icon: 'panel' };
     return null;
   },
 

@@ -68,6 +68,12 @@ Le fort d'origine reste compact pendant l'acte I. Ensuite, à chaque acte, un **
 - **Maison commune** (acte II) : quatre emplacements devant le bâtiment proposent toujours les améliorations les moins chères disponibles parmi une vingtaine de lignes à niveaux : enseigne du marché (prix), cadence des chaudrons, sac, hache, bottes des ouvriers, porteurs, chasseurs, bûcherons et mineurs supplémentaires, lames de scie, carreaux des arbalètes, affiches (plus de clients), fumoir, forge, foreuse, bâtisseurs, intendance de Lina, confort des logements (loyers), commerce (revenus des boutiques), tréfilerie, cimenterie, chaîne des panneaux. Plus de 70 niveaux en tout.
 - **Boutiques** : onze parcelles dans les quartiers (auberge, boulangerie, pelleterie, coutellerie, bains, école, atelier, cinéma, marché couvert, dispensaire, bibliothèque). Chacune monte d'un étage à chaque niveau et verse ses recettes à chaque jour de paie ; certaines accélèrent aussi la ville (l'auberge attire des clients, l'école forme les ouvriers, le marché couvert fait monter les prix).
 
+## Plus de piles sur le dos
+
+Au début, Sasha porte tout sur son dos : billets, viande, bûches, lingots. L'automatisation l'en libère, sans rien acheter de plus :
+- dès la **Caisse automatique**, les billets vont droit dans la caisse de la ville : plus de colonne de billets sur le dos (on paie toujours les dalles en marchant dessus) ;
+- dès le premier **bâtisseur**, tout ce que Sasha ramasse (viande, bois, minerai, cuivre, pierre…) repart aussitôt vers la dalle où il sert, et le guide ne l'envoie plus chercher des matériaux : les bâtisseurs s'en chargent.
+
 ## Automatisation complète
 
 Chaque étape du processus peut tourner seule : chasse (arbalètes, chasseurs), viande vers le chaudron (treuil, porteurs), cuisson, comptoir (tapis, Lina, caisse), bois (bûcherons, scierie, foyer nourri par Oleg), pêche et fumoir (filets, téléphérique), caravanes (Piotr), fer (mineurs, wagonnet, foreuse, forge), conserves, cuivre et fil (Oskar, foreuse électrique), pierre et ciment (Kaja, concasseur), panneaux et Arches (drones). Les **bâtisseurs** portent l'acier, le bois, les conserves, le fil, les parpaings et les panneaux jusqu'aux chantiers qui les attendent, et l'**intendance de Lina** finance chaque chantier dès que ses matériaux sont livrés. Les ouvriers suivent les rues (grille de navigation) au lieu de traverser les murs.

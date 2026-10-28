@@ -940,6 +940,7 @@ export class Game {
     const cap = pad.pile ? pad.pile.cap : pad.cap;
     if (dir === 'pick') {
       if (pad.n - (pad.inflight || 0) <= 0) return 'done';
+      if (c.isPlayer && type !== 'cash' && this.couriers() && this.deliveryPad(type) === pad) return 'done';
       if (type !== 'cash' && this.load_total(c) >= c.cap) return 'done';
       if (c.tt > 0) return 'busy';
       c.tt = rate;
@@ -978,12 +979,12 @@ export class Game {
   // -------------------------------------------------------------------------
   columns(c) {
     const cols = [];
-    if (c.isPlayer && this.money > 0) cols.push('cash');
+    if (c.isPlayer && this.money > 0 && !this.bank) cols.push('cash');
     for (const t of CARRY_TYPES) if (c.carry[t] > 0 || this.reservedType(c, t)) cols.push(t);
     return cols;
   }
   reservedType(c, t) { return c.reserved > 0 && this.flying.some((f) => f.dest === c && f.type === t); }
-  columnCount(c, type) { return type === 'cash' ? Math.min(90, Math.ceil(this.money / BILL)) : c.carry[type]; }
+  columnCount(c, type) { return type === 'cash' ? Math.min(40, Math.ceil(this.money / BILL)) : c.carry[type]; }
 
   stackLocal(c, type, idx, cols = this.columns(c)) {
     let k = cols.indexOf(type);
@@ -999,6 +1000,33 @@ export class Game {
     return { x: c.x + bx + c.sway.x * bend, y: base + h + (c.elev || 0), z: c.z + bz + c.sway.z * bend, k, bend };
   }
   stackTop(c, type) { return this.stackLocal(c, type, this.columnCount(c, type)); }
+
+  // Once builders work in town, nothing stays on Sasha's back: whatever she
+  // gathers flies straight to the pad where it is used or stored.
+  couriers() { return this.workers.some((w) => w.kind === 'builder'); }
+  deliveryPad(t) {
+    const P = this.pads;
+    return { raw: P.rawPad, cooked: P.counterSteak, log: this.saw ? P.logPad : P.fuelPad, plank: P.counterLog, fish: P.fishPad, smoked: P.counterFish,
+      ore: this.cart ? P.dockPad : P.orePad, steel: P.steelPad, can: P.canPad, copper: P.wire_copper, wire: P.wire_out, stone: P.cement_stone,
+      concrete: P.cement_out, panel: P.panel_out }[t];
+  }
+  updateAutoDeliver(dt) {
+    if (!this.couriers()) return;
+    this.adT = (this.adT || 0) - dt;
+    if (this.adT > 0) return;
+    this.adT = 0.07;
+    const p = this.player;
+    if (p.deck || p.riding || this.cutscene) return;
+    for (const t of CARRY_TYPES) {
+      if (p.carry[t] <= 0) continue;
+      const pad = this.deliveryPad(t);
+      if (!pad || pad.n >= (pad.pile ? pad.pile.cap : pad.cap)) continue;
+      const from = this.stackTop(p, t);
+      p.carry[t]--;
+      this.fly(t, from, this.incoming(pad), { dur: 0.75, arc: 3.5, onArrive: () => { pad.inflight--; } });
+      return;
+    }
+  }
 
   pilePos(pad, i) {
     if (!pad.pile) { // counter: two side by side columns
@@ -1887,6 +1915,7 @@ export class Game {
     this.updateAct4(dt);
     this.updateAct6(dt);
     this.updateShops(dt);
+    this.updateAutoDeliver(dt);
     this.updateCiv(dt);
     this.updateCustomers(dt);
     this.updateTiles(dt);

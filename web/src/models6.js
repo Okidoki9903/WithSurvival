@@ -117,3 +117,4 @@ export function makeSlotMarker() {
   const ring = mesh(new THREE.TorusGeometry(1.25, 0.06, 4, 28).rotateX(Math.PI / 2), mat(0xf2d24b), { cast: false }); ring.position.y = 0.04; g.add(ring);
   return g;
 }
+

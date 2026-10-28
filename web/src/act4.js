@@ -534,8 +534,8 @@ const methods = {
     if (this.cementWorks && (this.stats.concrete || 0) < 6) need.add('concrete');
     const pick = (pad, text, icon) => (pad && pad.n >= 1 ? { at: pad, text, icon } : null);
     let o;
-    if (need.has('wire') && (o = pick(this.pads.wire_out, 'Ramasse les bobines de fil', 'wire'))) return o;
-    if (need.has('concrete') && (o = pick(this.pads.cement_out, 'Ramasse les parpaings', 'concrete'))) return o;
+    if (!this.couriers() && need.has('wire') && (o = pick(this.pads.wire_out, 'Ramasse les bobines de fil', 'wire'))) return o;
+    if (!this.couriers() && need.has('concrete') && (o = pick(this.pads.cement_out, 'Ramasse les parpaings', 'concrete'))) return o;
     if (need.has('wire') && !this.workers.some((w) => w.res === 'copper') && !this.copperDrill) {
       const n = this.nearestOreNode(p, 300, 'copper');
       if (n) return { at: n, text: 'Mine le cuivre de la crête', icon: 'copper' };
@@ -544,10 +544,10 @@ const methods = {
       const n = this.nearestOreNode(p, 300, 'stone');
       if (n) return { at: n, text: 'Taille la pierre de la carrière', icon: 'stone' };
     }
-    if (need.has('steel') && this.pads.steelPad.n >= 1) return { at: this.pads.steelPad, text: 'Ramasse les lingots d’acier', icon: 'ingot' };
-    if (need.has('can') && this.pads.canPad.n >= 1) return { at: this.pads.canPad, text: 'Ramasse les conserves', icon: 'can' };
+    if (!this.couriers() && need.has('steel') && this.pads.steelPad.n >= 1) return { at: this.pads.steelPad, text: 'Ramasse les lingots d’acier', icon: 'ingot' };
+    if (!this.couriers() && need.has('can') && this.pads.canPad.n >= 1) return { at: this.pads.canPad, text: 'Ramasse les conserves', icon: 'can' };
     if (need.has('plank')) {
-      if (this.pads.plankPad.n >= 2) return { at: this.pads.plankPad, text: 'Va chercher du bois fendu', icon: 'log' };
+      if (!this.couriers() && this.pads.plankPad.n >= 2) return { at: this.pads.plankPad, text: 'Va chercher du bois fendu', icon: 'log' };
       if (p.carry.log >= 6 || (p.carry.log > 0 && this.load_total(p) >= p.cap * 0.6)) return { at: this.pads.logPad, text: 'Porte les bûches à la scierie', icon: 'log' };
       const t = this.nearestChoppable(p);
       if (t) return { at: { x: t.x, z: t.z }, text: 'Coupe du bois pour le chantier', icon: 'axe' };
