@@ -15,9 +15,6 @@ const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
 
 // Upgrade lines sold at the town hall, level by level.
 const LINES = [
-  // comfort for Sasha herself: no more tower of goods on her back
-  { id: 'lvBank', label: 'Banque de Lina', icon: 'cash', n: 1, cost: 2000, k: 1, req: () => true, apply: (g) => { g.bank = true; } },
-  { id: 'lvSled', label: 'Traîneau de Sasha', icon: 'sled', n: 1, cost: 3500, k: 1, req: () => true, apply: (g, f) => g.buildHeroSled(f) },
   { id: 'lvPrice', label: 'Enseigne du marché', icon: 'cash', n: 8, cost: 1500, k: 1.9, req: (g) => g.bought.counter3, apply: (g) => { g.lv.price *= 1.1; } },
   { id: 'lvCook', label: 'Cadence des chaudrons', icon: 'pot', n: 6, cost: 1800, k: 2.0, req: (g) => g.bought.grill2, apply: (g) => { g.lv.cook *= 0.88; } },
   { id: 'lvBag', label: 'Sac plus grand', icon: 'bag', n: 5, cost: 1500, k: 2.1, req: (g) => g.bought.bag2, apply: (g) => { g.player.cap += 15; } },

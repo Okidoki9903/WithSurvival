@@ -14,7 +14,6 @@ import { ACT6_TILES, installAct6 } from './act6.js';
 import { DISTRICT_TILES, installDistricts } from './districts.js';
 import { LEVEL_TILES, SHOP_TILES, installTownHall } from './townhall.js';
 import { installAutomation } from './automation.js';
-import { makeHeroSled } from './models6.js';
 
 const P = (x, z) => ({ x, z });
 export const POS = {
@@ -50,8 +49,6 @@ const TURRETS = [
 // The south-west of the fort stays free: it opens onto the caravaners' quarter.
 const CABINS = { 2: [[8.6, 4.05, 8.8, 1.4], [15.4, 4.05], [15.2, -4.1, 13.0, -4.4, true]], 3: [[-14.6, -4.05, -14.0, -0.6, true]] };
 const WOOD_CRIB = P(15.9, 0.9);
-// how many goods of one kind show on the hero's sled (the rest is counted, not drawn)
-const SLED_SHOW = 15;
 // The Beacon stands in the bear meadow beside the rocky outcrop, where the
 // colossus fell: it overlooks the forest without crowding the fort.
 const BEACON_POS = P(11.8, -13.2);
@@ -943,6 +940,7 @@ export class Game {
     const cap = pad.pile ? pad.pile.cap : pad.cap;
     if (dir === 'pick') {
       if (pad.n - (pad.inflight || 0) <= 0) return 'done';
+      if (c.isPlayer && type !== 'cash' && this.couriers() && this.deliveryPad(type) === pad) return 'done';
       if (type !== 'cash' && this.load_total(c) >= c.cap) return 'done';
       if (c.tt > 0) return 'busy';
       c.tt = rate;
@@ -992,8 +990,6 @@ export class Game {
     let k = cols.indexOf(type);
     if (k < 0) { cols.push(type); k = cols.length - 1; }
     const n = cols.length;
-    // with her own sled, Sasha's load rides behind her in low, tidy rows
-    if (c.isPlayer && this.heroSled && type !== 'cash') return this.sledSpot(type, Math.min(idx, SLED_SHOW - 1), k, n);
     const lx = (k - (n - 1) / 2) * 0.62;
     const h = idx * ITEM_HEIGHT[type];
     const base = 0.78;
@@ -1005,43 +1001,31 @@ export class Game {
   }
   stackTop(c, type) { return this.stackLocal(c, type, this.columnCount(c, type)); }
 
-  // Spot on the sled for the idx-th item of the k-th kind (n kinds aboard).
-  sledSpot(type, idx, k, n) {
-    const s = this.heroSled;
-    const sp = Math.min(0.42, 1.1 / Math.max(1, n));
-    const lx = (k - (n - 1) / 2) * sp;
-    const row = idx % 3, layer = Math.floor(idx / 3);
-    const lz = (row - 1) * 0.5;
-    const sin = Math.sin(s.rot), cos = Math.cos(s.rot);
-    return { x: s.x + lx * cos + lz * sin, y: 0.42 + layer * ITEM_HEIGHT[type] * 0.95, z: s.z - lx * sin + lz * cos, k, bend: 0, sled: true };
+  // Once builders work in town, nothing stays on Sasha's back: whatever she
+  // gathers flies straight to the pad where it is used or stored.
+  couriers() { return this.workers.some((w) => w.kind === 'builder'); }
+  deliveryPad(t) {
+    const P = this.pads;
+    return { raw: P.rawPad, cooked: P.counterSteak, log: this.saw ? P.logPad : P.fuelPad, plank: P.counterLog, fish: P.fishPad, smoked: P.counterFish,
+      ore: this.cart ? P.dockPad : P.orePad, steel: P.steelPad, can: P.canPad, copper: P.wire_copper, wire: P.wire_out, stone: P.cement_stone,
+      concrete: P.cement_out, panel: P.panel_out }[t];
   }
-
-  buildHeroSled(fresh) {
-    if (this.heroSled) return;
-    const m = makeHeroSled();
+  updateAutoDeliver(dt) {
+    if (!this.couriers()) return;
+    this.adT = (this.adT || 0) - dt;
+    if (this.adT > 0) return;
+    this.adT = 0.07;
     const p = this.player;
-    this.scene.add(m.group);
-    this.heroSled = { ...m, x: p.x - Math.sin(p.facing) * 2, z: p.z - Math.cos(p.facing) * 2, rot: p.facing };
-    if (fresh) this.popIn(m.group, 0.2);
-  }
-
-  // The sled slides behind Sasha at the end of its rope.
-  updateHeroSled(dt) {
-    const s = this.heroSled;
-    if (!s) return;
-    const p = this.player;
-    s.group.visible = !p.deck && !p.riding && !this.cutscene;
-    const dx = p.x - s.x, dz = p.z - s.z, d = Math.hypot(dx, dz);
-    if (d > 6) { s.x = p.x - dx / d * 2; s.z = p.z - dz / d * 2; }
-    else if (d > 1.9) { s.x += dx / d * (d - 1.9); s.z += dz / d * (d - 1.9); }
-    if (d > 0.3) s.rot = lerpAngle(s.rot, Math.atan2(dx, dz), Math.min(1, dt * 6));
-    s.group.position.set(s.x, 0, s.z);
-    s.group.rotation.y = s.rot;
-    // the rope runs from the front of the sled to Sasha's hand
-    const fx = s.x + Math.sin(s.rot) * 1.1, fz = s.z + Math.cos(s.rot) * 1.1;
-    const rl = Math.max(0.2, Math.hypot(p.x - fx, p.z - fz) - 0.2);
-    s.rope.scale.y = rl;
-    s.rope.position.set(0, 0.55, 1.1 + rl / 2);
+    if (p.deck || p.riding || this.cutscene) return;
+    for (const t of CARRY_TYPES) {
+      if (p.carry[t] <= 0) continue;
+      const pad = this.deliveryPad(t);
+      if (!pad || pad.n >= (pad.pile ? pad.pile.cap : pad.cap)) continue;
+      const from = this.stackTop(p, t);
+      p.carry[t]--;
+      this.fly(t, from, this.incoming(pad), { dur: 0.75, arc: 3.5, onArrive: () => { pad.inflight--; } });
+      return;
+    }
   }
 
   pilePos(pad, i) {
@@ -1695,7 +1679,7 @@ export class Game {
     const m = c.model;
     m.root.position.set(c.x, c.elev || 0, c.z);
     m.root.rotation.y = c.facing;
-    m.pose(dt, c.moving, c.swing, this.load_total(c) > 0 && !(c.isPlayer && this.heroSled));
+    m.pose(dt, c.moving, c.swing, this.load_total(c) > 0);
   }
 
   // -------------------------------------------------------------------------
@@ -1931,7 +1915,7 @@ export class Game {
     this.updateAct4(dt);
     this.updateAct6(dt);
     this.updateShops(dt);
-    this.updateHeroSled(dt);
+    this.updateAutoDeliver(dt);
     this.updateCiv(dt);
     this.updateCustomers(dt);
     this.updateTiles(dt);
@@ -1978,13 +1962,11 @@ export class Game {
     const carriers = [this.player, ...this.workers];
     for (const c of carriers) {
       const cols = this.columns(c);
-      const onSled = c.isPlayer && this.heroSled;
       for (const type of cols) {
-        const n = onSled && type !== 'cash' ? Math.min(SLED_SHOW, this.columnCount(c, type)) : this.columnCount(c, type);
+        const n = this.columnCount(c, type);
         for (let i = 0; i < n; i++) {
           const s = this.stackLocal(c, type, i, cols);
-          if (s.sled) R.add(type, s.x, s.y, s.z, this.heroSled.rot + (type === 'log' ? Math.PI / 2 : 0) + Math.sin(i * 1.7) * 0.06);
-          else R.add(type, s.x, s.y, s.z, c.facing + (type === 'log' ? Math.PI / 2 : 0) + Math.sin(i * 1.7) * 0.08, 1, c.sway.z * s.bend * 0.15, -c.sway.x * s.bend * 0.15);
+          R.add(type, s.x, s.y, s.z, c.facing + (type === 'log' ? Math.PI / 2 : 0) + Math.sin(i * 1.7) * 0.08, 1, c.sway.z * s.bend * 0.15, -c.sway.x * s.bend * 0.15);
         }
       }
     }

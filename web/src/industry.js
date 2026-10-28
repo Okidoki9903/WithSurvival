@@ -86,7 +86,7 @@ const methods = {
       case 'hoist': this.buildHoist(fresh); if (fresh) this.story.beat('hoist'); return true;
       case 'boots': this.workerSpeed = 1.35; this.workers.forEach((w) => this.gearWorker(w, fresh)); if (fresh) this.story.beat('boots'); return true;
       case 'steam': this.buildSteam(fresh); if (fresh) this.story.beat('steam'); return true;
-      case 'register': this.buildRegister(fresh); if (fresh) this.story.beat('register'); return true;
+      case 'register': this.buildRegister(fresh); this.bank = true; if (fresh) this.story.beat('register'); return true;
       case 'lumberjack2': this.addWorker('lumberjack', fresh, 'nadia'); if (fresh) this.story.beat('nadia'); return true;
       case 'porter2': this.addWorker('porter', fresh, 'ivan'); if (fresh) this.story.beat('porter2'); return true;
       case 'cable': this.buildCable(fresh); if (fresh) this.story.beat('cable'); return true;

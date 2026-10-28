@@ -39,7 +39,7 @@ export class CameraRig {
     let z = game.stage === 0 ? 0.86 : 1;
     // keep a tall stack in frame
     let tall = 0;
-    if (!game.heroSled) for (const t in p.carry) tall = Math.max(tall, (p.carry[t] || 0) * 0.13);
+    for (const t in p.carry) tall = Math.max(tall, (p.carry[t] || 0) * 0.13);
     z += THREE.MathUtils.clamp((tall - 2.2) * 0.05, 0, 0.28);
     if (game.region && game.region(p) !== 'camp' && game.stage >= 1) z += 0.08;
     if (game.boss && !game.boss.dead) z = Math.max(z, 1.25);

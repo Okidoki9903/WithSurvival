@@ -772,10 +772,10 @@ const methods = {
       if (k) return { at: k.def.at, text: 'Construis la Cuisine de l’Aube', icon: 'pot' };
     }
     if (this.load_total(p) >= p.cap * 0.85) return null;
-    if (need.has('steel') && this.pads.steelPad.n >= 1) return { at: A3.steelPad, text: 'Ramasse les lingots d’acier', icon: 'ingot' };
-    if (need.has('can') && this.pads.canPad.n >= 1) return { at: A3.canPad, text: 'Ramasse les conserves', icon: 'can' };
+    if (!this.couriers() && need.has('steel') && this.pads.steelPad.n >= 1) return { at: A3.steelPad, text: 'Ramasse les lingots d’acier', icon: 'ingot' };
+    if (!this.couriers() && need.has('can') && this.pads.canPad.n >= 1) return { at: A3.canPad, text: 'Ramasse les conserves', icon: 'can' };
     if (need.has('plank')) {
-      if (this.pads.plankPad.n >= 2) return { at: this.pads.plankPad, text: 'Va chercher du bois fendu', icon: 'log' };
+      if (!this.couriers() && this.pads.plankPad.n >= 2) return { at: this.pads.plankPad, text: 'Va chercher du bois fendu', icon: 'log' };
       if (p.carry.log >= 6 || (p.carry.log > 0 && this.load_total(p) >= p.cap * 0.6)) return { at: this.pads.logPad, text: 'Porte les bûches à la scierie', icon: 'log' };
       const t = this.nearestChoppable(p);
       if (t) return { at: { x: t.x, z: t.z }, text: 'Coupe du bois pour le chantier', icon: 'axe' };

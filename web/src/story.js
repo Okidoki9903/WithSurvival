@@ -142,7 +142,9 @@ export const BEATS = {
     ['brann', 'Le vieux monde savait faire tout ça… avant de faire pire.'],
   ],
   registerTile: [['lina', 'Je passe mes journées à courir après les billets. Une caisse automatique, et l’argent irait droit dans ta poche.']],
-  register: [['lina', 'Ding ! Chaque client paie directement. Plus besoin de ramasser les billets.']],
+  register: [
+    ['lina', 'Ding ! Chaque client paie directement dans la caisse de la ville. Plus besoin de ramasser les billets, ni de les porter sur ton dos : tu paies les chantiers en marchant dessus.'],
+  ],
   nadia: [['nadia', 'Nadia, la fille d’Oleg. Il dit que je coupe plus vite que lui. Il ment, je coupe deux fois plus vite.']],
   porter2: [['tomas', 'Voici Ivan. Il a l’âge qu’avait mon frère. Je lui apprends le métier… et à ne jamais lâcher une main dans la tempête.']],
   cableTile: [['anouk', 'Un téléphérique du lac jusqu’au comptoir… Le poisson voyagerait au-dessus de nos têtes !']],
@@ -326,9 +328,10 @@ export const BEATS = {
   shop_bibliotheque: [['sasha', 'La bibliothèque porte le nom de maman. Ses carnets sont sous verre, à l’entrée.']],
   stoneDrill: [['kaja', 'Un concasseur électrique ! La pierre vole toute seule jusqu’au four. Je vais enfin pouvoir sculpter.']],
   lvTreasury: [['lina', 'Désormais, dès que tes bâtisseurs ont tout livré sur un chantier, je le finance moi-même. Tu n’as plus qu’à regarder la ville pousser.']],
-  lvBank: [['lina', 'Ton argent dort à la banque, maintenant. Plus besoin de porter une colonne de billets sur ton dos : je paie les chantiers pour toi quand tu marches dessus.']],
-  lvSled: [['piotr', 'Un traîneau rien qu’à toi. Il te suit au bout de sa corde et porte tout ce que tu ramasses. Ton dos te remerciera.'], ['mira', 'Le même traîneau que le premier jour… mais celui-là, personne ne coupera sa corde.']],
-  builder: [['piotr', 'Un bâtisseur ! Il prend l’acier, le bois, les conserves sur leurs dalles et les apporte tout seul aux chantiers qui en ont besoin.']],
+  builder: [
+    ['piotr', 'Un bâtisseur ! Il prend l’acier, le bois, les conserves sur leurs dalles et les apporte tout seul aux chantiers qui en ont besoin.'],
+    ['lina', 'Et tout ce que tu ramasses repart aussitôt vers sa dalle : plus besoin de porter des piles sur ton dos. Ton travail, maintenant, c’est de bâtir.'],
+  ],
   // ---- Act IV · the Age of Lightning ----
   radio1: [
     ['ivan', 'Sasha ! Viens vite ! La boîte noire de ta mère… j’ai bricolé la radio avec le cuivre du Brise-Glace. Écoute !'],

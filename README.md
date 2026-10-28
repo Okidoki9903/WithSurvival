@@ -70,9 +70,9 @@ Le fort d'origine reste compact pendant l'acte I. Ensuite, à chaque acte, un **
 
 ## Plus de piles sur le dos
 
-Au début, Sasha porte tout sur son dos : billets, viande, bûches, lingots. À la Maison commune, deux achats l'en libèrent :
-- **Banque de Lina** : l'argent n'est plus empilé sur le dos (il reste affiché en haut de l'écran et paie toujours les dalles quand on marche dessus) ;
-- **Traîneau de Sasha** : un traîneau suit Sasha au bout de sa corde et porte tout ce qu'elle ramasse, en rangées basses, au lieu d'une tour de marchandises.
+Au début, Sasha porte tout sur son dos : billets, viande, bûches, lingots. L'automatisation l'en libère, sans rien acheter de plus :
+- dès la **Caisse automatique**, les billets vont droit dans la caisse de la ville : plus de colonne de billets sur le dos (on paie toujours les dalles en marchant dessus) ;
+- dès le premier **bâtisseur**, tout ce que Sasha ramasse (viande, bois, minerai, cuivre, pierre…) repart aussitôt vers la dalle où il sert, et le guide ne l'envoie plus chercher des matériaux : les bâtisseurs s'en chargent.
 
 ## Automatisation complète
 
