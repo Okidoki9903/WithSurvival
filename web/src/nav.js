@@ -17,11 +17,35 @@ export class NavGrid {
     return `${w.stage}|${w.circles.length}|${w.segments.length}|${(w.extraZones || []).length}|${w.shipGate ? 1 : 0}`;
   }
 
+  // Rasterise the walkable ground and stamp every obstacle onto it: much
+  // cheaper than testing every cell against every obstacle.
   build(b) {
-    const s = this.step;
+    const s = this.step, w = this.world, R = 0.46;
     const nx = Math.ceil((b.x1 - b.x0) / s) + 1, nz = Math.ceil((b.z1 - b.z0) / s) + 1;
     const free = new Uint8Array(nx * nz);
-    for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) free[j * nx + i] = this.world.freeAt(b.x0 + i * s, b.z0 + j * s, 0.46) ? 1 : 0;
+    for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) free[j * nx + i] = w.walkable(b.x0 + i * s, b.z0 + j * s) ? 1 : 0;
+    const stamp = (x0, z0, x1, z1, test) => {
+      const i0 = Math.max(0, Math.floor((x0 - b.x0) / s)), i1 = Math.min(nx - 1, Math.ceil((x1 - b.x0) / s));
+      const j0 = Math.max(0, Math.floor((z0 - b.z0) / s)), j1 = Math.min(nz - 1, Math.ceil((z1 - b.z0) / s));
+      for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { const k = j * nx + i; if (free[k] && test(b.x0 + i * s, b.z0 + j * s)) free[k] = 0; }
+    };
+    for (const g of w.segments) {
+      const m = R + 0.12, vx = g.bx - g.ax, vz = g.bz - g.az, l2 = vx * vx + vz * vz || 1;
+      stamp(Math.min(g.ax, g.bx) - m, Math.min(g.az, g.bz) - m, Math.max(g.ax, g.bx) + m, Math.max(g.az, g.bz) + m, (x, z) => {
+        const t = Math.max(0, Math.min(1, ((x - g.ax) * vx + (z - g.az) * vz) / l2));
+        return Math.hypot(x - g.ax - vx * t, z - g.az - vz * t) < m;
+      });
+    }
+    for (const c of w.circles) {
+      if (c.camp && w.stage < 1) continue;
+      const m = c.r + R;
+      stamp(c.x - m, c.z - m, c.x + m, c.z + m, (x, z) => (x - c.x) ** 2 + (z - c.z) ** 2 < m * m);
+    }
+    if (w.forest) for (const t of w.forest.trees) {
+      if (!t.alive || t.k < 0.6 || t.x < b.x0 - 2 || t.x > b.x1 + 2 || t.z < b.z0 - 2 || t.z > b.z1 + 2) continue;
+      const m = 0.55 * t.s + R;
+      stamp(t.x - m, t.z - m, t.x + m, t.z + m, (x, z) => (x - t.x) ** 2 + (z - t.z) ** 2 < m * m);
+    }
     this.grid = { b, nx, nz, free, dist: new Float64Array(nx * nz) };
     this.sig = this.signature();
     this.builtAt = performance.now();
@@ -143,5 +167,26 @@ export class NavGrid {
     if (D[best] === 0) return { x: to.x, z: to.z, final: true };
     const i = best % g.nx, j = (best - i) / g.nx;
     return { x: g.b.x0 + i * this.step, z: g.b.z0 + j * this.step, final: false };
+  }
+
+  // Where a walker at `p` should stand to be connected to `anchor`, or null if it already is.
+  rescue(p, anchor) {
+    const g = this.grid;
+    const ak = this.nearestFree(this.cell(anchor.x, anchor.z));
+    if (ak < 0) return null;
+    this.field(ak); this.fieldKey = ak;
+    const pk = this.cell(p.x, p.z);
+    if (pk < 0) return null;
+    if (g.free[pk] && isFinite(g.dist[pk]) && this.world.freeAt(p.x, p.z, 0.45)) return null;
+    const i0 = pk % g.nx, j0 = (pk - i0) / g.nx;
+    let best = -1, bd = Infinity;
+    for (let k = 0; k < g.nx * g.nz; k++) {
+      if (!isFinite(g.dist[k])) continue;
+      const i = k % g.nx, j = (k - i) / g.nx, d = (i - i0) ** 2 + (j - j0) ** 2;
+      if (d < bd) { bd = d; best = k; }
+    }
+    if (best < 0) return null;
+    const i = best % g.nx, j = (best - i) / g.nx;
+    return { x: g.b.x0 + i * this.step, z: g.b.z0 + j * this.step };
   }
 }

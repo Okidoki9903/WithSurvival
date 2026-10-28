@@ -481,7 +481,6 @@ export class Game {
     this.fx.sparks(def.at.x, 0.6, def.at.z, { n: 24, color: [1, 0.85, 0.3], speed: 7 });
     this.applyUpgrade(def.id, true);
     this.unstick();
-    this.nav.dirty = true;
     this.refreshTiles();
     this.save?.();
   }
@@ -574,11 +573,12 @@ export class Game {
   // A new building must never trap anyone: hop the hero to open ground.
   unstick() {
     const p = this.player;
-    const m = this.reachMapNow();
-    const [i, j] = m.cell(p.x, p.z);
-    if (i < 0 || j < 0 || i >= m.nx || j >= m.nz) return;
-    if (m.seen[j * m.nx + i] && this.world.freeAt(p.x, p.z)) return;
-    const spot = this.world.nearestReachable(m, p.x, p.z);
+    if (this.stage < 1 || this.cutscene) return;
+    this.nav.dirty = true;
+    if (!this.navNext(p, p)) { /* builds the grid when the hero is inside it */ }
+    const grid = this.region(p) === 'station' ? this.navStation : this.nav;
+    if (!grid.grid) return;
+    const spot = grid.rescue(p, this.region(p) === 'station' ? { x: p.x, z: p.z } : { x: 0, z: 3.2 });
     if (!spot) return;
     const sx = p.x, sz = p.z;
     p.stun = 0.45;
@@ -882,7 +882,7 @@ export class Game {
   }
 
   // Firewood goes to the hearth when it runs low, otherwise to the sawmill.
-  logDest() { const f = this.pads.fuelPad; return !this.saw || f.n < 8 ? f : this.pads.logPad; }
+  logDest() { const f = this.pads.fuelPad; return !this.saw || f.n < 3 ? f : this.pads.logPad; }
 
   // Item transfer between a carrier and a pad, throttled per carrier.
   transfer(c, pad, dir, dt, rate = 0.07) {
@@ -1327,8 +1327,8 @@ export class Game {
       const colors = [0x2f74b8, 0x3a86c8, 0x2a68a8, 0x4a90cf, 0x2d5f99];
       const m = makeHuman({ parka: colors[Math.floor(Math.random() * colors.length)], tool: null, scale: rand(0.92, 1.0) });
       const woodFlow = this.pads.counterLog.n > 0 || this.pads.plankPad.n > 0 || this.player.carry.plank > 0 || this.workers.some((w) => w.kind === 'lumberjack');
-      const wantLog = this.wood && Math.random() < (woodFlow ? 0.4 : 0.15);
-      const wantFish = !!this.fumoir && Math.random() < 0.35;
+      const wantLog = this.wood && Math.random() < (woodFlow ? 0.3 : 0.12);
+      const wantFish = !!this.fumoir && Math.random() < 0.28;
       const qty = Math.ceil(rand(0.01, Math.min(5, 1 + this.chapter)));
       const c = { model: m, x: LANE_QUEUE, z: 34, facing: Math.PI, state: 'queue', want: wantFish ? 'smoked' : wantLog ? 'plank' : 'cooked', qty, got: 0, slot: waiting.length, bubbleKey: '', serveT: 0 };
       m.root.position.set(c.x, 0, c.z);
@@ -1367,7 +1367,7 @@ export class Game {
         let pad = this.counterPad(c.want);
         // a customer waiting too long for wood settles for a steak
         c.waitT = (c.waitT || 0) + dt;
-        if (c.want !== 'cooked' && c.got === 0 && !c.incoming && pad.n === 0 && c.waitT > 7 && this.pads.counterSteak.n > 0) { c.want = 'cooked'; pad = this.pads.counterSteak; }
+        if (c.want !== 'cooked' && c.got === 0 && !c.incoming && pad.n === 0 && c.waitT > 3 && this.pads.counterSteak.n > 0) { c.want = 'cooked'; pad = this.pads.counterSteak; }
         c.serveT -= dt;
         if (c.serveT <= 0 && pad.n - (pad.inflight || 0) > 0 && c.got + (c.incoming || 0) < c.qty) {
           c.serveT = this.serveInterval;
