@@ -9,7 +9,7 @@
 <title>WithSurvival — Fort-Aube</title>
 <meta name="description" content="Chassez les ours polaires, faites tourner le chaudron, nourrissez les rescapés et bâtissez Fort-Aube au cœur des Terres Blanches.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>❄️</text></svg>">
-<link rel="stylesheet" href="style.css?v=3">
+<link rel="stylesheet" href="style.css?v=4">
 <script type="importmap">{"imports":{"three":"./vendor/three.module.min.js","three/addons/":"./vendor/addons/"}}</script>
 </head>
 <body>
@@ -21,6 +21,7 @@
 
 <div id="hud">
   <div id="money" aria-label="Billets"><span class="bill"><i></i></span><span id="money-val">0</span></div>
+  <div id="civ"><div class="civ-row"><b id="civ-k">K 0,00</b><span id="civ-era"></span><span id="civ-pop"></span></div><div class="civ-bar"><i id="civ-fill"></i><em style="left:33.3%"></em><em style="left:66.6%"></em></div></div>
   <div id="objective"><img id="objective-icon" alt=""><span id="objective-text"></span></div>
   <div id="top-right">
     <button id="btn-journal" aria-label="Carnet"><img id="journal-icon" alt=""><span id="journal-badge"></span></button>
@@ -78,7 +79,7 @@
   </div>
 </div>
 
-<script type="module" src="src/main.js?v=3"></script>
+<script type="module" src="src/main.js?v=4"></script>
 <script>
   // If modules fail (very old browser / WebGL missing), say so instead of a white page.
   window.addEventListener('error', function (e) {

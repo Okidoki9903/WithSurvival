@@ -156,3 +156,16 @@ body.playing #top-right { opacity: 1; }
 /* Fade for journeys */
 #fade { position: fixed; inset: 0; z-index: 8; background: #f4f8fc; opacity: 0; pointer-events: none; transition: opacity 1.4s; }
 #fade.on { opacity: 1; }
+
+/* Kardashev gauge */
+#civ { position: absolute; top: calc(62px + var(--safe-top)); left: 14px; width: min(64vw, 260px); padding: 5px 10px 7px; border-radius: 12px; background: rgba(24, 30, 40, 0.5); font-size: 12px; font-weight: 800; display: none; }
+body.kardashev #civ { display: block; }
+body.kardashev #objective { top: calc(112px + var(--safe-top)); }
+.civ-row { display: flex; gap: 8px; align-items: baseline; white-space: nowrap; overflow: hidden; }
+#civ-k { color: #ffd25a; font-size: 14px; font-variant-numeric: tabular-nums; }
+#civ-era { opacity: .9; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+#civ-pop { opacity: .85; }
+.civ-bar { position: relative; height: 5px; margin-top: 4px; border-radius: 3px; background: rgba(255,255,255,0.18); overflow: hidden; }
+#civ-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: linear-gradient(90deg, #ffb347, #ffe066 40%, #8fd8ff 70%, #c9a6ff); border-radius: 3px; transition: width .6s; }
+.civ-bar em { position: absolute; top: 0; bottom: 0; width: 2px; background: rgba(255,255,255,0.45); }
+#civ.pulse { animation: bump .5s ease-out 2; }

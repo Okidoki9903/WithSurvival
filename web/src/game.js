@@ -8,6 +8,7 @@ import { ACT2_TILES, ACT2_POS, installAct2 } from './act2.js';
 import { INDUSTRY_TILES, IND_POS, installIndustry } from './industry.js';
 import { ACT3_TILES, installAct3 } from './act3.js';
 import { NavGrid } from './nav.js';
+import { installCiv } from './civ.js';
 
 const P = (x, z) => ({ x, z });
 export const POS = {
@@ -135,6 +136,7 @@ export class Game {
       plankPad: { ...POS.plankPad, n: 0, pile: PILE.plankPad, type: 'plank' },
       turrets: TURRETS.map((t) => ({ ...t.pad, n: 0, pile: PILE.turret, type: 'raw' })),
     };
+    this.initCiv();
     this.initAct2();
     this.initIndustry();
     this.initAct3();
@@ -1578,6 +1580,7 @@ export class Game {
     }
     this.act2Stations(dt);
     this.act3Stations(dt);
+    this.civStations(dt);
     if (p.carry.cooked > 0) this.story.beat('firstCooked');
     this.carrierVisual(p, dt);
   }
@@ -1823,6 +1826,7 @@ export class Game {
     this.updateAct2(dt);
     this.updateIndustry(dt);
     this.updateAct3(dt);
+    this.updateCiv(dt);
     this.updateCustomers(dt);
     this.updateTiles(dt);
     this.updateItems(dt);
@@ -1878,7 +1882,7 @@ export class Game {
     }
     this.drawIndustry(R);
     this.drawAct3(R);
-    const pads = [this.pads.fuelPad, this.pads.rawPad, this.pads.cookedPad, this.pads.cashPad, this.pads.counterSteak, this.pads.counterLog, this.pads.counterFish, this.pads.logPad, this.pads.plankPad, this.pads.fishPad, this.pads.smokedPad, this.pads.orePad, this.pads.steelPad, this.pads.dockPad, this.pads.canPad, ...this.pads.turrets];
+    const pads = [this.pads.fuelPad, this.pads.rawPad, this.pads.cookedPad, this.pads.cashPad, this.pads.counterSteak, this.pads.counterLog, this.pads.counterFish, this.pads.logPad, this.pads.plankPad, this.pads.fishPad, this.pads.smokedPad, this.pads.orePad, this.pads.steelPad, this.pads.dockPad, this.pads.canPad, ...this.pads.turrets, ...this.extraPads];
     for (const pad of pads) {
       const n = pad.n - (pad.inflight || 0);
       for (let i = 0; i < n; i++) {
@@ -1905,7 +1909,7 @@ export class Game {
     return {
       v: 1, money: this.money, carry: { ...p.carry }, bought: Object.keys(this.bought), paid: this.paidPartial, items: this.itemsPartial,
       pads: { raw: this.pads.rawPad.n, cooked: this.pads.cookedPad.n, cash: this.pads.cashPad.n, steak: this.pads.counterSteak.n, log: this.pads.counterLog.n, logs: this.pads.logPad.n, planks: this.pads.plankPad.n, turrets: this.pads.turrets.map((t) => t.n) },
-      stats: this.stats, bossDown: this.bossDown, beats: this.story.serialize(), chapter: this.chapter, act2: this.act2Serialize(), ind: this.industrySerialize(), act3: this.act3Serialize(),
+      stats: this.stats, bossDown: this.bossDown, beats: this.story.serialize(), chapter: this.chapter, act2: this.act2Serialize(), ind: this.industrySerialize(), act3: this.act3Serialize(), civ: this.civSerialize(),
     };
   }
 
@@ -1933,6 +1937,7 @@ export class Game {
     this.pads.logPad.n = pd.logs || 0; this.pads.plankPad.n = pd.planks || 0;
     (pd.turrets || []).forEach((n, i) => { if (this.pads.turrets[i]) this.pads.turrets[i].n = n; });
     if (this.stage >= 1 && a3.phase !== 'station' && a3.phase !== 'done') { this.player.x = POS.cashPad.x + 1.5; this.player.z = POS.cashPad.z - 1.5; }
+    this.civLoad(s.civ);
     if (bought.includes('expand2') && !this.bossDown) setTimeout(() => this.spawnBoss(), 4000);
     this.refreshTiles(true);
   }
@@ -1941,3 +1946,4 @@ export class Game {
 installAct2(Game);
 installIndustry(Game);
 installAct3(Game);
+installCiv(Game);

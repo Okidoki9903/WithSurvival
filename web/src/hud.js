@@ -3,6 +3,12 @@ import * as THREE from 'three';
 import { iconDataURL } from './textures.js';
 
 const _v = new THREE.Vector3();
+// 12 345 → "12 345", 3 400 000 → "3,4 M"
+export function compact(n) {
+  if (n >= 1e9) return (n / 1e9).toLocaleString('fr-FR', { maximumFractionDigits: 1 }) + ' Md';
+  if (n >= 1e6) return (n / 1e6).toLocaleString('fr-FR', { maximumFractionDigits: 1 }) + ' M';
+  return n.toLocaleString('fr-FR');
+}
 
 const $ = (id) => document.getElementById(id);
 
@@ -54,7 +60,7 @@ export class HUD {
     if (n === this.shown && this.moneyEl.textContent !== '') return;
     this.moneyBox.classList.remove('bump'); void this.moneyBox.offsetWidth; this.moneyBox.classList.add('bump');
     this.shown = n;
-    this.moneyEl.textContent = n.toLocaleString('fr-FR');
+    this.moneyEl.textContent = compact(n);
   }
   objective(text, icon) {
     const key = text + icon;
@@ -124,5 +130,18 @@ export class HUD {
     try { localStorage.setItem('ws-journal-seen', String(this.seen)); } catch { /* ignore */ }
     this.updateBadge();
     this.journalEl.classList.add('on');
+  }
+
+  // Kardashev gauge: index, era and population
+  civ(k, era, pop) {
+    if (!this.civEl) { this.civEl = $('civ'); this.civK = $('civ-k'); this.civEra = $('civ-era'); this.civPop = $('civ-pop'); this.civFill = $('civ-fill'); }
+    const key = `${k.toFixed(2)}|${era}|${pop}`;
+    if (key === this.civKey) return;
+    if (this.civKey && era !== this.civEraName) { this.civEl.classList.remove('pulse'); void this.civEl.offsetWidth; this.civEl.classList.add('pulse'); }
+    this.civKey = key; this.civEraName = era;
+    this.civK.textContent = 'K ' + k.toFixed(2).replace('.', ',');
+    this.civEra.textContent = era;
+    this.civPop.textContent = pop ? '👥 ' + compact(pop) : '';
+    this.civFill.style.width = `${Math.min(100, k / 3 * 100)}%`;
   }
 }

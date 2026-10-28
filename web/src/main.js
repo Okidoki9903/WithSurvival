@@ -15,6 +15,7 @@ import { Story } from './story.js';
 import { Game } from './game.js';
 import { CameraRig } from './camera.js';
 import { installCutaway } from './cutaway.js';
+import { Sky } from './sky.js';
 
 installCutaway();
 
@@ -163,36 +164,9 @@ function updateCamera(dt) {
   hud.pointer(game, camera);
 }
 
-// Weather: the Great Blizzard thickens fog and snow; the ending clears the sky.
-const STORM = new THREE.Color(0x9cabbd), WARM_SUN = new THREE.Color(0xffd29a), BASE_SUN = new THREE.Color(0xffe8cc);
-const fogCol = new THREE.Color();
-const stormEl = document.getElementById('storm');
-function updateWeather() {
-  const w = game.weather || 0, c = game.clearSky || 0;
-  fogCol.copy(SKY).lerp(STORM, w);
-  scene.background = fogCol; scene.fog.color.copy(fogCol);
-  scene.fog.near = THREE.MathUtils.lerp(80, 4, w);
-  scene.fog.far = THREE.MathUtils.lerp(190, 52, w);
-  stormEl.style.opacity = String(Math.min(1, w * 1.1));
-  sun.intensity = 2.6 * (1 - 0.55 * w) * (1 + 0.12 * c);
-  sun.color.copy(BASE_SUN).lerp(WARM_SUN, c * 0.7);
-  hemi.intensity = 1.35 * (1 - 0.25 * w);
-  renderer.toneMappingExposure = 1.08 * (1 - 0.12 * w) + 0.05 * c;
-  snow.material.size = 0.14 + w * 0.2;
-  snow.material.opacity = 0.85 * (1 - 0.85 * c) + 0.1 * w;
-  audio.setWind(w);
-  // spring after the Veil falls: greener ground and firs, no more snowfall
-  const sp = game.spring || 0;
-  if (sp !== lastSpring) {
-    lastSpring = sp;
-    world.ground.material.color.copy(SNOW_GROUND).lerp(SPRING_GROUND, sp);
-    forest.material.color.copy(WHITE).lerp(SPRING_FIR, sp * 0.85);
-    hemi.groundColor.copy(HEMI_GROUND).lerp(SPRING_GROUND, sp * 0.6);
-  }
-  flakeGeo.setDrawRange(0, Math.round((650 + 950 * w) * (1 - sp * 0.97)));
-}
-const SNOW_GROUND = new THREE.Color(0xf3f7fc), SPRING_GROUND = new THREE.Color(0xc9dcb0), WHITE = new THREE.Color(0xffffff), SPRING_FIR = new THREE.Color(0xcfe6b8), HEMI_GROUND = new THREE.Color(0xc4cfdc);
-let lastSpring = 0;
+// Sky and weather (blizzard, thaw, day and night, the swarm and the stars).
+const sky = new Sky({ scene, renderer, sun, hemi, snow, flakeGeo, world, forest, audio, camera, stormEl: document.getElementById('storm') });
+function updateWeather(dt) { sky.update(dt, game); }
 
 function updateSnow(dt) {
   const a = flakeGeo.attributes.position.array;
@@ -222,7 +196,7 @@ function frame() {
   fx.update(dt, window.innerHeight, window.innerWidth);
   updateCamera(dt);
   updateSnow(dt);
-  updateWeather();
+  updateWeather(dt);
   if (composer) composer.render(dt); else renderer.render(scene, camera);
   // adaptive quality: drop bloom and resolution if the device struggles
   frames++; fpsT += dt;

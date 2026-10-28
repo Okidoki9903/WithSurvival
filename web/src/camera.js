@@ -18,6 +18,8 @@ export class CameraRig {
     this.zoom = 1;
     this.target = new THREE.Vector3();
     this.focusBlend = 0;
+    this.sky = 0;
+    this.ty = 0;
     this.lead = new THREE.Vector3();
   }
 
@@ -69,9 +71,14 @@ export class CameraRig {
     if (f && f.zoom) wz += (f.zoom - wz) * this.focusBlend;
     if (game.zoomOverride) { wz = game.zoomOverride; this.zoom = wz; }
     this.zoom += (wz - this.zoom) * (1 - Math.exp(-dt * 1.8));
-    const d = this.baseDist * this.zoom;
+    // looking up at the sky for launches and the swarm
+    this.sky += ((game.skyView ? 1 : 0) - this.sky) * (1 - Math.exp(-dt * 1.2));
+    game.skyBlend = this.sky;
+    const wantY = (p.elev || 0) + (f && f.y ? (f.y - (p.elev || 0)) * this.focusBlend : 0) + this.sky * 12;
+    this.ty += (wantY - this.ty) * (1 - Math.exp(-dt * 3));
+    const d = this.baseDist * this.zoom * (1 + this.sky * 0.5);
     // tilt a little more from above when zoomed out
-    const pitch = this.pitch + THREE.MathUtils.clamp((this.zoom - 1) * 0.18, -0.05, 0.12);
+    const pitch = THREE.MathUtils.lerp(this.pitch + THREE.MathUtils.clamp((this.zoom - 1) * 0.18, -0.05, 0.12), 0.16, this.sky);
     const cp = Math.cos(pitch);
     const cam = this.camera;
     const top = window.__ws && window.__ws.topView;
@@ -81,10 +88,10 @@ export class CameraRig {
       cam.lookAt(top.cx, 0, top.cz);
       cam.up.set(0, 1, 0);
     } else {
-      cam.position.set(this.target.x + Math.sin(this.yaw) * cp * d, Math.sin(pitch) * d, this.target.z + Math.cos(this.yaw) * cp * d);
+      cam.position.set(this.target.x + Math.sin(this.yaw) * cp * d, Math.sin(pitch) * d + this.ty, this.target.z + Math.cos(this.yaw) * cp * d);
       const s = game.shake;
       if (s > 0) cam.position.add(_v.set((Math.random() - 0.5) * s, (Math.random() - 0.5) * s, (Math.random() - 0.5) * s));
-      cam.lookAt(this.target.x, 0.8, this.target.z);
+      cam.lookAt(this.target.x, 0.8 + this.ty, this.target.z);
     }
     // shadows follow the view, snapped to texels to avoid shimmering
     const sc = this.shadowCam;
@@ -97,7 +104,8 @@ export class CameraRig {
     CUT.uCutOn.value = top ? 0 : 1;
     CUT.uCutA.value.copy(cam.position);
     if (f && this.focusBlend > 0.5) CUT.uCutB.value.set(f.x, 1.2, f.z);
-    else CUT.uCutB.value.set(p.x, 1.15, p.z);
+    else CUT.uCutB.value.set(p.x, 1.15 + (p.elev || 0), p.z);
+    CUT.uCutOn.value = top || this.sky > 0.3 ? 0 : 1;
     CUT.uCutR.value = 1.7 + (this.zoom - 1) * 0.6;
   }
 }
