@@ -177,8 +177,16 @@ export class NavGrid {
     const tk = this.nearestFree(this.cell(to.x, to.z));
     const fk = this.nearestFree(this.cell(from.x, from.z), 4);
     if (tk < 0 || fk < 0) return null;
-    if (this.fieldKey !== tk) { this.field(tk); this.fieldKey = tk; }
-    const D = g.dist;
+    // workers go back and forth between the same pads: keep their fields
+    this.fields ||= new Map();
+    let D = this.fields.get(tk);
+    if (!D || this.fieldsOf !== g) {
+      if (this.fieldsOf !== g) { this.fields.clear(); this.fieldsOf = g; }
+      this.field(tk); this.fieldKey = tk;
+      D = g.dist.slice();
+      this.fields.set(tk, D);
+      if (this.fields.size > 24) this.fields.delete(this.fields.keys().next().value);
+    }
     if (!isFinite(D[fk])) return null;
     const cells = [fk];
     let k = fk;
@@ -195,11 +203,12 @@ export class NavGrid {
       if (nk === k) break;
       k = nk; cells.push(k);
     }
+    // pull the route tight: from each corner, run forward while the line stays clear
     const pts = [];
     let a = 0;
     while (a < cells.length - 1) {
-      let b = cells.length - 1;
-      while (b > a + 1 && !this.clearLine(cells[a], cells[b])) b--;
+      let b = a + 1;
+      while (b + 1 < cells.length && this.clearLine(cells[a], cells[b + 1])) b++;
       pts.push(cells[b]);
       a = b;
     }

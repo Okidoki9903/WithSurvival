@@ -1419,6 +1419,8 @@ export class Game {
         // a customer waiting too long for wood settles for a steak
         c.waitT = (c.waitT || 0) + dt;
         if (c.want !== 'cooked' && c.got === 0 && !c.incoming && pad.n === 0 && c.waitT > 3 && this.pads.counterSteak.n > 0) { c.want = 'cooked'; pad = this.pads.counterSteak; }
+        // half served and nothing more on the counter: pay for what you got and let the queue move
+        if (c.got > 0 && !c.incoming && pad.n === 0 && c.waitT > 5) { c.qty = c.got; this.payCustomer(c); continue; }
         c.serveT -= dt;
         if (c.serveT <= 0 && pad.n - (pad.inflight || 0) > 0 && c.got + (c.incoming || 0) < c.qty) {
           c.serveT = this.serveInterval;

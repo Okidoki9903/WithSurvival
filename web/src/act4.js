@@ -510,6 +510,16 @@ const methods = {
     if (this.lift && (this.lift.state === 'rising' || this.lift.state === 'falling')) return { at: null, text: this.lift.state === 'rising' ? 'L’ascenseur monte…' : 'L’ascenseur descend…', icon: 'tower' };
     if (p.deck) return { at: { x: E.dawn.x, z: E.dawn.z + 2.6 }, text: 'Admire Fort-Aube depuis le sommet · l’ascenseur te redescend', icon: 'tower' };
     if (this.bought.dawn4 && !s.deckSeen) return { at: E.lift, text: 'Prends l’ascenseur de la Tour de l’Aube', icon: 'tower' };
+    // the first copper and the first stone open the next steps: lead there first
+    const first = (res, pad, need, text, icon) => {
+      if (!pad || this.workers.some((w) => w.res === res) || !need) return null;
+      if (p.carry[res] >= 6 || (p.carry[res] > 0 && !this.nearestOreNode(p, 5, res))) return { at: pad, text: res === 'copper' ? 'Porte le cuivre à la tréfilerie' : 'Porte la pierre à la cimenterie', icon };
+      const n = this.nearestOreNode(p, 300, res);
+      return n && this.load_total(p) < p.cap * 0.9 ? { at: n, text, icon } : null;
+    };
+    const o1 = first('copper', this.pads.wire_copper, !this.bought.plant1 && (this.stats.wire || 0) + (this.pads.wire_copper?.n || 0) < 6 && !this.copperDrill, 'Mine le cuivre de la crête', 'copper')
+      || first('stone', this.pads.cement_stone, this.cementWorks && (this.stats.concrete || 0) + (this.pads.cement_stone?.n || 0) < 8 && !this.stoneDrill, 'Taille la pierre de la carrière', 'stone');
+    if (o1) return o1;
     if (p.carry.copper > 0 && this.pads.wire_copper && this.pads.wire_copper.n < 43 && (this.load_total(p) >= p.cap * 0.5 || !this.nearestOreNode(p, 6))) return { at: E.copperIn, text: 'Porte le cuivre à la tréfilerie', icon: 'copper' };
     if (p.carry.stone > 0 && this.pads.cement_stone && this.pads.cement_stone.n < 43 && (this.load_total(p) >= p.cap * 0.5 || !this.nearestOreNode(p, 6))) return { at: E.stoneIn, text: 'Porte la pierre à la cimenterie', icon: 'stone' };
     return null;
