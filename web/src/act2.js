@@ -26,12 +26,12 @@ const A = ACT2_POS;
 // Upgrade tiles of Act II (appended to the game's tile list).
 export const ACT2_TILES = [
   { id: 'courier', icon: 'person', cost: 1200, at: P(3.0, 4.6), req: (g) => g.act2.orders >= 1, label: 'Recruter Piotr' },
-  { id: 'lakeRoad', icon: 'expand', cost: 2500, at: P(12.4, 3.6), req: (g) => g.act2.orders >= 2, label: 'Route du Lac Gelé', beat: 'lakeTile' },
+  { id: 'lakeRoad', icon: 'expand', cost: 2500, at: P(12.4, 3.6), req: (g) => g.act2.orders >= 2, label: 'Route du Lac Gelé', beat: 'lakeTile', reveal: true },
   { id: 'fisher', icon: 'person', cost: 900, at: P(11.4, 20.2), req: (g) => g.stage >= 4, label: 'Recruter Anouk' },
   { id: 'rod', icon: 'fish', cost: 600, at: P(14.2, 21.0), req: (g) => g.stage >= 4 && g.stats.fished >= 5, label: 'Canne en os' },
   { id: 'fumoirUp', icon: 'fire', cost: 1400, at: P(13.6, 17.6), req: (g) => g.stage >= 4 && g.stats.smoked >= 8, label: 'Fumoir double', beat: 'fumoirTile' },
-  { id: 'brasier', icon: 'fire', cost: 6000, at: A.brasier, req: (g) => g.act2.blizzard, label: 'Grand Brasier', big: true, beat: 'brasierTile' },
-  { id: 'lanterns', icon: 'beacon', cost: 3000, at: P(-2.4, -3.4), req: (g) => g.act2.ended, label: 'Lanternes du fort' },
+  { id: 'brasier', icon: 'fire', cost: 6000, at: A.brasier, req: (g) => g.act2.blizzard, label: 'Grand Brasier', big: true, beat: 'brasierTile', reveal: true },
+  { id: 'lanterns', icon: 'beacon', cost: 3000, at: P(-7.6, -3.0), req: (g) => g.act2.ended, label: 'Lanternes du fort' },
   { id: 'statue', icon: 'person', cost: 5000, at: A.statue, req: (g) => g.act2.ended, label: 'Statue de Brann' },
   { id: 'sculpt', icon: 'snowflake', cost: 4000, at: A.lakeC, req: (g) => g.act2.ended, label: 'Ours de glace' },
   { id: 'festival', icon: 'fire', cost: 12000, at: P(12.4, 3.6), req: (g) => g.act2.ended && g.bought.lanterns && g.bought.statue && g.bought.sculpt, label: 'Fête de l’Aube', big: true },
@@ -486,9 +486,10 @@ const methods = {
       case 'statue': this.buildStatue(fresh); if (fresh) this.story.beat('statue'); break;
       case 'sculpt': this.buildSculptures(fresh); if (fresh) this.story.beat('sculpt'); break;
       case 'festival': this.act2.festival = true; this.rewardMult = 2; this.priceMult *= 1.25; if (fresh) this.story.beat('festival'); break;
-      default: break;
+      default: return false;
     }
     void p;
+    return true;
   },
 
   act2Stations(dt) {
@@ -537,7 +538,7 @@ const methods = {
       } else if (w.state === 'toCounter' && arrived) {
         if (this.dropToCounter(w, dt) === 'done') w.state = 'idle';
       }
-    }
+    } else this.act3Worker(w, dt, arrived, total);
   },
 
   act2Objective(p) {

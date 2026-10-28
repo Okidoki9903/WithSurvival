@@ -389,8 +389,8 @@ export function makeCampfire() {
 // ---------------------------------------------------------------------------
 // Carried items (instanced): raw meat, cooked steak, cash bill, log
 // ---------------------------------------------------------------------------
-export const ITEM_TYPES = ['raw', 'cooked', 'cash', 'log', 'plank', 'fish', 'smoked'];
-export const ITEM_HEIGHT = { raw: 0.13, cooked: 0.12, cash: 0.1, log: 0.2, plank: 0.22, fish: 0.14, smoked: 0.13 };
+export const ITEM_TYPES = ['raw', 'cooked', 'cash', 'log', 'plank', 'fish', 'smoked', 'ore', 'steel', 'can'];
+export const ITEM_HEIGHT = { raw: 0.13, cooked: 0.12, cash: 0.1, log: 0.2, plank: 0.22, fish: 0.14, smoked: 0.13, ore: 0.2, steel: 0.13, can: 0.2 };
 
 export function itemGeometry(type) {
   if (type === 'raw') {
@@ -432,6 +432,24 @@ export function itemGeometry(type) {
     paint(geo, (c, x) => c.copy(Math.abs(x) > 0.34 ? end : bark));
     const g2 = geo.clone().translate(0, 0, 0.12), g1 = geo.clone().translate(0, 0, -0.12);
     return mergeGeometries([g1, g2]);
+  }
+  if (type === 'ore') {
+    // chunk of rock streaked with rusty iron
+    const rock = new THREE.Color(0x5b5651), rust = new THREE.Color(0xd0662a);
+    const geo = new THREE.DodecahedronGeometry(0.2, 0).scale(1.3, 0.85, 1.1).toNonIndexed();
+    return paint(geo, (c, x, y, z, ny, i) => c.copy(Math.floor(i / 3) % 3 === 0 ? rust : rock));
+  }
+  if (type === 'steel') {
+    // trapezoid ingot
+    const sh = new THREE.Shape(); sh.moveTo(-0.3, -0.06); sh.lineTo(0.3, -0.06); sh.lineTo(0.22, 0.06); sh.lineTo(-0.22, 0.06); sh.closePath();
+    const geo = new THREE.ExtrudeGeometry(sh, { depth: 0.3, bevelEnabled: false }).translate(0, 0, -0.15);
+    const top = new THREE.Color(0xd9e2ea), side = new THREE.Color(0x8a96a3);
+    return paint(geo.toNonIndexed(), (c, x, y, z, ny) => c.copy(ny > 0.5 ? top : side));
+  }
+  if (type === 'can') {
+    const geo = new THREE.CylinderGeometry(0.16, 0.16, 0.19, 12);
+    const tin = new THREE.Color(0xc9d0d8), label = new THREE.Color(0xc0392b);
+    return paint(geo, (c, x, y, z, ny) => c.copy(Math.abs(ny) > 0.5 || Math.abs(y) > 0.07 ? tin : label));
   }
   return new THREE.BoxGeometry(0.3, 0.1, 0.3);
 }

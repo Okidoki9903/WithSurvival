@@ -175,6 +175,104 @@ const ICONS = {
     c.lineWidth = 0.3; c.lineCap = 'round'; c.lineJoin = 'round';
     c.beginPath(); c.moveTo(-0.55, 0.0); c.lineTo(-0.15, 0.42); c.lineTo(0.6, -0.42); c.stroke();
   },
+  gear(c) {
+    for (let i = 0; i < 8; i++) { c.save(); c.rotate(i * Math.PI / 4); c.fillRect(-0.14, -0.95, 0.28, 0.4); c.restore(); }
+    c.beginPath(); c.arc(0, 0, 0.66, 0, Math.PI * 2); c.fill();
+    c.globalCompositeOperation = 'destination-out';
+    c.beginPath(); c.arc(0, 0, 0.24, 0, Math.PI * 2); c.fill();
+    c.globalCompositeOperation = 'source-over';
+  },
+  belt(c) {
+    c.lineWidth = 0.14;
+    c.beginPath(); c.moveTo(-0.62, 0.0); c.lineTo(0.62, 0.0); c.arc(0.62, 0.3, 0.3, -Math.PI / 2, Math.PI / 2); c.lineTo(-0.62, 0.6); c.arc(-0.62, 0.3, 0.3, Math.PI / 2, Math.PI * 1.5); c.stroke();
+    c.beginPath(); c.arc(-0.62, 0.3, 0.12, 0, Math.PI * 2); c.arc(0.62, 0.3, 0.12, 0, Math.PI * 2); c.fill();
+    roundRect(c, -0.5, -0.6, 0.42, 0.5, 0.06); c.fill(); roundRect(c, 0.1, -0.5, 0.36, 0.4, 0.06); c.fill();
+  },
+  hook(c) {
+    c.lineWidth = 0.13; c.lineCap = 'round';
+    c.beginPath(); c.moveTo(-0.95, -0.75); c.lineTo(0.95, -0.75); c.stroke();
+    c.beginPath(); c.moveTo(0, -0.75); c.lineTo(0, 0.05); c.arc(-0.22, 0.05, 0.22, 0, Math.PI * 0.9); c.stroke();
+    c.beginPath(); c.moveTo(0.05, 0.35); c.lineTo(0.75, 0.35); c.lineTo(0.62, 0.85); c.lineTo(0.18, 0.85); c.closePath(); c.fill();
+  },
+  boot(c) {
+    c.beginPath(); c.moveTo(-0.45, -0.9); c.lineTo(0.2, -0.9); c.lineTo(0.2, 0.15); c.quadraticCurveTo(0.85, 0.2, 0.9, 0.55); c.lineTo(0.9, 0.8); c.lineTo(-0.55, 0.8); c.lineTo(-0.55, -0.6); c.closePath(); c.fill();
+    c.globalCompositeOperation = 'destination-out';
+    c.fillRect(-0.6, -0.6, 0.9, 0.12);
+    c.globalCompositeOperation = 'source-over';
+  },
+  steam(c) {
+    roundRect(c, -0.55, -0.35, 1.1, 1.2, 0.3); c.fill();
+    c.fillRect(0.2, -0.85, 0.22, 0.6);
+    c.lineWidth = 0.1; c.lineCap = 'round';
+    c.beginPath(); c.moveTo(-0.3, -0.5); c.quadraticCurveTo(-0.55, -0.7, -0.3, -0.95); c.stroke();
+    c.globalCompositeOperation = 'destination-out';
+    c.beginPath(); c.arc(0, 0.2, 0.22, 0, Math.PI * 2); c.fill();
+    c.globalCompositeOperation = 'source-over';
+  },
+  register(c) {
+    roundRect(c, -0.85, 0.0, 1.7, 0.75, 0.1); c.fill();
+    c.beginPath(); c.moveTo(-0.6, 0.0); c.lineTo(-0.45, -0.75); c.lineTo(0.45, -0.75); c.lineTo(0.6, 0.0); c.closePath(); c.fill();
+    c.globalCompositeOperation = 'destination-out';
+    c.fillRect(-0.3, -0.6, 0.6, 0.25);
+    for (let i = 0; i < 3; i++) c.fillRect(-0.55 + i * 0.4, 0.18, 0.28, 0.16);
+    c.globalCompositeOperation = 'source-over';
+  },
+  cable(c) {
+    c.lineWidth = 0.09;
+    c.beginPath(); c.moveTo(-0.95, -0.75); c.lineTo(0.95, -0.35); c.stroke();
+    c.beginPath(); c.moveTo(0, -0.55); c.lineTo(0, -0.1); c.stroke();
+    roundRect(c, -0.45, -0.1, 0.9, 0.75, 0.12); c.fill();
+    c.globalCompositeOperation = 'destination-out';
+    c.fillRect(-0.3, 0.02, 0.6, 0.25);
+    c.globalCompositeOperation = 'source-over';
+  },
+  net(c) {
+    c.save(); c.beginPath(); c.arc(0, 0, 0.88, 0, Math.PI * 2); c.clip();
+    c.lineWidth = 0.08;
+    for (let i = -4; i <= 4; i++) { c.beginPath(); c.moveTo(i * 0.25 - 1, -1); c.lineTo(i * 0.25 + 1, 1); c.stroke(); c.beginPath(); c.moveTo(i * 0.25 + 1, -1); c.lineTo(i * 0.25 - 1, 1); c.stroke(); }
+    c.restore();
+    c.lineWidth = 0.12; c.beginPath(); c.arc(0, 0, 0.88, 0, Math.PI * 2); c.stroke();
+  },
+  can(c) {
+    c.fillRect(-0.55, -0.6, 1.1, 1.25);
+    c.beginPath(); c.ellipse(0, -0.6, 0.55, 0.2, 0, 0, Math.PI * 2); c.fill();
+    c.beginPath(); c.ellipse(0, 0.65, 0.55, 0.2, 0, 0, Math.PI * 2); c.fill();
+    c.globalCompositeOperation = 'destination-out';
+    c.fillRect(-0.55, -0.2, 1.1, 0.4);
+    c.globalCompositeOperation = 'source-over';
+    c.fillRect(-0.4, -0.1, 0.8, 0.2);
+  },
+  ingot(c) {
+    c.beginPath(); c.moveTo(-0.9, 0.5); c.lineTo(0.9, 0.5); c.lineTo(0.55, -0.35); c.lineTo(-0.55, -0.35); c.closePath(); c.fill();
+    c.globalCompositeOperation = 'destination-out';
+    c.lineWidth = 0.08; c.beginPath(); c.moveTo(-0.62, 0.2); c.lineTo(0.62, 0.2); c.stroke();
+    c.globalCompositeOperation = 'source-over';
+  },
+  ore(c) {
+    c.beginPath(); c.moveTo(-0.85, 0.5); c.lineTo(-0.6, -0.3); c.lineTo(-0.1, -0.7); c.lineTo(0.55, -0.5); c.lineTo(0.9, 0.2); c.lineTo(0.5, 0.7); c.lineTo(-0.4, 0.75); c.closePath(); c.fill();
+    c.globalCompositeOperation = 'destination-out';
+    for (const [x, y] of [[-0.3, 0.1], [0.25, -0.2], [0.35, 0.35]]) { c.beginPath(); c.arc(x, y, 0.11, 0, Math.PI * 2); c.fill(); }
+    c.globalCompositeOperation = 'source-over';
+  },
+  ship(c) {
+    c.beginPath(); c.moveTo(-0.95, 0.1); c.lineTo(0.65, 0.1); c.lineTo(0.95, -0.15); c.lineTo(0.75, 0.6); c.lineTo(-0.85, 0.6); c.closePath(); c.fill();
+    c.fillRect(-0.55, -0.4, 0.75, 0.42); c.fillRect(-0.4, -0.85, 0.2, 0.45);
+    c.lineWidth = 0.08; c.beginPath(); c.moveTo(-0.9, 0.85); c.lineTo(0.8, 0.85); c.stroke();
+  },
+  sun(c) {
+    c.beginPath(); c.arc(0, 0, 0.42, 0, Math.PI * 2); c.fill();
+    c.lineWidth = 0.13; c.lineCap = 'round';
+    for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; c.beginPath(); c.moveTo(Math.cos(a) * 0.6, Math.sin(a) * 0.6); c.lineTo(Math.cos(a) * 0.92, Math.sin(a) * 0.92); c.stroke(); }
+  },
+  heart(c) {
+    c.beginPath(); c.moveTo(0, 0.85); c.bezierCurveTo(-1.1, 0.0, -0.75, -0.95, 0, -0.4); c.bezierCurveTo(0.75, -0.95, 1.1, 0.0, 0, 0.85); c.fill();
+  },
+  book(c) {
+    c.beginPath(); c.moveTo(0, -0.55); c.quadraticCurveTo(-0.45, -0.85, -0.92, -0.65); c.lineTo(-0.92, 0.65); c.quadraticCurveTo(-0.45, 0.45, 0, 0.75); c.quadraticCurveTo(0.45, 0.45, 0.92, 0.65); c.lineTo(0.92, -0.65); c.quadraticCurveTo(0.45, -0.85, 0, -0.55); c.fill();
+    c.globalCompositeOperation = 'destination-out';
+    c.lineWidth = 0.07; c.beginPath(); c.moveTo(0, -0.5); c.lineTo(0, 0.7); c.stroke();
+    c.globalCompositeOperation = 'source-over';
+  },
   pickaxe(c) {
     c.lineWidth = 0.15; c.lineCap = 'round';
     c.beginPath(); c.moveTo(-0.6, 0.8); c.lineTo(0.3, -0.3); c.stroke();
@@ -229,27 +327,49 @@ export class TileTexture {
     this.tex = canvasTexture(this.canvas);
     this.draw(0, 0, false);
   }
-  draw(remaining, progress, active) {
+  draw(remaining, progress, active, items = [], free = false) {
     const g = this.canvas.getContext('2d');
     const s = 256;
     g.clearRect(0, 0, s, s);
     g.save();
     roundRect(g, 10, 10, s - 20, s - 20, 34);
-    g.fillStyle = 'rgba(40,28,22,0.9)'; g.fill();
+    g.fillStyle = free ? 'rgba(30,50,80,0.9)' : 'rgba(40,28,22,0.9)'; g.fill();
     g.clip();
     if (progress > 0) {
       g.fillStyle = 'rgba(92,214,84,0.92)';
-      g.fillRect(0, s - (s * progress), s, s * progress);
+      g.fillRect(0, s - (s * Math.min(1, progress)), s, s * Math.min(1, progress));
     }
     g.restore();
     g.lineWidth = active ? 10 : 6;
-    g.strokeStyle = active ? 'rgba(120,255,110,1)' : 'rgba(255,255,255,0.75)';
+    g.strokeStyle = active ? 'rgba(120,255,110,1)' : free ? 'rgba(255,214,90,0.95)' : 'rgba(255,255,255,0.75)';
     roundRect(g, 14, 14, s - 28, s - 28, 30); g.stroke();
-    drawIcon(g, this.icon, s / 2, 98, 104, '#fff');
     g.fillStyle = '#fff';
-    g.font = '700 52px "Trebuchet MS", "Segoe UI", sans-serif';
     g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillText(`$ ${Math.max(0, Math.ceil(remaining))}`, s / 2, 200);
+    if (free) {
+      drawIcon(g, this.icon, s / 2, 92, 104, '#fff');
+      g.font = '800 30px "Trebuchet MS", "Segoe UI", sans-serif';
+      const words = this.label.split(' ');
+      const l1 = words.slice(0, Math.ceil(words.length / 2)).join(' '), l2 = words.slice(Math.ceil(words.length / 2)).join(' ');
+      g.fillText(l1, s / 2, 180); if (l2) g.fillText(l2, s / 2, 212);
+    } else if (items.length) {
+      drawIcon(g, this.icon, s / 2, 66, 76, '#fff');
+      g.font = '700 40px "Trebuchet MS", "Segoe UI", sans-serif';
+      if (remaining > 0) g.fillText(`$ ${Math.max(0, Math.ceil(remaining))}`, s / 2, 136);
+      else g.fillText('✓', s / 2, 136);
+      const w = 230 / items.length;
+      items.forEach((it, i) => {
+        const cx = 13 + w * (i + 0.5);
+        g.globalAlpha = it.left > 0 ? 1 : 0.55;
+        drawIcon(g, it.icon, cx - 22, 196, 34, it.left > 0 ? '#ffe08a' : '#9dff8a');
+        g.font = '800 30px "Trebuchet MS", sans-serif';
+        g.fillText(it.left > 0 ? String(it.left) : '✓', cx + 16, 198);
+        g.globalAlpha = 1;
+      });
+    } else {
+      drawIcon(g, this.icon, s / 2, 98, 104, '#fff');
+      g.font = '700 52px "Trebuchet MS", "Segoe UI", sans-serif';
+      g.fillText(`$ ${Math.max(0, Math.ceil(remaining))}`, s / 2, 200);
+    }
     this.tex.needsUpdate = true;
   }
 }

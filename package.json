@@ -3,7 +3,8 @@
   "private": true,
   "scripts": {
     "serve": "python3 -m http.server 8765 --directory web",
-    "test": "node tests/smoke.cjs"
+    "test": "node tests/smoke.cjs && node tests/architecture.cjs",
+    "test:arch": "node tests/architecture.cjs"
   },
   "devDependencies": {
     "playwright": "1.63.0"
