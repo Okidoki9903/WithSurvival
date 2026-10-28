@@ -149,6 +149,28 @@ const ICONS = {
     c.globalCompositeOperation = 'source-over';
     c.beginPath(); c.arc(0, 0, 0.15, 0, Math.PI * 2); c.fill();
   },
+  fish(c) {
+    c.beginPath(); c.ellipse(-0.1, 0, 0.62, 0.36, 0, 0, Math.PI * 2); c.fill();
+    c.beginPath(); c.moveTo(0.45, 0); c.lineTo(0.92, -0.4); c.lineTo(0.92, 0.4); c.closePath(); c.fill();
+    c.globalCompositeOperation = 'destination-out';
+    c.beginPath(); c.arc(-0.42, -0.08, 0.08, 0, Math.PI * 2); c.fill();
+    c.globalCompositeOperation = 'source-over';
+  },
+  sled(c) {
+    c.fillRect(-0.7, -0.35, 1.3, 0.45);
+    c.lineWidth = 0.1; c.lineCap = 'round';
+    c.beginPath(); c.moveTo(-0.85, 0.45); c.lineTo(0.6, 0.45); c.quadraticCurveTo(0.95, 0.45, 0.9, 0.1); c.stroke();
+    c.beginPath(); c.moveTo(-0.5, 0.1); c.lineTo(-0.5, 0.45); c.moveTo(0.3, 0.1); c.lineTo(0.3, 0.45); c.stroke();
+    c.fillRect(-0.55, -0.7, 0.5, 0.36); c.fillRect(0.05, -0.62, 0.42, 0.28);
+  },
+  snowflake(c) {
+    c.lineWidth = 0.12; c.lineCap = 'round';
+    for (let i = 0; i < 6; i++) {
+      c.save(); c.rotate(i * Math.PI / 3);
+      c.beginPath(); c.moveTo(0, 0); c.lineTo(0, -0.88); c.moveTo(0, -0.55); c.lineTo(-0.22, -0.75); c.moveTo(0, -0.55); c.lineTo(0.22, -0.75); c.stroke();
+      c.restore();
+    }
+  },
   check(c) {
     c.lineWidth = 0.3; c.lineCap = 'round'; c.lineJoin = 'round';
     c.beginPath(); c.moveTo(-0.55, 0.0); c.lineTo(-0.15, 0.42); c.lineTo(0.6, -0.42); c.stroke();

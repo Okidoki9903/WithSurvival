@@ -63,7 +63,7 @@ if (params.has('bloom')) {
 }
 
 // Falling snow
-const flakes = 700;
+const flakes = 1600;
 const flakeGeo = new THREE.BufferGeometry();
 const flakePos = new Float32Array(flakes * 3);
 for (let i = 0; i < flakes; i++) { flakePos[i * 3] = (Math.random() - 0.5) * 60; flakePos[i * 3 + 1] = Math.random() * 26; flakePos[i * 3 + 2] = (Math.random() - 0.5) * 60; }
@@ -124,6 +124,7 @@ document.getElementById('menu-reset').addEventListener('click', () => {
   location.reload();
 });
 let paused = false;
+document.getElementById('credits-continue').addEventListener('click', () => document.getElementById('credits').classList.remove('on'));
 
 // ---------------------------------------------------------------------------
 // Resize & camera
@@ -175,12 +176,35 @@ function updateCamera(dt) {
   snow.position.set(camTarget.x, 0, camTarget.z);
 }
 
+// Weather: the Great Blizzard thickens fog and snow; the ending clears the sky.
+const STORM = new THREE.Color(0x9cabbd), WARM_SUN = new THREE.Color(0xffd29a), BASE_SUN = new THREE.Color(0xffe8cc);
+const fogCol = new THREE.Color();
+const stormEl = document.getElementById('storm');
+function updateWeather() {
+  const w = game.weather || 0, c = game.clearSky || 0;
+  fogCol.copy(SKY).lerp(STORM, w);
+  scene.background = fogCol; scene.fog.color.copy(fogCol);
+  scene.fog.near = THREE.MathUtils.lerp(80, 4, w);
+  scene.fog.far = THREE.MathUtils.lerp(190, 52, w);
+  flakeGeo.setDrawRange(0, Math.round(650 + 950 * w));
+  stormEl.style.opacity = String(Math.min(1, w * 1.1));
+  sun.intensity = 2.6 * (1 - 0.55 * w) * (1 + 0.12 * c);
+  sun.color.copy(BASE_SUN).lerp(WARM_SUN, c * 0.7);
+  hemi.intensity = 1.35 * (1 - 0.25 * w);
+  renderer.toneMappingExposure = 1.08 * (1 - 0.12 * w) + 0.05 * c;
+  snow.material.size = 0.14 + w * 0.2;
+  snow.material.opacity = 0.85 * (1 - 0.85 * c) + 0.1 * w;
+  audio.setWind(w);
+}
+
 function updateSnow(dt) {
   const a = flakeGeo.attributes.position.array;
   const t = performance.now() * 0.001;
+  const w = game.weather || 0;
   for (let i = 0; i < flakes; i++) {
-    a[i * 3 + 1] -= dt * (1.2 + (i % 7) * 0.12);
-    a[i * 3] += Math.sin(t + i) * dt * 0.4;
+    a[i * 3 + 1] -= dt * (1.2 + (i % 7) * 0.12) * (1 + w * 2.5);
+    a[i * 3] += (Math.sin(t + i) * 0.4 + w * 9) * dt;
+    if (a[i * 3] > 30) a[i * 3] -= 60;
     if (a[i * 3 + 1] < 0) { a[i * 3 + 1] = 26; a[i * 3] = (Math.random() - 0.5) * 60; a[i * 3 + 2] = (Math.random() - 0.5) * 60; }
   }
   flakeGeo.attributes.position.needsUpdate = true;
@@ -201,6 +225,7 @@ function frame() {
   fx.update(dt, window.innerHeight, window.innerWidth);
   updateCamera(dt);
   updateSnow(dt);
+  updateWeather();
   if (composer) composer.render(dt); else renderer.render(scene, camera);
   // adaptive quality: drop bloom and resolution if the device struggles
   frames++; fpsT += dt;

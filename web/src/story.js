@@ -7,6 +7,9 @@ export const CAST = {
   oleg: { name: 'Oleg', role: 'bûcheron', color: '#a8692f', initial: 'O' },
   sasha: { name: 'Sasha', role: 'toi', color: '#2f6db0', initial: 'S' },
   voice: { name: '???', role: 'dans la tempête', color: '#6aa9d8', initial: '?' },
+  mira: { name: 'Mira', role: 'ta sœur · caravanière', color: '#4fa3d9', initial: 'M' },
+  piotr: { name: 'Piotr', role: 'convoyeur', color: '#d08a2a', initial: 'P' },
+  anouk: { name: 'Anouk', role: 'pêcheuse du lac', color: '#2f8f8a', initial: 'A' },
 };
 
 export const CHAPTERS = [
@@ -15,7 +18,10 @@ export const CHAPTERS = [
   { num: 'Chapitre II', title: 'Les Fourrures Blanches', sub: 'Les hordes descendent du nord. Fort-Aube doit apprendre à se défendre.' },
   { num: 'Chapitre III', title: 'Le Froid Mordant', sub: 'Les rescapés affluent. Il faut du bois pour chaque foyer.' },
   { num: 'Chapitre IV', title: 'Grand-Blanc', sub: 'La légende des glaces sort de la forêt.' },
-  { num: 'Épilogue', title: 'L’Aube', sub: 'Une lumière dans la tempête, et des milliers de pas qui y répondent.' },
+  { num: 'Chapitre V', title: 'La Caravane de l’Aube', sub: 'La lumière a guidé les perdus jusqu’à toi. Maintenant, il faut tous les nourrir.' },
+  { num: 'Chapitre VI', title: 'Le Lac Gelé', sub: 'Sous la glace, de quoi nourrir une ville. Sur la rive, ceux qu’on croyait perdus.' },
+  { num: 'Chapitre VII', title: 'Le Grand Blizzard', sub: 'Le ciel se ferme. Seul un feu immense peut tenir l’hiver à distance.' },
+  { num: 'Épilogue', title: 'Le Dégel', sub: 'Pour la première fois depuis le Grand Gel, le soleil réchauffe Fort-Aube.' },
 ];
 
 // Lines triggered once by game events.
@@ -72,6 +78,55 @@ export const BEATS = {
     ['brann', 'Fort-Aube n’était pas un camp. C’était le début d’un monde.'],
   ],
   full: [['brann', 'Ton dos est plein ! Va déposer ta charge.']],
+
+  // ---- Act II -----------------------------------------------------------
+  caravanArrives: [
+    ['mira', 'Sasha ! SASHA ! C’est moi, Mira !'],
+    ['mira', 'C’était ma voix à la radio, dans la tempête. Je te croyais perdue… et toi, tu as bâti une ville ?'],
+    ['brann', 'Je te l’avais dit, petite. Ta lumière attire les vivants. J’ai guidé leur caravane jusqu’ici.'],
+    ['mira', 'Nos traîneaux repartent chercher les autres. Remplis-les et on te paiera en or du Sud. La dalle du relais est au sud du fort.'],
+  ],
+  orderHint: [['mira', 'Nouvelle commande ! Dépose ce qu’on demande sur la dalle du relais.']],
+  firstOrder: [
+    ['mira', 'Les traîneaux sont pleins ! On revient vite avec une autre commande.'],
+    ['brann', 'Avec des livraisons pareilles, il te faudrait un convoyeur.'],
+  ],
+  orderNudge: [['mira', 'La route du lac, Sasha… nos gens attendent là-bas.']],
+  courier: [['piotr', 'Piotr, convoyeur. Je remplis les traîneaux de la caravane, toi tu continues à faire tourner le fort.']],
+  lakeTile: [
+    ['mira', 'Sasha… une partie de notre caravane est coincée au Lac Gelé, au sud-est. Ils pêchent sous la glace pour survivre.'],
+    ['brann', 'Ouvre une route jusqu’au lac. Leur poisson fumé vaudra de l’or au comptoir.'],
+  ],
+  lake: [
+    ['anouk', 'Vous êtes venus ! Je suis Anouk. On croyait que plus personne ne viendrait nous chercher…'],
+    ['brann', 'Mets-toi au bord d’un trou dans la glace et attends : ça mord. Le fumoir de la rive fera le reste.'],
+  ],
+  firstFish: [['anouk', 'Joli poisson ! Porte-le au fumoir, sur la rive.']],
+  firstSmoked: [['lina', 'Du poisson fumé ! Les voyageurs vont se l’arracher au comptoir.']],
+  fisher: [['anouk', 'Laisse-moi les trous du lac. Je pêche de l’aube jusqu’à la nuit.']],
+  rod: [['anouk', 'Une canne en os de baleine. Le poisson n’a plus aucune chance.']],
+  fumoirTile: [['anouk', 'Avec une deuxième chambre de fumage, on doublerait la production.']],
+  fumoirUp: [['anouk', 'Deux chambres de fumage ! On ne manquera plus jamais de rien.']],
+  blizzard: [
+    ['brann', 'Tu sens ce vent ? Le Grand Blizzard arrive. Celui qui a enterré le vieux monde.'],
+    ['mira', 'Les rescapés racontent qu’il ne s’arrête jamais… sauf devant un feu assez grand.'],
+    ['brann', 'Alors on va lui en montrer un. Le Grand Brasier, sur la rive est du lac. Il faudra tout ce que tu as.'],
+  ],
+  blizzardMid: [['lina', 'On ne voit plus la forêt… Dépêche-toi, Sasha ! Le Brasier !']],
+  brasierTile: [['brann', 'La dalle du Grand Brasier est prête, sur la rive est. Du bois, de l’huile, et 6000 billets de courage.']],
+  ending: [
+    ['brann', 'Regarde… le blizzard recule. Il recule devant nous !'],
+    ['mira', 'Le soleil, Sasha. Le vrai soleil.'],
+    ['brann', 'Le Grand Gel n’a pas gagné. Fort-Aube est debout. Tu es chez toi.'],
+  ],
+  postGame: [['mira', 'Les caravanes continueront de venir. Fort-Aube mérite de devenir la plus belle ville des Terres Blanches.']],
+  lanterns: [['lina', 'Des lanternes tout le long de la palissade ! On voit Fort-Aube depuis l’autre bout de la forêt.']],
+  statue: [['brann', 'Une statue… de moi ? Bon. Tournée vers le lac, au moins.']],
+  sculpt: [['anouk', 'Des ours de glace au milieu du lac ! Les enfants ne veulent plus rentrer.']],
+  festival: [
+    ['mira', 'La Fête de l’Aube ! Des feux d’artifice, et les caravanes paient double !'],
+    ['brann', 'Voilà ce qu’on a construit, Sasha. Une raison de vivre, pas seulement de survivre.'],
+  ],
 };
 
 export class Story {

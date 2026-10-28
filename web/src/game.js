@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { makeHuman, makeBear, makeGrill, makeTurret, makeCounter, makeCabin, makeBeacon, makeCampfire, ITEM_HEIGHT, mat, hdr, upgradeGrill, makeAwning, makeMarketDecor, upgradeTurret, makeSled, makeWoodCrib, makeHearth, makeDeck, makeSawmill, upgradeSawmill } from './models.js';
 import { padTexture, TileTexture, bubbleTexture, bracketTexture, radialGlowTexture } from './textures.js';
 import { STAGES, MEADOW, COUNTER, LANE_QUEUE, LANE_EXIT, inRect, backOut } from './world.js';
+import { ACT2_TILES, ACT2_POS, installAct2 } from './act2.js';
 
 const P = (x, z) => ({ x, z });
 export const POS = {
@@ -20,8 +21,8 @@ export const POS = {
   cashPad: P(0.6, 4.5),
   gateIn: P(0, -4.4),
   gateOut: P(0, -7.6),
-  counterSteak: P(-4.6, COUNTER.z),
-  counterLog: P(-3.4, COUNTER.z),
+  counterSteak: P(-4.85, COUNTER.z),
+  counterLog: P(-3.15, COUNTER.z),
   logPad: P(8.4, -1.0),
   sawmill: P(10.9, -0.9),
   plankPad: P(13.4, -0.9),
@@ -32,8 +33,8 @@ const TURRETS = [
   { x: 10.6, z: -6, pad: P(10.6, -4.3) },
   { x: -11, z: -6, pad: P(-11, -4.3) },
 ];
-const CABINS = { 2: [[9.0, 4.2], [12.6, 4.2], [15.2, -3.6]], 3: [[-10.2, 3.6], [-14.4, 3.6], [-14.6, -2.4]] };
-const WOOD_CRIB = P(15.8, 3.6);
+const CABINS = { 2: [[8.6, 4.4], [15.4, 4.0], [15.2, -3.6]], 3: [[-10.2, 3.6], [-14.4, 3.6], [-14.6, -2.4]] };
+const WOOD_CRIB = P(15.9, 0.9);
 const BEACON_POS = P(-11.0, -0.4);
 
 // Upgrade tiles bought in the world. Machine upgrades sit right next to the
@@ -58,10 +59,11 @@ const TILES = [
   { id: 'hunter', icon: 'person', cost: 250, at: P(11.0, 1.8), req: (g) => g.stage >= 2, label: 'Recruter Yuki' },
   { id: 'turret3', icon: 'bow', cost: 250, at: TURRETS[2].pad, req: (g) => g.stage >= 2, label: 'Arbalète' },
   { id: 'bag2', icon: 'bag', cost: 300, at: P(8.4, -3.6), req: (g) => g.bought.lumberjack, label: 'Sac de trappeur' },
-  { id: 'whirl2', icon: 'blades', cost: 600, at: P(15.6, 0.9), req: (g) => g.bought.hunter, label: 'Lames tempête' },
+  { id: 'whirl2', icon: 'blades', cost: 600, at: P(15.8, -1.3), req: (g) => g.bought.hunter, label: 'Lames tempête' },
   { id: 'expand2', icon: 'expand', cost: 1200, at: P(-5.8, -1.6), req: (g) => g.bought.grill2 && g.bought.hunter && g.bought.lumberjack && g.bought.counter3, label: 'Agrandir' },
   { id: 'turret4', icon: 'bow', cost: 350, at: TURRETS[3].pad, req: (g) => g.stage >= 3, label: 'Arbalète' },
   { id: 'beacon', icon: 'beacon', cost: 2000, at: BEACON_POS, req: (g) => g.bossDown, label: 'Phare de l’Aube', big: true },
+  ...ACT2_TILES,
 ];
 
 const PILE = {
@@ -123,6 +125,7 @@ export class Game {
       plankPad: { ...POS.plankPad, n: 0, pile: PILE.plankPad, type: 'plank' },
       turrets: TURRETS.map((t) => ({ ...t.pad, n: 0, pile: PILE.turret, type: 'raw' })),
     };
+    this.initAct2();
 
     this.player = this.makeCarrier(makeHuman({ parka: 0x2c5f9e, pants: 0x262b38, scarf: 0xe2702e }), POS.spawn);
     this.player.cap = 20;
@@ -159,12 +162,13 @@ export class Game {
   makeCarrier(model, at) {
     return {
       model, x: at.x, z: at.z, vx: 0, vz: 0, facing: 0,
-      carry: { raw: 0, cooked: 0, log: 0, plank: 0 }, reserved: 0, cap: 10,
+      carry: { raw: 0, cooked: 0, log: 0, plank: 0, fish: 0, smoked: 0 }, reserved: 0, cap: 10,
       sway: { x: 0, z: 0, vx: 0, vz: 0 }, pvx: 0, pvz: 0,
       swing: -1, swingCd: 0, moving: 0,
     };
   }
-  load_total(c) { return c.carry.raw + c.carry.cooked + c.carry.log + c.carry.plank + c.reserved; }
+  load_total(c) { return c.carry.raw + c.carry.cooked + c.carry.log + c.carry.plank + c.carry.fish + c.carry.smoked + c.reserved; }
+  region(q) { return this.world.insideCamp(q.x, q.z) ? 'camp' : this.world.atLake(q.x, q.z) ? 'lake' : 'out'; }
 
   padMesh(icon, at, { dashed = false, size = 2.0 } = {}) {
     const m = new THREE.Mesh(new THREE.PlaneGeometry(size, size).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: padTexture(icon, { dashed }), transparent: true, depthWrite: false }));
@@ -198,7 +202,7 @@ export class Game {
     this.world.circles.push({ x: -4.65, z: COUNTER.z, r: 0.62, camp: true }, { x: -3.35, z: COUNTER.z, r: 0.62, camp: true });
     // little decorations: barrels, crates
     const crateM = mat(0x8a5a37), snow = mat(0xf6f9fd);
-    for (const [x, z] of [[-6.2, 5.2], [6.2, 5.2], [-6.3, -5.2]]) {
+    for (const [x, z] of [[-6.2, 5.2], [-6.3, -5.2]]) {
       const c = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.7, 0.8), crateM); c.position.set(x, 0.35, z); c.rotation.y = Math.random(); c.castShadow = true; camp.add(c);
       const s = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.08, 0.82), snow); s.position.set(x, 0.74, z); s.rotation.y = c.rotation.y; camp.add(s);
     }
@@ -436,7 +440,7 @@ export class Game {
       case 'expand1': this.setStage(2, fresh); if (fresh) { this.setChapter(3, fresh); this.story.beat('expand1', 1.0); } break;
       case 'expand2': this.setStage(3, fresh); if (fresh) { this.setChapter(4, fresh); this.story.beat('expand2', 1.0); setTimeout(() => this.spawnBoss(), 6000); } break;
       case 'beacon': this.lightBeacon(fresh); break;
-      default: break;
+      default: this.act2Apply(id, fresh); break;
     }
   }
 
@@ -511,10 +515,10 @@ export class Game {
     for (let n = 0; n < 2; n++) this.addNpc(x, z, fresh);
   }
 
-  addNpc(x, z, fresh) {
+  addNpc(x, z, fresh, zone = null) {
     const colors = [0x3f7fbf, 0xb24a3a, 0x5a8f4a, 0x8a5ab0, 0xc08a2a, 0x4a9aa0];
     const m = makeHuman({ parka: colors[Math.floor(Math.random() * colors.length)], tool: null, scale: 0.92 });
-    const npc = { model: m, x: x + rand(-2, 2), z: z + rand(-2, 2), tx: x, tz: z, wait: rand(0, 3), home: P(x, z), facing: 0 };
+    const npc = { model: m, x: x + rand(-2, 2), z: z + rand(-2, 2), tx: x, tz: z, wait: rand(0, 3), home: P(x, z), facing: 0, zone };
     m.root.position.set(npc.x, 0, npc.z);
     this.scene.add(m.root);
     if (fresh) { m.root.scale.setScalar(0.001); this.world.tween(0.6, (f) => m.root.scale.setScalar(Math.max(0.001, backOut(f) * 0.92))); }
@@ -559,8 +563,9 @@ export class Game {
         this.story.beat('beacon', 0.5);
         setTimeout(() => this.story.chapter(5), 2500);
         this.chapter = 5;
+        this.startAct2(true);
       });
-    } else { b.beam.material.opacity = 0.35; b.light.intensity = 60; this.chapter = 5; }
+    } else { b.beam.material.opacity = 0.35; b.light.intensity = 60; this.chapter = Math.max(this.chapter, 5); this.startAct2(false); }
   }
 
   // -------------------------------------------------------------------------
@@ -572,8 +577,10 @@ export class Game {
       porter: { parka: 0x3f9b5a, pants: 0x2b2b35, tool: null },
       hunter: { parka: 0x6b4fc4, pants: 0x2b2b35, scarf: 0xeeeeee, tool: 'axe' },
       lumberjack: { parka: 0xb06a2c, pants: 0x3a2a20, tool: 'axe' },
+      courier: { parka: 0xd08a2a, pants: 0x2b2b35, scarf: 0x3a6ea5, tool: null },
+      fisher: { parka: 0x2f8f8a, pants: 0x2b2b35, fur: 0xe9e2d0, tool: null },
     }[kind];
-    const spawnAt = kind === 'hunter' || kind === 'lumberjack' ? POS.gateIn : P(POS.cashier.x + 1, POS.cashier.z - 1);
+    const spawnAt = kind === 'hunter' || kind === 'lumberjack' ? POS.gateIn : kind === 'fisher' ? ACT2_POS.fishPad : kind === 'courier' ? ACT2_POS.relay : P(POS.cashier.x + 1, POS.cashier.z - 1);
     const w = this.makeCarrier(makeHuman(looks), spawnAt);
     w.kind = kind; w.state = 'idle'; w.path = []; w.cap = kind === 'porter' ? 12 : 10; w.timer = 0; w.speed = kind === 'hunter' ? 5 : 4.5;
     w.dmg = 14;
@@ -587,10 +594,15 @@ export class Game {
   }
 
   route(w, to) {
-    const inA = this.world.insideCamp(w.x, w.z), inB = this.world.insideCamp(to.x, to.z);
-    if (inA === inB) w.path = [to];
-    else if (inA) w.path = [POS.gateIn, POS.gateOut, to];
-    else w.path = [POS.gateOut, POS.gateIn, to];
+    const ra = this.region(w), rb = this.region(to);
+    const N = [POS.gateIn, POS.gateOut], S = [ACT2_POS.sgIn, ACT2_POS.sgOut];
+    let via = [];
+    if (ra === rb) via = [];
+    else if (ra === 'camp') via = rb === 'out' ? N : S;
+    else if (rb === 'camp') via = ra === 'out' ? [N[1], N[0]] : [S[1], S[0]];
+    else if (ra === 'lake') via = [S[1], S[0], N[0], N[1]];
+    else via = [N[1], N[0], S[0], S[1]];
+    w.path = [...via, to];
   }
 
   stepWorker(w, dt) {
@@ -628,11 +640,14 @@ export class Game {
           const tp = this.pads.turrets.find((pd) => pd.n > 0);
           if (this.pads.cookedPad.n > 0 && this.pads.counterSteak.n < this.pads.counterSteak.cap) { w.state = 'toCooked'; this.route(w, POS.cookedPad); }
           else if (this.saw && this.pads.plankPad.n > 0 && this.pads.counterLog.n < this.pads.counterLog.cap) { w.state = 'toPlank'; this.route(w, POS.plankPad); }
+          else if (this.fumoir && this.pads.smokedPad.n > 0 && this.pads.counterFish.n < this.pads.counterFish.cap) { w.state = 'toSmoked'; this.route(w, this.pads.smokedPad); }
           else if (tp && this.pads.rawPad.n < PILE.rawPad.cap) { w.state = 'toTurret'; w.tp = tp; this.route(w, tp); }
           else { w.state = 'wait'; w.timer = 1; this.route(w, P(-0.6, -2.8)); }
         } else if (w.state === 'wait') { w.timer -= dt; if (w.timer <= 0) w.state = 'idle'; }
         else if (w.state === 'toCooked' && arrived) {
           if (this.transfer(w, this.pads.cookedPad, 'pick', dt) === 'done' || total >= w.cap) { w.state = 'toCounter'; this.route(w, POS.counterDrop); }
+        } else if (w.state === 'toSmoked' && arrived) {
+          if (this.transfer(w, this.pads.smokedPad, 'pick', dt) === 'done' || total >= w.cap) { w.state = 'toCounter'; this.route(w, POS.counterDrop); }
         } else if (w.state === 'toPlank' && arrived) {
           if (this.transfer(w, this.pads.plankPad, 'pick', dt) === 'done' || total >= w.cap) { w.state = 'toCounter'; this.route(w, POS.counterDrop); }
         } else if (w.state === 'toCounter' && arrived) {
@@ -669,11 +684,12 @@ export class Game {
         break;
       }
       case 'lumberjack': {
-        this.magnet(w, 3.2, 'log');
+        this.magnet(w, w.state === 'collect' ? 5 : 3.2, 'log');
         if (w.state === 'idle') {
           if (total >= w.cap) { w.state = 'deliver'; this.route(w, POS.logPad); break; }
           const t = this.nearestChoppable(w, true);
           if (t) { w.state = 'walk'; w.tree = t; this.route(w, { x: t.sx, z: t.sz, reach: 0.3 }); }
+          else if (total > 0) { w.state = 'deliver'; this.route(w, POS.logPad); }
           else { w.state = 'wait'; w.timer = 2; }
         } else if (w.state === 'wait') { w.timer -= dt; if (w.timer <= 0) w.state = 'idle'; }
         else if (w.state === 'walk' && arrived) {
@@ -681,14 +697,20 @@ export class Game {
           if (!t.alive) { w.state = 'idle'; break; }
           w.facing = lerpAngle(w.facing, Math.atan2(t.x - w.x, t.z - w.z), dt * 12);
           if (w.swing < 0 && w.swingCd <= 0) { w.swing = 0; w.swingCd = 0.7; w.hitDone = false; }
-          if (w.swing >= 0.5 && !w.hitDone) { w.hitDone = true; this.chopTree(t, w); if (!t.alive) { w.timer = 0.6; w.state = 'collect'; } }
-        } else if (w.state === 'collect') { w.timer -= dt; if (w.timer <= 0) w.state = 'idle'; }
+          if (w.swing >= 0.5 && !w.hitDone) { w.hitDone = true; this.chopTree(t, w); if (!t.alive) { w.timer = 3; w.state = 'collect'; } }
+        } else if (w.state === 'collect') {
+          // wait for the tree to fall, then walk over to the logs
+          if (!w.tree || !w.tree.anim) w.timer -= dt;
+          const log = this.loose.find((it) => it.type === 'log' && !it.claimed && it.owner === w && it.age > 0.3);
+          if (log && dist(w, log) > 2.5) w.path = [{ x: log.x, z: log.z, reach: 1.5 }];
+          if (w.timer <= 0 || (w.timer < 2 && !this.loose.some((it) => it.type === 'log' && !it.claimed && it.owner === w))) w.state = 'idle';
+        }
         else if (w.state === 'deliver' && arrived) {
           if (this.transfer(w, this.pads.logPad, 'drop', dt) === 'done') w.state = 'idle';
         }
         break;
       }
-      default: break;
+      default: this.act2Worker(w, dt, arrived, total); break;
     }
     if (w.swing >= 0) { w.swing += dt / 0.45; if (w.swing >= 1) w.swing = -1; }
   }
@@ -727,8 +749,11 @@ export class Game {
   dropToCounter(c, dt) {
     const a = c.carry.cooked > 0 ? this.transfer(c, this.pads.counterSteak, 'drop', dt) : 'done';
     if (a === 'busy') return 'busy';
+    const b = c.carry.smoked > 0 ? this.transfer(c, this.pads.counterFish, 'drop', dt) : 'done';
+    if (b === 'busy') return 'busy';
     return c.carry.plank > 0 ? this.transfer(c, this.pads.counterLog, 'drop', dt) : 'done';
   }
+  counterPad(type) { return type === 'plank' ? this.pads.counterLog : type === 'smoked' ? this.pads.counterFish : this.pads.counterSteak; }
 
   // -------------------------------------------------------------------------
   // Positions of stacked items
@@ -736,7 +761,7 @@ export class Game {
   columns(c) {
     const cols = [];
     if (c.isPlayer && this.money > 0) cols.push('cash');
-    for (const t of ['raw', 'cooked', 'log', 'plank']) if (c.carry[t] > 0 || this.reservedType(c, t)) cols.push(t);
+    for (const t of ['raw', 'cooked', 'log', 'plank', 'fish', 'smoked']) if (c.carry[t] > 0 || this.reservedType(c, t)) cols.push(t);
     return cols;
   }
   reservedType(c, t) { return c.reserved > 0 && this.flying.some((f) => f.dest === c && f.type === t); }
@@ -760,7 +785,7 @@ export class Game {
   pilePos(pad, i) {
     if (!pad.pile) { // counter: two side by side columns
       const col = i % 2, lvl = Math.floor(i / 2);
-      return { x: pad.x + (col - 0.5) * 0.55, y: 0.98 + lvl * ITEM_HEIGHT[pad.type], z: pad.z };
+      return { x: pad.x + (col - 0.5) * 0.36, y: 0.98 + lvl * ITEM_HEIGHT[pad.type], z: pad.z + (col - 0.5) * 0.12 };
     }
     const { cols, rows, sp, h } = pad.pile;
     const per = cols * rows;
@@ -847,7 +872,7 @@ export class Game {
   // -------------------------------------------------------------------------
   // Bears
   // -------------------------------------------------------------------------
-  bearTarget() { return [0, 7, 11, 15, 18, 22][this.chapter] || 22; }
+  bearTarget() { return [0, 7, 11, 15, 18, 22, 22, 24, 24][this.chapter] || 24; }
 
   spawnInitialBears() {
     const n = this.bearTarget();
@@ -1124,8 +1149,9 @@ export class Game {
       const m = makeHuman({ parka: colors[Math.floor(Math.random() * colors.length)], tool: null, scale: rand(0.92, 1.0) });
       const woodFlow = this.pads.counterLog.n > 0 || this.pads.plankPad.n > 0 || this.player.carry.plank > 0 || this.workers.some((w) => w.kind === 'lumberjack');
       const wantLog = this.wood && Math.random() < (woodFlow ? 0.4 : 0.15);
+      const wantFish = !!this.fumoir && Math.random() < 0.35;
       const qty = Math.ceil(rand(0.01, Math.min(5, 1 + this.chapter)));
-      const c = { model: m, x: LANE_QUEUE, z: 34, facing: Math.PI, state: 'queue', want: wantLog ? 'plank' : 'cooked', qty, got: 0, slot: waiting.length, bubbleKey: '', serveT: 0 };
+      const c = { model: m, x: LANE_QUEUE, z: 34, facing: Math.PI, state: 'queue', want: wantFish ? 'smoked' : wantLog ? 'plank' : 'cooked', qty, got: 0, slot: waiting.length, bubbleKey: '', serveT: 0 };
       m.root.position.set(c.x, 0, c.z);
       this.scene.add(m.root);
       c.bubble = new THREE.Sprite(new THREE.SpriteMaterial({ depthTest: false, transparent: true }));
@@ -1159,10 +1185,10 @@ export class Game {
       c.model.pose(dt, moving * 0.7, -1, c.got > 0);
       // serving
       if (c.state === 'queue' && c.slot === 0 && d < 0.3 && serverHere) {
-        let pad = c.want === 'plank' ? this.pads.counterLog : this.pads.counterSteak;
+        let pad = this.counterPad(c.want);
         // a customer waiting too long for wood settles for a steak
         c.waitT = (c.waitT || 0) + dt;
-        if (c.want === 'plank' && c.got === 0 && !c.incoming && pad.n === 0 && c.waitT > 7 && this.pads.counterSteak.n > 0) { c.want = 'cooked'; pad = this.pads.counterSteak; }
+        if (c.want !== 'cooked' && c.got === 0 && !c.incoming && pad.n === 0 && c.waitT > 7 && this.pads.counterSteak.n > 0) { c.want = 'cooked'; pad = this.pads.counterSteak; }
         c.serveT -= dt;
         if (c.serveT <= 0 && pad.n - (pad.inflight || 0) > 0 && c.got + (c.incoming || 0) < c.qty) {
           c.serveT = this.serveInterval;
@@ -1196,7 +1222,7 @@ export class Game {
     if (this.bubbleCache.has(key)) return this.bubbleCache.get(key);
     let tex;
     if (key === 'check') tex = bubbleTexture('check', 0, { bg: '#4fd04a', fg: '#ffffff' });
-    else { const [type, n] = key.split(':'); tex = bubbleTexture(type === 'plank' ? 'log' : 'steak', Number(n), { fg: type === 'plank' ? '#8b5530' : '#b8402a' }); }
+    else { const [type, n] = key.split(':'); tex = bubbleTexture(type === 'plank' ? 'log' : type === 'smoked' ? 'fish' : 'steak', Number(n), { fg: type === 'plank' ? '#8b5530' : type === 'smoked' ? '#c0702a' : '#b8402a' }); }
     this.bubbleCache.set(key, tex);
     return tex;
   }
@@ -1208,7 +1234,7 @@ export class Game {
     this.stats.served++;
     this.audio.happy();
     if (this.stats.served === 1) this.story.beat('firstServed', 0.4);
-    const bills = Math.max(1, Math.round(c.qty * this.price() / BILL));
+    const bills = Math.max(1, Math.round(c.qty * this.price() * (c.want === 'smoked' ? 1.6 : 1) / BILL));
     this.stats.earned += bills * BILL;
     const pad = this.pads.cashPad;
     for (let i = 0; i < bills; i++) {
@@ -1290,7 +1316,7 @@ export class Game {
     const bear = this.nearestBear(p, 1.9 + 2.7);
     let target = null;
     if (bear && dist(p, bear) < 1.55 + bear.radius) target = { kind: 'bear', o: bear };
-    else if (this.wood) {
+    else if (this.wood && !p.fishing) {
       let best = null, bd = 2.75 * 2.75;
       for (const t of this.forest.near(p.x, p.z, 2.8)) {
         if (!t.alive || t.anim || t.clearStage <= this.stage) continue;
@@ -1348,6 +1374,7 @@ export class Game {
       if (this.saw && near(p, POS.logPad, 1.2)) this.transfer(p, this.pads.logPad, 'drop', dt, 0.05);
       if (this.saw && near(p, POS.plankPad, 1.2)) this.transfer(p, this.pads.plankPad, 'pick', dt, 0.05);
     }
+    this.act2Stations(dt);
     if (p.carry.cooked > 0) this.story.beat('firstCooked');
     this.carrierVisual(p, dt);
   }
@@ -1451,6 +1478,8 @@ export class Game {
     const starving = this.pads.rawPad.n === 0 && this.pads.cookedPad.n === 0 && this.pads.counterSteak.n < 2;
     if (p.carry.raw > 0 && (this.load_total(p) >= p.cap * 0.6 || (starving && p.carry.raw >= 5))) return { at: POS.rawPad, text: 'Dépose la viande près du chaudron', icon: 'meat' };
     if (p.carry.log > 0 && this.saw && (this.load_total(p) >= p.cap * 0.6 || p.carry.log >= 6)) return { at: POS.logPad, text: 'Apporte les bûches à la scierie', icon: 'log' };
+    const a2 = this.act2Objective(p);
+    if (a2) return a2;
     if (p.carry.cooked > 0 || p.carry.plank > 0) return { at: POS.cashier, text: 'Sers les rescapés au comptoir', icon: 'person' };
     if (this.saw && this.pads.plankPad.n >= 3 && !this.workers.some((w) => w.kind === 'porter')) return { at: POS.plankPad, text: 'Ramasse le bois fendu', icon: 'log' };
     if (this.pads.cashPad.n >= 6 && this.stats.served < 30) return { at: POS.cashPad, text: 'Ramasse les billets', icon: 'cash' };
@@ -1458,6 +1487,8 @@ export class Game {
     if (this.pads.cookedPad.n >= 3 && !this.workers.some((w) => w.kind === 'porter')) return { at: POS.cookedPad, text: 'Ramasse les steaks cuits', icon: 'steak' };
     if (this.pads.cashPad.n >= 6) return { at: POS.cashPad, text: 'Ramasse les billets', icon: 'cash' };
     if (this.boss && !this.boss.dead && this.boss.state !== 'enter') return { at: this.boss, text: 'Abats Grand-Blanc !', icon: 'blades' };
+    const a2l = this.act2LateObjective(p);
+    if (a2l) return a2l;
     const tp = this.pads.turrets.find((t) => t.n >= 6);
     if (tp && !this.workers.some((w) => w.kind === 'porter')) return { at: tp, text: 'Récupère la viande des arbalètes', icon: 'meat' };
     if (p.carry.log > 0 && this.saw) return { at: POS.logPad, text: 'Apporte les bûches à la scierie', icon: 'log' };
@@ -1481,8 +1512,21 @@ export class Game {
     const o = this.objective;
     const p = this.player;
     let at = o && o.at;
+    // route through the south gate when the frozen lake is involved
+    let viaSouth = false;
+    if (at && this.stage >= 4) {
+      const pr = this.region(p), tr = this.region(at);
+      if (pr !== tr && (pr === 'lake' || tr === 'lake')) {
+        const S = ACT2_POS;
+        const inLane = Math.abs(p.x - S.sgIn.x) < 1.1 && p.z > S.sgIn.z - 0.6 && p.z < S.sgOut.z + 0.6;
+        if (pr === 'lake') at = inLane ? S.sgIn : S.sgOut;
+        else if (pr === 'camp') at = inLane ? S.sgOut : S.sgIn;
+        else at = S.sgIn;
+        viaSouth = pr !== 'out';
+      }
+    }
     // route the pointer through the north gate when the fence is in the way
-    if (at && this.stage >= 1) {
+    if (at && this.stage >= 1 && !viaSouth) {
       const pin = this.world.insideCamp(p.x, p.z), tin = this.world.insideCamp(at.x, at.z);
       const outsideNorth = (q) => q.z < STAGES[this.stage].z0 - 0.7;
       if (pin && !tin) at = Math.abs(p.x - POS.gateIn.x) < 1 && p.z < POS.gateIn.z + 0.6 ? POS.gateOut : POS.gateIn;
@@ -1498,8 +1542,8 @@ export class Game {
           at = !besideX && p.z > r.z1 - 0.2 ? { x: sx, z: r.z1 + 1.0 } : { x: sx, z: r.z0 - 1.0 };
         }
       }
-      if (at !== o.at) this.guideAt = at; else this.guideAt = null;
     }
+    if (at && o) this.guideAt = at !== o.at ? at : null;
     this.guideTarget = at;
     const d = at ? dist(p, at) : 0;
     const routed = !!this.guideAt;
@@ -1530,6 +1574,7 @@ export class Game {
     this.updateTurrets(dt);
     this.updateGrill(dt);
     this.updateSawmill(dt);
+    this.updateAct2(dt);
     this.updateCustomers(dt);
     this.updateTiles(dt);
     this.updateItems(dt);
@@ -1559,7 +1604,7 @@ export class Game {
       if (d > 0.2) { const sp = 1.6; n.x += dx / d * sp * dt; n.z += dz / d * sp * dt; n.facing = lerpAngle(n.facing, Math.atan2(dx, dz), dt * 6); moving = 0.6; }
       else if (n.wait <= 0) {
         n.wait = rand(2, 6);
-        const r = STAGES[this.stage];
+        const r = n.zone || STAGES[this.stage];
         n.tx = THREE.MathUtils.clamp(n.home.x + rand(-3.5, 3.5), r.x0 + 1, r.x1 - 1);
         n.tz = THREE.MathUtils.clamp(n.home.z + rand(-3, 3), r.z0 + 1, r.z1 - 1);
       }
@@ -1583,7 +1628,7 @@ export class Game {
         }
       }
     }
-    const pads = [this.pads.rawPad, this.pads.cookedPad, this.pads.cashPad, this.pads.counterSteak, this.pads.counterLog, this.pads.logPad, this.pads.plankPad, ...this.pads.turrets];
+    const pads = [this.pads.rawPad, this.pads.cookedPad, this.pads.cashPad, this.pads.counterSteak, this.pads.counterLog, this.pads.counterFish, this.pads.logPad, this.pads.plankPad, this.pads.fishPad, this.pads.smokedPad, ...this.pads.turrets];
     for (const pad of pads) {
       const n = pad.n - (pad.inflight || 0);
       for (let i = 0; i < n; i++) {
@@ -1610,7 +1655,7 @@ export class Game {
     return {
       v: 1, money: this.money, carry: { ...p.carry }, bought: Object.keys(this.bought), paid: this.paidPartial,
       pads: { raw: this.pads.rawPad.n, cooked: this.pads.cookedPad.n, cash: this.pads.cashPad.n, steak: this.pads.counterSteak.n, log: this.pads.counterLog.n, logs: this.pads.logPad.n, planks: this.pads.plankPad.n, turrets: this.pads.turrets.map((t) => t.n) },
-      stats: this.stats, bossDown: this.bossDown, beats: this.story.serialize(), chapter: this.chapter,
+      stats: this.stats, bossDown: this.bossDown, beats: this.story.serialize(), chapter: this.chapter, act2: this.act2Serialize(),
     };
   }
 
@@ -1624,8 +1669,9 @@ export class Game {
     const order = TILES.map((t) => t.id);
     const bought = (s.bought || []).slice().sort((a, b) => order.indexOf(a) - order.indexOf(b));
     for (const id of bought) { this.bought[id] = true; this.applyUpgrade(id, false); }
+    this.act2Load(s.act2);
     const b = this.bought;
-    this.chapter = Math.max(this.chapter, b.beacon ? 5 : b.expand2 ? 4 : b.expand1 ? 3 : b.turret1 ? 2 : 1);
+    this.chapter = Math.max(this.chapter, b.brasier ? 8 : this.act2.blizzard ? 7 : b.lakeRoad ? 6 : b.beacon ? 5 : b.expand2 ? 4 : b.expand1 ? 3 : b.turret1 ? 2 : 1);
     Object.assign(this.player.carry, s.carry || {});
     const pd = s.pads || {};
     this.pads.rawPad.n = pd.raw || 0; this.pads.cookedPad.n = pd.cooked || 0; this.pads.cashPad.n = pd.cash || 0;
@@ -1637,3 +1683,5 @@ export class Game {
     this.refreshTiles(true);
   }
 }
+
+installAct2(Game);

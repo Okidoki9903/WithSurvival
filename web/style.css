@@ -110,3 +110,18 @@ body.playing #top-right { opacity: 1; }
   #money { font-size: 18px; }
   #objective { font-size: 13px; }
 }
+
+.float-label.big { font-size: 34px; color: #ffe066; }
+
+/* Ending */
+#credits { position: fixed; inset: 0; z-index: 11; display: flex; align-items: center; justify-content: center; padding: 16px; background: radial-gradient(circle at 50% 40%, rgba(255, 205, 130, 0.35), rgba(20, 30, 50, 0.75)); opacity: 0; pointer-events: none; transition: opacity 1.2s; }
+#credits.on { opacity: 1; pointer-events: auto; }
+#credits .card { width: min(92vw, 460px); max-height: 92vh; overflow: auto; padding: 24px 20px; border-radius: 22px; background: rgba(24, 32, 46, 0.94); text-align: center; display: flex; flex-direction: column; gap: 12px; align-items: center; }
+#credits .eyebrow { font-size: 13px; letter-spacing: 4px; font-weight: 800; color: #ffd25a; }
+.credits-story { margin: 4px 0; font-size: 15px; line-height: 1.45; }
+.cast { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px 10px; font-size: 12.5px; opacity: .9; }
+.cast b { display: block; font-size: 14px; color: #fff; }
+
+/* Blizzard veil */
+#storm { position: fixed; inset: 0; pointer-events: none; z-index: 2; opacity: 0;
+  background: radial-gradient(ellipse at 50% 45%, rgba(225, 233, 242, 0) 30%, rgba(214, 224, 236, 0.75) 78%, rgba(235, 240, 247, 0.95) 100%); }

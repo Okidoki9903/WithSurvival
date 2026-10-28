@@ -23,6 +23,8 @@ Chaque amélioration se finance sur une dalle posée juste à côté de la machi
 | Comptoir | Table sur un plancher | **Comptoir couvert** (auvent rayé, lanternes, service plus rapide, file plus longue) → **Étal du marché** (enseigne Fort-Aube, fanions, caisses de fruits, clients qui paient +30 %) |
 | Arbalètes | Tour de caisses et arbalète sur la palissade | **Balistes** (blindage d'acier, double arc doré, fanion, tir plus rapide et plus fort) |
 | Scierie (chapitre III) | Établi et scie circulaire sous abri | **Scie à vapeur** (chaudière en cuivre qui fume, courroie, seconde lame dorée, coupe ×2) |
+| Fumoir (chapitre VI) | Cabane de fumage, cheminée de pierre, claies de poissons | **Fumoir double** (seconde chambre, grande cheminée, fumage ×2) |
+| Grand Brasier (chapitre VII) | — | Anneau de pierres, bûcher géant, quatre torches : il brise le blizzard |
 | Réserve de bois | — | La pile de bûches grandit avec ce que la scierie a coupé |
 
 ## Progression et histoire
@@ -34,7 +36,12 @@ Chaque amélioration se finance sur une dalle posée juste à côté de la machi
 | II · Les Fourrures Blanches | Arbalètes automatiques sur la palissade, Tomas le porteur, grand sac, la Danse des Lames (anneau de haches tournoyantes). |
 | III · Le Froid Mordant | Agrandissement à l'est : cabanes, feux de camp, rescapés qui vivent dans le fort. Les clients veulent aussi du bois de chauffe : coupe les sapins en lisière, passe les bûches à la scierie, porte le bois fendu au comptoir. Oleg (bûcheron), Yuki (chasseuse), second chaudron, lames tempête. |
 | IV · Grand-Blanc | Agrandissement à l'ouest… et le colosse des glaces sort de la forêt. Évite ses coups au sol (cercle rouge). |
-| Épilogue · L'Aube | Le Phare de l'Aube s'allume : les caravanes arrivent, la ville continue de tourner. |
+| *Fin de l'acte I* | Le Phare de l'Aube s'allume et guide les caravanes perdues. |
+| V · La Caravane de l'Aube | La voix de la tempête était Mira, la sœur de Sasha : elle arrive avec Brann et une caravane tirée par des bœufs musqués. Les traîneaux passent de grosses commandes (steaks, bois fendu, puis poisson fumé) à livrer sur la dalle du relais, au sud. Piotr, convoyeur, peut les charger à ta place. |
+| VI · Le Lac Gelé | Une route et une porte sud mènent au lac où survit le reste de la caravane. Pêche sur la glace (reste immobile au bord d'un trou), nouveau **fumoir** sur la rive, Anouk la pêcheuse, canne en os, fumoir double. Les clients demandent aussi du poisson fumé. |
+| VII · Le Grand Blizzard | Le ciel se ferme : neige épaisse, brouillard, vent. Il faut financer le **Grand Brasier** sur la rive est du lac (6000 billets). |
+| Épilogue · Le Dégel | Le Brasier s'embrase, le blizzard recule, le soleil revient : générique de fin. |
+| Après la fin | Les caravanes continuent (commandes de plus en plus grosses) et la ville s'embellit : lanternes du fort, statue de Brann, ours de glace sur le lac, puis la Fête de l'Aube (feux d'artifice, commandes payées double). |
 
 La partie est sauvegardée automatiquement sur l'appareil (menu ‖ → « Recommencer l'aventure » pour repartir de zéro).
 
@@ -54,6 +61,7 @@ web/
   src/world.js     carte, sol, palissades, zones marchables
   src/forest.js    sapins instanciés
   src/models.js    personnages, ours, chaudron, tourelles, cabanes, phare
+  src/act2.js      acte II : caravane, lac gelé, fumoir, blizzard, Grand Brasier, embellissements
   src/story.js     chapitres et dialogues
 ```
 

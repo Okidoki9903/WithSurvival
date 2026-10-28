@@ -62,8 +62,14 @@ export class Audio {
     const f = this.ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 500;
     const g = this.ctx.createGain(); g.gain.value = 0.05;
     src.connect(f); f.connect(g); g.connect(this.master); src.start();
+    this.windGain = g; this.windFilter = f;
   }
 
+  setWind(level) {
+    if (!this.windGain) return;
+    this.windGain.gain.value = 0.05 + level * 0.35;
+    this.windFilter.frequency.value = 500 + level * 900;
+  }
   hit() { if (!this.throttle('hit', 60)) return; this.noise(0.12, { vol: 0.35, freq: 420, q: 0.8 }); this.tone(120, 0.12, { type: 'triangle', vol: 0.25, slide: -60 }); }
   chop() { if (!this.throttle('chop', 60)) return; this.noise(0.09, { vol: 0.3, freq: 1600, q: 2 }); this.tone(220, 0.08, { type: 'square', vol: 0.06, slide: -80 }); }
   growl() { if (!this.throttle('growl', 600)) return; this.tone(85, 0.5, { type: 'sawtooth', vol: 0.08, slide: -25 }); this.noise(0.4, { vol: 0.1, freq: 300, q: 3 }); }

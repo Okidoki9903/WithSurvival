@@ -389,8 +389,8 @@ export function makeCampfire() {
 // ---------------------------------------------------------------------------
 // Carried items (instanced): raw meat, cooked steak, cash bill, log
 // ---------------------------------------------------------------------------
-export const ITEM_TYPES = ['raw', 'cooked', 'cash', 'log', 'plank'];
-export const ITEM_HEIGHT = { raw: 0.13, cooked: 0.12, cash: 0.1, log: 0.2, plank: 0.22 };
+export const ITEM_TYPES = ['raw', 'cooked', 'cash', 'log', 'plank', 'fish', 'smoked'];
+export const ITEM_HEIGHT = { raw: 0.13, cooked: 0.12, cash: 0.1, log: 0.2, plank: 0.22, fish: 0.14, smoked: 0.13 };
 
 export function itemGeometry(type) {
   if (type === 'raw') {
@@ -406,6 +406,17 @@ export function itemGeometry(type) {
   if (type === 'cash') {
     const main = new THREE.Color(0x56c84a), band = new THREE.Color(0x2f8f36);
     return paint(new THREE.BoxGeometry(0.56, 0.085, 0.32, 4, 1, 1), (c, x) => c.copy(Math.abs(x) < 0.08 ? band : main));
+  }
+  if (type === 'fish' || type === 'smoked') {
+    // flattened fish body with a tail fin
+    const body = new THREE.SphereGeometry(0.3, 10, 6).scale(1, 0.32, 0.42);
+    const tail = new THREE.ConeGeometry(0.16, 0.24, 4).rotateZ(Math.PI / 2).scale(1, 0.4, 1).translate(-0.38, 0, 0);
+    const back = type === 'fish' ? new THREE.Color(0x5f86a8) : new THREE.Color(0xa0561e);
+    const belly = type === 'fish' ? new THREE.Color(0xdfe8ef) : new THREE.Color(0xe0a04a);
+    const fin = type === 'fish' ? new THREE.Color(0x4a6d8c) : new THREE.Color(0x7a3e14);
+    paint(body, (c, x, y) => c.copy(y > 0 ? back : belly));
+    paint(tail, (c) => c.copy(fin));
+    return mergeGeometries([body.toNonIndexed(), tail.toNonIndexed()]);
   }
   if (type === 'plank') {
     // bundle of split firewood tied with a rope
@@ -661,4 +672,149 @@ export function upgradeSawmill(saw) {
   saw.chimney = new THREE.Vector3(1.0, 2.1, -1.15);
   saw.level = 2;
   return parts;
+}
+
+// ---------------------------------------------------------------------------
+// Act II models
+// ---------------------------------------------------------------------------
+// Smokehouse: plank hut with a stone chimney and racks of fish.
+export function makeFumoir() {
+  const g = new THREE.Group();
+  const wood = mat(0x7d5233), dark = mat(0x4a3020), snow = mat(0xf7f9fc), stone = mat(0x8c9097);
+  g.add(makeDeck(3.4, 2.8));
+  const hut = mesh(new THREE.BoxGeometry(2.2, 1.8, 1.8), wood); hut.position.set(0, 0.95, -0.2); g.add(hut);
+  for (const sz of [-1, 1]) {
+    const r = mesh(new THREE.BoxGeometry(2.6, 0.14, 1.35), dark); r.position.set(0, 2.1, -0.2 + sz * 0.52); r.rotation.x = sz * 0.55; g.add(r);
+    const sn = mesh(new THREE.BoxGeometry(2.62, 0.18, 1.2), snow); sn.position.set(0, 2.22, -0.2 + sz * 0.5); sn.rotation.x = sz * 0.55; g.add(sn);
+  }
+  const door = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 1.1), hdr(1.2, 0.45, 0.1)); door.position.set(-0.4, 0.6, 0.71); g.add(door);
+  const dh = glow(0xff8030, 1.4, 0.45); dh.position.set(-0.4, 0.7, 0.85); g.add(dh);
+  const chim = mesh(new THREE.BoxGeometry(0.5, 1.6, 0.5), stone); chim.position.set(0.7, 2.3, -0.6); g.add(chim);
+  const rack = new THREE.Group();
+  for (const sx of [-1, 1]) { const p = mesh(new THREE.BoxGeometry(0.1, 1.5, 0.1), dark); p.position.set(sx * 0.7, 0.75, 0); rack.add(p); }
+  const bar = mesh(new THREE.BoxGeometry(1.5, 0.06, 0.06), dark); bar.position.y = 1.45; rack.add(bar);
+  const fishM = mat(0xc06a28);
+  for (let i = 0; i < 5; i++) { const f = mesh(new THREE.SphereGeometry(0.16, 8, 5).scale(0.45, 1.3, 0.5), fishM); f.position.set(-0.55 + i * 0.27, 1.12, 0); rack.add(f); }
+  rack.position.set(1.65, 0, 0.6); rack.rotation.y = Math.PI / 2; g.add(rack);
+  return { group: g, chimneys: [new THREE.Vector3(0.7, 3.15, -0.6)], level: 1 };
+}
+
+export function upgradeFumoir(f) {
+  const parts = new THREE.Group();
+  const wood = mat(0x8a5a37), stone = mat(0x7b8088), snow = mat(0xf7f9fc);
+  const hut = mesh(new THREE.BoxGeometry(1.3, 1.5, 1.4), wood); hut.position.set(-1.75, 0.8, -0.3); parts.add(hut);
+  const roof = mesh(new THREE.BoxGeometry(1.5, 0.2, 1.6), snow); roof.position.set(-1.75, 1.65, -0.3); parts.add(roof);
+  const chim = mesh(new THREE.CylinderGeometry(0.28, 0.34, 2.4, 8), stone); chim.position.set(-1.9, 1.6, -0.6); parts.add(chim);
+  const barrel = mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.7, 10), mat(0x6b4529)); barrel.position.set(1.3, 0.35, 1.0); parts.add(barrel);
+  f.group.add(parts);
+  f.chimneys.push(new THREE.Vector3(-1.9, 2.9, -0.6));
+  f.level = 2;
+  return parts;
+}
+
+// The Great Brazier that breaks the blizzard.
+export function makeBrasier() {
+  const g = new THREE.Group();
+  const stoneM = new THREE.MeshLambertMaterial({ color: 0x8a8f97, flatShading: true });
+  for (let i = 0; i < 18; i++) {
+    const a = (i / 18) * Math.PI * 2;
+    const st = mesh(new THREE.DodecahedronGeometry(0.55, 0), stoneM);
+    st.position.set(Math.cos(a) * 2.6, 0.35, Math.sin(a) * 2.6); st.scale.set(1, 0.8, 1); st.rotation.y = a; g.add(st);
+  }
+  const base = mesh(new THREE.CylinderGeometry(2.3, 2.5, 0.5, 18), mat(0x5d636b)); base.position.y = 0.25; g.add(base);
+  const logM = mat(0x5b3a24);
+  for (let i = 0; i < 10; i++) {
+    const l = mesh(new THREE.CylinderGeometry(0.16, 0.2, 3.2, 6), logM);
+    const a = (i / 10) * Math.PI * 2;
+    l.position.set(Math.cos(a) * 0.6, 1.4, Math.sin(a) * 0.6); l.rotation.set(Math.sin(a) * 0.45, 0, -Math.cos(a) * 0.45); g.add(l);
+  }
+  const flames = [];
+  const fm = [hdr(1.6, 0.7, 0.08), hdr(1.7, 1.1, 0.25)];
+  for (let i = 0; i < 7; i++) {
+    const f = new THREE.Mesh(new THREE.ConeGeometry(0.8 - i * 0.07, 2.6 + (i % 3) * 0.6, 7), fm[i % 2]);
+    const a = i * 2.1;
+    f.position.set(Math.cos(a) * 0.5 * (i % 3), 2.4, Math.sin(a) * 0.5 * (i % 3)); g.add(f); flames.push(f);
+  }
+  const halo = glow(0xffa040, 12, 0.7); halo.position.y = 3; g.add(halo);
+  const light = new THREE.PointLight(0xff9a3a, 0, 40, 1.2); light.position.y = 4; g.add(light);
+  const torches = [];
+  for (let i = 0; i < 4; i++) {
+    const a = i * Math.PI / 2 + Math.PI / 4;
+    const t = new THREE.Group();
+    t.add(mesh(new THREE.CylinderGeometry(0.08, 0.1, 2.2, 6), logM).translateY(1.1));
+    const fl = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.5, 6), fm[0]); fl.position.y = 2.4; t.add(fl);
+    const h = glow(0xff9030, 1.8, 0.6); h.position.y = 2.4; t.add(h);
+    t.position.set(Math.cos(a) * 3.8, 0, Math.sin(a) * 3.8); g.add(t); torches.push(t);
+  }
+  flames.forEach((f) => { f.visible = false; }); halo.visible = false; torches.forEach((t) => { t.visible = false; });
+  return { group: g, flames, halo, light, torches, lit: false };
+}
+
+// Musk ox pulling the caravan (brown, shaggy, curved horns).
+export function makeMuskOx() {
+  const b = makeBear({ scale: 0.95, color: 0x5a3f2b });
+  const horn = new THREE.MeshLambertMaterial({ color: 0xe8dfcc });
+  for (const sx of [-1, 1]) {
+    const h = mesh(new THREE.TorusGeometry(0.22, 0.06, 5, 10, Math.PI), horn);
+    h.position.set(sx * 0.22, 0.22, 0.02); h.rotation.set(0, sx * Math.PI / 2, Math.PI / 2); b.headG.add(h);
+  }
+  const fur = mesh(new THREE.SphereGeometry(0.6, 10, 6).scale(1.1, 0.7, 1.6), b.furM); fur.position.set(0, 0.75, 0); b.body.add(fur);
+  return b;
+}
+
+export function makeCaravanSled() {
+  const s = makeSled();
+  const cloth = new THREE.MeshLambertMaterial({ color: 0x2f5f8f });
+  const hood = mesh(new THREE.CylinderGeometry(0.85, 0.85, 2.2, 10, 1, true, 0, Math.PI), cloth);
+  hood.rotation.set(Math.PI / 2, 0, Math.PI / 2); hood.position.set(0, 0.95, -0.2); hood.material.side = THREE.DoubleSide; s.add(hood);
+  const snowTop = mesh(new THREE.SphereGeometry(0.6, 8, 5).scale(1.3, 0.25, 1.7), mat(0xf7f9fc)); snowTop.position.set(0, 1.78, -0.2); s.add(snowTop);
+  return s;
+}
+
+// Stone statue of Brann on a pedestal.
+export function makeStatue() {
+  const g = new THREE.Group();
+  const stone = new THREE.MeshLambertMaterial({ color: 0xb8bcc2 });
+  const ped = mesh(new THREE.BoxGeometry(1.6, 1.0, 1.6), mat(0x7b8088)); ped.position.y = 0.5; g.add(ped);
+  const h = makeHuman({ parka: 0xb8bcc2, pants: 0xa9adb3, fur: 0xc8ccd2, skin: 0xc0c4ca, mitt: 0xa0a4aa, scarf: 0xb0b4ba, tool: 'axe', scale: 1.35 });
+  h.root.traverse((o) => { if (o.isMesh) o.material = stone; });
+  h.root.position.y = 1.0; h.arms[1].rotation.x = -2.6; g.add(h.root);
+  const snowCap = mesh(new THREE.BoxGeometry(1.65, 0.12, 1.65), mat(0xf7f9fc)); snowCap.position.y = 1.02; g.add(snowCap);
+  return g;
+}
+
+export function makeIceSculpture(scale = 1.2) {
+  const b = makeBear({ scale });
+  const ice = new THREE.MeshStandardMaterial({ color: 0xbfe6ff, transparent: true, opacity: 0.8, roughness: 0.1, metalness: 0.1, emissive: 0x204a6a, emissiveIntensity: 0.4 });
+  b.root.traverse((o) => { if (o.isMesh) o.material = ice; });
+  b.legs[0].rotation.x = -0.8; b.legs[1].rotation.x = -0.8; b.body.rotation.x = -0.35;
+  return b.root;
+}
+
+export function makeLanternPost() {
+  const g = new THREE.Group();
+  g.add(mesh(new THREE.CylinderGeometry(0.06, 0.08, 2.2, 6), mat(0x3a2a1c)).translateY(1.1));
+  const arm = mesh(new THREE.BoxGeometry(0.5, 0.05, 0.05), mat(0x3a2a1c)); arm.position.set(0.22, 2.15, 0); g.add(arm);
+  const lamp = new THREE.Group();
+  lamp.add(mesh(new THREE.BoxGeometry(0.22, 0.3, 0.22), mat(0x2b2b30)));
+  lamp.add(new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.22, 0.16), hdr(1.6, 1.0, 0.35)));
+  lamp.add(glow(0xffc060, 1.3, 0.55));
+  lamp.position.set(0.45, 1.95, 0); g.add(lamp);
+  return g;
+}
+
+export function makeTent(color = 0x3a6ea5) {
+  const g = new THREE.Group();
+  const cloth = new THREE.MeshLambertMaterial({ color, flatShading: true });
+  const t = mesh(new THREE.ConeGeometry(1.4, 2.2, 6), cloth); t.position.y = 1.1; g.add(t);
+  const sn = mesh(new THREE.ConeGeometry(0.75, 0.6, 6), mat(0xf7f9fc)); sn.position.y = 1.95; g.add(sn);
+  const door = mesh(new THREE.PlaneGeometry(0.6, 0.9), mat(0x2a1c12), { cast: false }); door.position.set(0, 0.45, 1.05); door.rotation.x = -0.45; g.add(door);
+  return g;
+}
+
+export function makeRod() {
+  const g = new THREE.Group();
+  const rod = mesh(new THREE.CylinderGeometry(0.02, 0.035, 1.8, 5).translate(0, 0.9, 0), mat(0x6b4529));
+  rod.rotation.x = 1.1; g.add(rod);
+  return g;
 }

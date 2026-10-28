@@ -9,6 +9,7 @@ export const STAGES = [
   { x0: -7, x1: 7, z0: -6, z1: 6 },
   { x0: -7, x1: 17, z0: -6, z1: 6 },
   { x0: -17, x1: 17, z0: -6, z1: 6 },
+  { x0: -17, x1: 17, z0: -6, z1: 6 }, // stage 4: same fort, the frozen lake opens to the south-east
 ];
 export const BAND = 2.6;
 export const MEADOW = { x0: -13, x1: 21, z0: -25, z1: -6.6 };
@@ -19,6 +20,11 @@ export const GATE = { x0: -1.4, x1: 1.4 };
 export const COUNTER = { x0: -5.4, x1: -2.6, z: 6 };
 export const LANE_QUEUE = -4.0;
 export const LANE_EXIT = -6.5;
+// Act II: caravan road (south), frozen lake region and its south gate.
+export const ROAD = { x0: 3.4, x1: 8.2, z0: 6, z1: 90 };
+export const LAKE = { x0: 9.5, x1: 30, z0: 10.5, z1: 26 };
+export const CORRIDOR = { x0: 11.2, x1: 13.6, z0: 5.5, z1: 11.5 };
+export const SOUTH_GATE = { x0: 11.2, x1: 13.6 };
 
 function hash2(x, z) {
   const s = Math.sin(x * 127.1 + z * 311.7) * 43758.5453;
@@ -60,6 +66,8 @@ export function generateTrees() {
       let clearStage = Infinity;
       if (inRect(x, z, PATH, margin + 0.4)) clearStage = 1;
       for (let s = 3; s >= 2; s--) if (roundRectDist(x, z, STAGES[s], TREE_GAP) < 0) clearStage = Math.min(clearStage, s);
+      if (clearStage === Infinity && inRect(x, z, ROAD, 1.4)) clearStage = 3.5;
+      if (clearStage === Infinity && (roundRectDist(x, z, LAKE, 1.7) < 0 || inRect(x, z, CORRIDOR, 1.6))) clearStage = 4;
       const s = 0.85 + hash2(x * 3, z * 5) * 0.35;
       trees.push({ x, z, s, sy: 0.9 + hash2(z, x) * 0.3, rot: hash2(x, z * 2) * Math.PI * 2, variant: hash2(x * 7, z) < 0.5 ? 0 : 1, clearStage });
     }
@@ -98,10 +106,33 @@ export class World {
     const prev = this.stage;
     this.stage = stage;
     if (stage >= 1) {
-      this.buildGround(animate);
+      if (stage <= 3 || prev < 3) this.buildGround(animate);
       this.buildFence(animate);
       if (prev < 1) this.buildPath(animate);
     }
+  }
+
+  // Packed-snow caravan road with sled ruts, opened when the beacon is lit.
+  buildRoad(animate) {
+    if (this.road) return;
+    const r = ROAD, w = r.x1 - r.x0, h = r.z1 - r.z0;
+    const g = new THREE.Group();
+    const road = new THREE.Mesh(new THREE.PlaneGeometry(w, h).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ map: this.pathTex, color: 0xdfe8f2 }));
+    road.position.set((r.x0 + r.x1) / 2, 0.011, (r.z0 + r.z1) / 2); road.receiveShadow = true; g.add(road);
+    const rutM = new THREE.MeshLambertMaterial({ color: 0xb9c7d6 });
+    for (const dx of [-0.75, 0.75]) {
+      const rut = new THREE.Mesh(new THREE.PlaneGeometry(0.22, h).rotateX(-Math.PI / 2), rutM);
+      rut.position.set((r.x0 + r.x1) / 2 + dx, 0.016, (r.z0 + r.z1) / 2); g.add(rut);
+    }
+    const postM = new THREE.MeshLambertMaterial({ color: 0x6b4a2e }), snowM = new THREE.MeshLambertMaterial({ color: 0xf7f9fc });
+    for (let z = 12; z < 70; z += 9) for (const x of [r.x0 - 0.3, r.x1 + 0.3]) {
+      const p = new THREE.Mesh(new THREE.BoxGeometry(0.16, 1.4, 0.16), postM); p.position.set(x, 0.7, z); p.castShadow = true; g.add(p);
+      const c = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.1, 0.22), snowM); c.position.set(x, 1.45, z); g.add(c);
+      const flag = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.24), new THREE.MeshLambertMaterial({ color: 0xd23b3b, side: THREE.DoubleSide })); flag.position.set(x + 0.2, 1.25, z); g.add(flag);
+    }
+    this.scene.add(g);
+    this.road = g;
+    if (animate) { g.scale.set(1, 1, 0.001); this.tween(1.2, (f) => g.scale.set(1, 1, Math.max(0.001, f))); }
   }
 
   buildGround(animate) {
@@ -128,8 +159,10 @@ export class World {
     const add = (ax, az, bx, bz) => segs.push({ ax, az, bx, bz });
     // north (towards the bear meadow) with a gate
     add(r.x0, r.z0, GATE.x0, r.z0); add(GATE.x1, r.z0, r.x1, r.z0);
-    // south with the counter opening
-    add(r.x0, r.z1, COUNTER.x0, r.z1); add(COUNTER.x1, r.z1, r.x1, r.z1);
+    // south with the counter opening (and the lake gate from stage 4)
+    add(r.x0, r.z1, COUNTER.x0, r.z1);
+    if (this.stage >= 4) { add(COUNTER.x1, r.z1, SOUTH_GATE.x0, r.z1); add(SOUTH_GATE.x1, r.z1, r.x1, r.z1); }
+    else add(COUNTER.x1, r.z1, r.x1, r.z1);
     add(r.x0, r.z0, r.x0, r.z1); add(r.x1, r.z0, r.x1, r.z1);
 
     let planks = 0;
@@ -181,6 +214,11 @@ export class World {
     for (const [x, sgn] of [[GATE.x0, 1], [GATE.x1, -1]]) {
       const leaf = new THREE.Mesh(leafGeo, leafM);
       leaf.position.set(x - sgn * 0.05, 0.75, r.z0 - 0.62); leaf.rotation.y = sgn * Math.PI / 2;
+      leaf.castShadow = true; group.add(leaf);
+    }
+    if (this.stage >= 4) for (const [x, sgn] of [[SOUTH_GATE.x0, 1], [SOUTH_GATE.x1, -1]]) {
+      const leaf = new THREE.Mesh(leafGeo, leafM);
+      leaf.position.set(x - sgn * 0.05, 0.75, r.z1 + 0.62); leaf.rotation.y = sgn * Math.PI / 2;
       leaf.castShadow = true; group.add(leaf);
     }
 
@@ -237,11 +275,13 @@ export class World {
   // ------------------------------------------------------------------------
   walkable(x, z) {
     if (inRect(x, z, MEADOW, 1.0) && meadowDist(x, z) < -0.4) return true;
+    if (this.stage >= 4 && (roundRectDist(x, z, LAKE, -0.6) < 0 || inRect(x, z, CORRIDOR))) return true;
     const r = STAGES[this.stage];
     return roundRectDist(x, z, r, WALK_GAP) < 0;
   }
 
   insideCamp(x, z) { return this.stage >= 1 && inRect(x, z, STAGES[this.stage]); }
+  atLake(x, z) { return this.stage >= 4 && !this.insideCamp(x, z) && (inRect(x, z, LAKE, 0.5) || inRect(x, z, CORRIDOR)); }
 
   // Move a circle with sliding along the walkable border and colliders.
   move(pos, dx, dz, rad = 0.45) {
