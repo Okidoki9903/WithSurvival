@@ -1064,13 +1064,15 @@ export class Game {
   computeChoppable() {
     const out = [];
     const dirs = [];
-    for (let i = 0; i < 12; i++) dirs.push([Math.cos(i / 12 * Math.PI * 2), Math.sin(i / 12 * Math.PI * 2)]);
+    for (let i = 0; i < 16; i++) dirs.push([Math.cos(i / 16 * Math.PI * 2), Math.sin(i / 16 * Math.PI * 2)]);
     for (const t of this.forest.trees) {
       if (t.clearStage <= this.stage) continue;
       if (Math.abs(t.x) > 45 || t.z < -45 || t.z > 25) continue;
-      for (const [dx, dz] of dirs) {
-        const sx = t.x + dx * 2.1, sz = t.z + dz * 2.1;
-        if (this.world.walkable(sx, sz) && !this.world.insideCamp(sx, sz)) { t.sx = sx; t.sz = sz; t.choppable = true; out.push(t); break; }
+      search: for (const r of [2.1, 2.4, 2.65]) {
+        for (const [dx, dz] of dirs) {
+          const sx = t.x + dx * r, sz = t.z + dz * r;
+          if (this.world.walkable(sx, sz) && !this.world.insideCamp(sx, sz)) { t.sx = sx; t.sz = sz; t.choppable = true; out.push(t); break search; }
+        }
       }
     }
     this.choppable = out;
@@ -1392,7 +1394,7 @@ export class Game {
     }
     for (const gr of [this.grill, this.grill2]) {
       if (!gr) continue;
-      gr.light.intensity = 16 + Math.sin(this.time * 13) * 2 + Math.sin(this.time * 7.3) * 2;
+      gr.light.intensity = 9 + Math.sin(this.time * 13) * 1.2 + Math.sin(this.time * 7.3) * 1.2;
       gr.soup.position.y = 1.47 + Math.sin(this.time * 3) * 0.01;
       if (Math.random() < dt * 8) {
         const pos = gr === this.grill ? POS.grill : POS.grill2;
@@ -1486,7 +1488,9 @@ export class Game {
       if (pin && !tin) at = Math.abs(p.x - POS.gateIn.x) < 1 && p.z < POS.gateIn.z + 0.6 ? POS.gateOut : POS.gateIn;
       else if (!pin && tin) {
         const r = STAGES[this.stage];
-        if (outsideNorth(p)) at = Math.abs(p.x - POS.gateOut.x) < 1 && p.z > POS.gateOut.z - 0.6 ? POS.gateIn : POS.gateOut;
+        const inGateLane = Math.abs(p.x - POS.gateOut.x) < 1.1 && p.z > POS.gateOut.z - 0.6 && p.z < r.z0 + 0.5;
+        if (inGateLane) at = POS.gateIn;
+        else if (outsideNorth(p)) at = POS.gateOut;
         else {
           // walk round the palisade corners towards the north gate
           const sx = p.x > (r.x0 + r.x1) / 2 ? r.x1 + 0.9 : r.x0 - 0.9;

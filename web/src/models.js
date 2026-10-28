@@ -252,7 +252,7 @@ export function makeGrill() {
     const l = mesh(new THREE.CylinderGeometry(0.08, 0.08, 1.2, 6), logM);
     l.rotation.z = Math.PI / 2; l.rotation.y = i * Math.PI / 4; l.position.y = 0.22; g.add(l);
   }
-  const metal = new THREE.MeshStandardMaterial({ color: 0x9aa1aa, metalness: 0.65, roughness: 0.38 });
+  const metal = new THREE.MeshStandardMaterial({ color: 0x858c95, metalness: 0.6, roughness: 0.42 });
   for (let i = 0; i < 3; i++) {
     const a = (i / 3) * Math.PI * 2;
     const leg = mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.9, 6), metal);
@@ -267,15 +267,15 @@ export function makeGrill() {
   band.position.y = 1.1; g.add(band);
   const soup = new THREE.Mesh(new THREE.CircleGeometry(0.72, 22).rotateX(-Math.PI / 2), hdr(1.35, 0.62, 0.06));
   soup.position.y = 1.47; g.add(soup);
-  const halo = glow(0xffa040, 3.6, 0.38); halo.position.y = 1.7; g.add(halo);
-  const halo2 = glow(0xff7a20, 3.0, 0.5); halo2.position.y = 0.35; g.add(halo2);
+  const halo = glow(0xffa040, 2.3, 0.28); halo.position.y = 1.75; g.add(halo);
+  const halo2 = glow(0xff7a20, 2.6, 0.35); halo2.position.y = 0.35; g.add(halo2);
   const flameM = hdr(1.4, 0.5, 0.05);
   for (let i = 0; i < 6; i++) {
     const a = (i / 6) * Math.PI * 2;
     const f = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.55, 6), flameM);
     f.position.set(Math.cos(a) * 0.55, 0.42, Math.sin(a) * 0.55); g.add(f);
   }
-  const light = new THREE.PointLight(0xff8a2a, 16, 11, 1.4);
+  const light = new THREE.PointLight(0xff8a2a, 9, 10, 1.4);
   light.position.set(0, 2.9, 0); g.add(light);
   return { group: g, light, soup, coals, halo };
 }
@@ -476,7 +476,7 @@ export function upgradeGrill(grill) {
   const ladle = mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.1, 5), mat(0x6b4529));
   ladle.position.set(0.55, 1.75, 0.3); ladle.rotation.z = -0.5; parts.add(ladle);
   g.add(parts);
-  grill.halo.scale.set(4.4, 4.4, 1);
+  grill.halo.scale.set(2.7, 2.7, 1);
   grill.level = 2;
   return parts;
 }

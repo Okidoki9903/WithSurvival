@@ -13,7 +13,7 @@ export const STAGES = [
 export const BAND = 2.6;
 export const MEADOW = { x0: -13, x1: 21, z0: -25, z1: -6.6 };
 export const TREE_GAP = 3.1;
-export const WALK_GAP = 1.5;
+export const WALK_GAP = 2.0;
 export const PATH = { x0: -7.8, x1: -2.2, z0: 6, z1: 90 };
 export const GATE = { x0: -1.4, x1: 1.4 };
 export const COUNTER = { x0: -5.4, x1: -2.6, z: 6 };
@@ -236,7 +236,7 @@ export class World {
 
   // ------------------------------------------------------------------------
   walkable(x, z) {
-    if (inRect(x, z, MEADOW, 0) && meadowDist(x, z) < -0.9) return true;
+    if (inRect(x, z, MEADOW, 1.0) && meadowDist(x, z) < -0.4) return true;
     const r = STAGES[this.stage];
     return roundRectDist(x, z, r, WALK_GAP) < 0;
   }
