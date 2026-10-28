@@ -284,7 +284,24 @@ export class World {
   atLake(x, z) { return this.stage >= 4 && !this.insideCamp(x, z) && (inRect(x, z, LAKE, 0.5) || inRect(x, z, CORRIDOR)); }
 
   // Move a circle with sliding along the walkable border and colliders.
+  // When an obstacle is hit head-on, try deflected directions so the mover
+  // slides around it instead of stopping dead.
   move(pos, dx, dz, rad = 0.45) {
+    const want = Math.hypot(dx, dz);
+    const res = this.tryMove(pos, dx, dz, rad);
+    let got = Math.hypot(res.x - pos.x, res.z - pos.z);
+    if (want > 1e-4 && got < want * 0.35) {
+      for (const a of [0.7, -0.7, 1.2, -1.2]) {
+        const c = Math.cos(a), sn = Math.sin(a);
+        const alt = this.tryMove(pos, (dx * c - dz * sn) * 0.85, (dx * sn + dz * c) * 0.85, rad);
+        const g2 = Math.hypot(alt.x - pos.x, alt.z - pos.z);
+        if (g2 > got + want * 0.2) { res.x = alt.x; res.z = alt.z; got = g2; break; }
+      }
+    }
+    pos.x = res.x; pos.z = res.z;
+  }
+
+  tryMove(pos, dx, dz, rad) {
     let nx = pos.x + dx, nz = pos.z + dz;
     if (!this.walkable(nx, nz)) {
       if (this.walkable(pos.x + dx, pos.z)) nz = pos.z;
@@ -312,7 +329,7 @@ export class World {
       }
     }
     if (!this.walkable(nx, nz)) { nx = pos.x; nz = pos.z; }
-    pos.x = nx; pos.z = nz;
+    return { x: nx, z: nz };
   }
 
   // tiny internal tween helper

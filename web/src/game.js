@@ -33,7 +33,8 @@ const TURRETS = [
   { x: 10.6, z: -6, pad: P(10.6, -4.3) },
   { x: -11, z: -6, pad: P(-11, -4.3) },
 ];
-const CABINS = { 2: [[8.6, 4.4], [15.4, 4.0], [15.2, -3.6]], 3: [[-10.2, 3.6], [-14.4, 3.6], [-14.6, -2.4]] };
+// [x, z, campfire x, campfire z] — campfires sit where no tile or pad goes
+const CABINS = { 2: [[8.6, 3.5, 8.8, 1.2], [15.4, 3.5], [15.2, -3.6, 13.0, -4.4]], 3: [[-10.2, 3.5, -8.0, 1.2], [-14.4, 3.5], [-14.6, -2.4, -14.6, 0.6]] };
 const WOOD_CRIB = P(15.9, 0.9);
 const BEACON_POS = P(-11.0, -0.4);
 
@@ -54,8 +55,8 @@ const TILES = [
   { id: 'expand1', icon: 'expand', cost: 500, at: P(5.8, -0.6), req: (g) => g.bought.whirl && g.bought.turret2 && g.bought.grillUp && g.bought.counter2, label: 'Agrandir', beat: 'expandTile' },
   { id: 'grill2', icon: 'pot', cost: 300, at: POS.grill2, req: (g) => g.stage >= 2, label: 'Second chaudron' },
   { id: 'counter3', icon: 'cash', cost: 400, at: P(-1.7, 4.5), req: (g) => g.stage >= 2 && g.bought.counter2, label: 'Étal du marché', beat: 'marketTile' },
-  { id: 'sawUp', icon: 'axeplus', cost: 350, at: P(13.6, 1.8), req: (g) => g.stage >= 2 && g.stats.sawn >= 6, label: 'Scie à vapeur', beat: 'sawUpTile' },
-  { id: 'lumberjack', icon: 'person', cost: 200, at: P(8.4, 1.6), req: (g) => g.stage >= 2, label: 'Recruter Oleg' },
+  { id: 'sawUp', icon: 'axeplus', cost: 350, at: P(13.4, 1.4), req: (g) => g.stage >= 2 && g.stats.sawn >= 6, label: 'Scie à vapeur', beat: 'sawUpTile' },
+  { id: 'lumberjack', icon: 'person', cost: 200, at: P(6.2, 1.6), req: (g) => g.stage >= 2, label: 'Recruter Oleg' },
   { id: 'hunter', icon: 'person', cost: 250, at: P(11.0, 1.8), req: (g) => g.stage >= 2, label: 'Recruter Yuki' },
   { id: 'turret3', icon: 'bow', cost: 250, at: TURRETS[2].pad, req: (g) => g.stage >= 2, label: 'Arbalète' },
   { id: 'bag2', icon: 'bag', cost: 300, at: P(8.4, -3.6), req: (g) => g.bought.lumberjack, label: 'Sac de trappeur' },
@@ -489,22 +490,24 @@ export class Game {
         this.world.circles.push({ x: WOOD_CRIB.x, z: WOOD_CRIB.z, r: 1.1, camp: true });
       }
     }
-    if (CABINS[stage]) CABINS[stage].forEach(([x, z], i) => this.addCabin(x, z, i, fresh));
+    if (CABINS[stage]) CABINS[stage].forEach(([x, z, fx, fz], i) => this.addCabin(x, z, i, fresh, fx, fz));
     this.computeChoppable();
   }
 
-  addCabin(x, z, i, fresh) {
+  addCabin(x, z, i, fresh, fx, fz) {
     if (this.cabins.some((c) => c.x === x && c.z === z)) return;
     const g = makeCabin(i);
     g.position.set(x, 0, z);
     this.scene.add(g);
     const fire = makeCampfire();
-    fire.group.position.set(x + (x > 0 ? -2.2 : 2.2), 0, z + (z > 0 ? -2.4 : 2.4));
+    fire.group.position.set(fx ?? 0, 0, fz ?? 0);
+    fire.group.visible = fx !== undefined;
     this.scene.add(fire.group);
-    this.campfires.push(fire);
+    if (fire.group.visible) this.campfires.push(fire);
     const cab = { x, z, g, smokeT: Math.random() };
     this.cabins.push(cab);
-    this.world.circles.push({ x, z, r: 2.0, camp: true });
+    // two circles hug the long side of the cabin, leaving room along the fence
+    this.world.circles.push({ x: x - 0.8, z, r: 1.45, camp: true }, { x: x + 0.8, z, r: 1.45, camp: true });
     if (fresh) {
       g.scale.setScalar(0.001);
       fire.group.scale.setScalar(0.001);
