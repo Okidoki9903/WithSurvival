@@ -52,6 +52,19 @@ Il y a trente et un ans, le monde brûlait. Le Projet Aube (le soleil levant imp
 | XI · Le Cœur de l'Hiver | Voyage vers le nord, la Station Aube, le dernier message de Véra… et un choix, en marchant sur l'une des deux dalles. |
 | Épilogues | **Le Ciel Rendu** : Brann descend fermer la vanne, le Voile tombe, le printemps revient partout. **La Ville-Lumière** : le Cœur chauffe Fort-Aube pour toujours, des serres fleurissent, mais le monde reste gelé. |
 
+## Une ville qui grandit dans les deux sens
+
+Fort-Aube ne s'étire pas seulement d'ouest en est : à partir de l'acte III, des **quartiers fortifiés** s'ouvrent au nord et au sud de l'enceinte, autour de la prairie aux ours et du lac. Chacun s'achète sur une dalle posée contre la palissade qu'il remplace ; le mur commun disparaît et le quartier arrive avec ses maisons, sa place au soleil levant, ses bancs, les jeunes sapins plantés par Oleg, puis des réverbères et des immeubles.
+
+| Quartier | Acte | Où |
+|---|---|---|
+| Faubourg de la Forge | III | au sud des forges |
+| Cité de la Foudre | IV | au nord du Quartier de la Foudre |
+| Les Hauts du Nord | V | au nord des forges |
+| Quartier du Lac | VI | à l'est du lac |
+
+La ville finale entoure la prairie et le lac : elle s'étend en longueur, en largeur… et en hauteur avec les tours.
+
 ## L'échelle de Kardashev (actes IV à IX)
 
 Après la fin de l'acte III, une jauge apparaît en haut à gauche : l'**indice de Kardashev** `K = (log10 P − 6) / 10`, calculé à partir de la puissance que la ville produit vraiment (feux, vapeur, forge, centrale, réacteur, miroirs…), l'ère traversée et la population. Le vieux monde est monté en brûlant tout, puis a éteint le ciel pour se refroidir ; Fort-Aube gravit l'échelle sans jamais rallumer l'incendie. Chaque évolution découle de la précédente.
@@ -93,6 +106,7 @@ web/
   src/civ.js       moteur de civilisation : indice de Kardashev, ères, population, loyers, usines génériques
   src/act4.js      actes IV-V : cuivre, fil, centrale, réseau, nuit, ciment, immeubles, Tour de l'Aube, ascenseur
   src/act6.js      actes VI-IX : train, fusion, cosmodrome, drones, fusées, ascenseur spatial, essaim, Arches
+  src/districts.js quartiers nord et sud (enceinte en plusieurs rectangles, places, maisons)
   src/sky.js       ciel : blizzard, dégel, jour et nuit, étoiles, Soleil, essaim de Dyson, anneau, colonies
   src/models*.js, machines.js  modèles 3D procéduraux
   src/story.js     chapitres, dialogues, Carnet

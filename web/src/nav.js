@@ -14,7 +14,7 @@ export class NavGrid {
 
   signature() {
     const w = this.world;
-    return `${w.stage}|${w.circles.length}|${w.segments.length}|${(w.extraZones || []).length}|${w.shipGate ? 1 : 0}`;
+    return `${w.stage}|${w.circles.length}|${w.segments.length}|${(w.extraZones || []).length}|${w.shipGate ? 1 : 0}|${(w.districts || []).length}`;
   }
 
   // Rasterise the walkable ground and stamp every obstacle onto it: much

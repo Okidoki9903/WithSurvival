@@ -291,6 +291,21 @@ export const BEATS = {
     ['yuki', 'Flocon regarde vers le nord. Les ours remontent vers les glaces qui restent. Un jour, il faudra le laisser partir.'],
     ['lina', 'J’ai gardé les billets de Brann. Je ne les dépenserai jamais.'],
   ],
+  // ---- districts: the town grows in width ----
+  distSudTile: [['gustav', 'Mes mineurs dorment entre les tas de minerai. Ouvre la palissade au sud de la forge : on y bâtira des maisons.']],
+  distSud: [
+    ['gustav', 'Le Faubourg de la Forge ! Des toits, des feux, et la forge à deux pas. Mes gars ne repartiront plus.'],
+    ['lina', 'Fort-Aube ne s’allonge plus seulement d’est en ouest. Elle s’élargit, comme une vraie ville.'],
+  ],
+  distNordEst: [
+    ['ivan', 'La Cité de la Foudre : les familles des électriciens vivent au nord de la centrale, sous les réverbères.'],
+    ['piotr', 'Une ville, ce n’est pas une rue. C’est des quartiers qui se touchent.'],
+  ],
+  distNord: [['kaja', 'Les Hauts du Nord ! On a repoussé la palissade au-delà des forges. La ville grandit dans toutes les directions… et vers le ciel.']],
+  distLac: [
+    ['mira', 'Le Quartier du Lac. Les gens descendus du train voulaient vivre près de l’eau. Anouk leur apprend déjà à pêcher.'],
+    ['anouk', 'Des maisons sur la rive… Comme à Solenne, avant. Mais cette fois, la glace ne les prendra pas.'],
+  ],
   // ---- Act IV · the Age of Lightning ----
   radio1: [
     ['ivan', 'Sasha ! Viens vite ! La boîte noire de ta mère… j’ai bricolé la radio avec le cuivre du Brise-Glace. Écoute !'],
@@ -477,6 +492,7 @@ export const JOURNAL = [
   { beat: 'veraLast', title: 'Le dernier message', text: 'Maman n’a pas pu fermer la vanne seule. Elle nous a laissé le choix. Je porte sa bague maintenant. Elle est trop grande pour mon doigt.' },
   { beat: 'endingA', title: 'Le Ciel Rendu', text: 'Brann est descendu dans le puits. Il a dit : « Cette fois, je reste. » Le Voile tombe. Partout, la neige va fondre. Maman, il est revenu te chercher, finalement.' },
   { beat: 'endingB', title: 'La Ville-Lumière', text: 'Le Cœur bat sous Fort-Aube. Il fera chaud ici pour toujours. Ailleurs, l’hiver continue. Chaque nuit, je me demande si maman aurait choisi pareil.' },
+  { beat: 'distSud', title: 'Le Faubourg', text: 'On a ouvert la palissade vers le sud. Pour la première fois, Fort-Aube ne ressemble plus à une longue rue de cabanes : c’est un plan de ville, avec des quartiers qui se touchent.' },
   { beat: 'radio1', title: 'Port-Glace', text: 'Une voix dans la radio d’Ivan, comme le premier jour. Mais ce n’était pas Mira. C’était une ville entière, quelque part au nord, qui avait vu notre lumière.' },
   { beat: 'kardashev', title: 'L’échelle', text: 'Piotr m’a dessiné l’échelle de maman dans la neige. Type I, II, III. Le vieux monde est monté en brûlant tout, puis il a éteint le ciel pour se refroidir. Nous, on montera sans rien brûler. C’est la seule promesse que je peux faire à maman.' },
   { beat: 'firstWire', title: 'Le fil', text: 'Un fil de cuivre. Maman disait que c’est l’invention la plus humble et la plus puissante du monde : un chemin pour l’énergie. Je comprends ce qu’elle voulait dire.' },

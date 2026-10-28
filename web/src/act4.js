@@ -242,6 +242,7 @@ const methods = {
       if (fresh) this.popIn(l.group, 0.3 + Math.random() * 0.8);
     }
     this.nightOn = true;
+    this.litDistricts?.(fresh);
     this.addPower('grid', 1e11);
     this.updateResidents();
     if (fresh) {
@@ -316,21 +317,24 @@ const methods = {
   // Cabins become apartment towers that keep growing.
   raiseTowers(which, fresh) {
     const list = this.cabins.filter((c) => (which === 1 ? c.x > 0 : c.x < 0));
-    list.forEach((c, i) => {
-      if (c.tower) return;
-      const t = makeTowerBase();
-      t.group.position.set(c.x, 0, c.z);
-      t.group.rotation.y = c.z > 0 ? 0 : Math.PI;
-      this.scene.add(t.group);
-      c.g.visible = false;
-      c.tower = t;
-      this.towerBlocks.push(t);
-      for (let k = 0; k < 2; k++) addTowerFloor(t);
-      if (fresh) { this.popIn(t.group, 0.3 + i * 0.25); setTimeout(() => this.fx.puff(c.x, 1, c.z, { n: 20, speed: 4, size: [2, 4] }), (0.3 + i * 0.25) * 1000); }
-    });
+    list.forEach((c, i) => this.convertCabin(c, 2, fresh, 0.3 + i * 0.25));
     this.updateResidents();
     this.addPower(`towers${which}`, 4e12);
     if (fresh) { this.story.beat(`towers${which}`, 0.8); this.showcase(list[0]?.x ?? 0, list[0]?.z ?? 0, 1.6, 1.5); }
+  },
+
+  // A cabin becomes an apartment tower with `floors` storeys.
+  convertCabin(c, floors, fresh, delay = 0.3) {
+    if (c.tower) return;
+    const t = makeTowerBase();
+    t.group.position.set(c.x, 0, c.z);
+    t.group.rotation.y = c.z > 0 ? 0 : Math.PI;
+    this.scene.add(t.group);
+    c.g.visible = false;
+    c.tower = t;
+    this.towerBlocks.push(t);
+    for (let k = 0; k < floors; k++) addTowerFloor(t);
+    if (fresh) { this.popIn(t.group, delay); setTimeout(() => this.fx.puff(c.x, 1, c.z, { n: 20, speed: 4, size: [2, 4] }), delay * 1000); }
   },
 
   addFloors(n, fresh) {
@@ -352,7 +356,7 @@ const methods = {
     // the families of the cabins, lit homes, six people per tower floor
     // (vertical farms feed bigger families), newcomers brought by the trains,
     // and twenty years later, a town twice as big
-    const base = (this.act4.phase !== 'none' ? 30 : 0) + (this.bought.grid ? 30 : 0);
+    const base = (this.act4.phase !== 'none' ? 30 + (this.districts?.length || 0) * 15 : 0) + (this.bought.grid ? 30 : 0);
     this.civ.residents = Math.round((base + floors * 6 * (1 + farms * 0.25) + links * 120) * (this.act6?.aube ? 2 : 1));
     this.addPower('floors', floors * 4e11);
   },
