@@ -93,8 +93,11 @@ export class CameraRig {
       cam.position.set(this.target.x + Math.sin(this.yaw) * cp * d, Math.sin(pitch) * d + this.ty, this.target.z + Math.cos(this.yaw) * cp * d);
       const s = game.shake;
       if (s > 0) cam.position.add(_v.set((Math.random() - 0.5) * s, (Math.random() - 0.5) * s, (Math.random() - 0.5) * s));
-      const up = this.sky * 90;
-      cam.lookAt(this.target.x + SUN_DIR.x * up, 0.8 + this.ty + SUN_DIR.y * up, this.target.z + SUN_DIR.z * up);
+      // in sky mode look at what flies (a rocket) or else towards the sun
+      const up = this.sky * 90, L = game.skyLook;
+      if (L) _v.set(this.target.x + (L.x - this.target.x) * this.sky, 0.8 + this.ty + (L.y - 0.8 - this.ty) * this.sky, this.target.z + (L.z - this.target.z) * this.sky);
+      else _v.set(this.target.x + SUN_DIR.x * up, 0.8 + this.ty + SUN_DIR.y * up, this.target.z + SUN_DIR.z * up);
+      cam.lookAt(_v);
     }
     // shadows follow the view, snapped to texels to avoid shimmering
     const sc = this.shadowCam;

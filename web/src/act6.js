@@ -303,13 +303,14 @@ const methods = {
         const y = 0.5 + t * t * 2.2;
         r.group.position.y = y;
         if (!L.lift) { L.lift = true; this.audio.boom(); this.shake = 0.9; this.skyView = true; }
+        this.skyLook = { x: S.pad.x, y: Math.min(y + 4, 140), z: S.pad.z };
         if (Math.random() < dt * 30 && y < 120) this.fx.puff(S.pad.x + (Math.random() - 0.5) * 1.2, y - 1.5, S.pad.z + (Math.random() - 0.5) * 1.2, { n: 2, size: [1.5, 4], speed: 2, up: -1, g: 0, life: 2.2, alpha: 0.7 });
         if (this.region(this.player) !== 'out' || near(this.player, S.pad, 40)) this.shake = Math.max(this.shake, 0.25 * Math.max(0, 1 - t / 6));
       }
       if (t > 9 && !L.done) {
         L.done = true;
         this.scene.remove(r.group);
-        this.skyView = false;
+        this.skyView = false; this.skyLook = null;
         L.onDone && L.onDone();
       }
     }

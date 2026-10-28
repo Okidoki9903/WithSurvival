@@ -504,6 +504,17 @@ const methods = {
       if (n) return { at: n, text: 'Taille la pierre de la carrière', icon: 'stone' };
     }
     if (need.has('steel') && this.pads.steelPad.n >= 1) return { at: this.pads.steelPad, text: 'Ramasse les lingots d’acier', icon: 'ingot' };
+    if (need.has('can') && this.pads.canPad.n >= 1) return { at: this.pads.canPad, text: 'Ramasse les conserves', icon: 'can' };
+    if (need.has('plank')) {
+      if (this.pads.plankPad.n >= 2) return { at: this.pads.plankPad, text: 'Va chercher du bois fendu', icon: 'log' };
+      if (p.carry.log >= 6 || (p.carry.log > 0 && this.load_total(p) >= p.cap * 0.6)) return { at: this.pads.logPad, text: 'Porte les bûches à la scierie', icon: 'log' };
+      const t = this.nearestChoppable(p);
+      if (t) return { at: { x: t.x, z: t.z }, text: 'Coupe du bois pour le chantier', icon: 'axe' };
+    }
+    if (need.has('steel')) {
+      const n = this.nearestOreNode(p, 300, 'ore');
+      if (n && !this.workers.some((w) => w.kind === 'miner' && (w.res || 'ore') === 'ore')) return { at: n, text: 'Mine le fer de la falaise', icon: 'ore' };
+    }
     return null;
   },
 
