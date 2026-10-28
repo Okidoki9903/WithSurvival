@@ -291,7 +291,7 @@ export class World {
     const res = this.tryMove(pos, dx, dz, rad);
     let got = Math.hypot(res.x - pos.x, res.z - pos.z);
     if (want > 1e-4 && got < want * 0.35) {
-      for (const a of [0.7, -0.7, 1.2, -1.2]) {
+      for (const a of [0.7, -0.7, 1.2, -1.2, 1.6, -1.6]) {
         const c = Math.cos(a), sn = Math.sin(a);
         const alt = this.tryMove(pos, (dx * c - dz * sn) * 0.85, (dx * sn + dz * c) * 0.85, rad);
         const g2 = Math.hypot(alt.x - pos.x, alt.z - pos.z);

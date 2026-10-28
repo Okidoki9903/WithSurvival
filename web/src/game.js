@@ -1542,7 +1542,13 @@ export class Game {
           // walk round the palisade corners towards the north gate
           const sx = p.x > (r.x0 + r.x1) / 2 ? r.x1 + 0.9 : r.x0 - 0.9;
           const besideX = p.x < r.x0 - 0.3 || p.x > r.x1 + 0.3;
-          at = !besideX && p.z > r.z1 - 0.2 ? { x: sx, z: r.z1 + 1.0 } : { x: sx, z: r.z0 - 1.0 };
+          if (this.stage >= 4 && p.z > 0) {
+            // south side: use the lake gate rather than walking round to the north
+            const S = ACT2_POS;
+            const inLane = Math.abs(p.x - S.sgIn.x) < 1.1 && p.z < S.sgOut.z + 0.6;
+            const corner = { x: sx, z: r.z1 + 1.0 };
+            at = besideX && dist(p, corner) > 0.8 ? corner : inLane ? S.sgIn : S.sgOut;
+          } else at = !besideX && p.z > r.z1 - 0.2 ? { x: sx, z: r.z1 + 1.0 } : { x: sx, z: r.z0 - 1.0 };
         }
       }
     }
