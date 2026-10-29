@@ -400,7 +400,7 @@ const methods = {
     this.turbines = TURBINES.map(([x, z], i) => {
       const t = makeWindTurbine(9 + (i % 2) * 2); t.group.position.set(x, 0, z); t.group.rotation.y = -0.6; this.scene.add(t.group);
       this.world.circles.push({ x, z, r: 0.45 });
-      this.forest.near(x, z, 2.5).forEach((tr) => { if (tr.alive) { tr.alive = false; tr.k = 0; this.forest.write(tr); } });
+      this.forest.near(x, z, 2.5).forEach((tr) => { tr.clearStage = -1; if (tr.alive) { tr.alive = false; tr.k = 0; this.forest.write(tr); } });
       if (fresh) this.popIn(t.group, 0.2 + i * 0.25);
       return t;
     });

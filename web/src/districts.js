@@ -66,9 +66,11 @@ const methods = {
     const r = D.rect;
     this.world.addDistrict(r, fresh);
     // the forest inside the new walls is cleared for good
+    // (also the stumps of trees cut just before, so they never grow back here)
     for (const t of this.forest.trees) {
-      if (!t.alive || t.x < r.x0 - 3.1 || t.x > r.x1 + 3.1 || t.z < r.z0 - 3.1 || t.z > r.z1 + 3.1) continue;
+      if (t.x < r.x0 - 3.1 || t.x > r.x1 + 3.1 || t.z < r.z0 - 3.1 || t.z > r.z1 + 3.1) continue;
       t.clearStage = -1;
+      if (!t.alive) continue;
       if (fresh) this.forest.poof(t, Math.random() * 0.6, () => this.fx.puff(t.x, 2.2, t.z, { n: 5, speed: 2.5, size: [2.5, 5], life: 0.9 }));
       else { t.alive = false; t.k = 0; this.forest.write(t); }
     }
