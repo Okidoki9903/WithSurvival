@@ -753,7 +753,7 @@ export class Game {
     this.scene.add(b.group);
     this.beacon = b;
     this.world.circles.push({ x: BEACON_POS.x, z: BEACON_POS.z, r: 2.3, bears: true });
-    this.forest.near(BEACON_POS.x, BEACON_POS.z, 4).forEach((t) => { if (t.alive) { t.alive = false; t.k = 0; this.forest.write(t); } });
+    this.forest.near(BEACON_POS.x, BEACON_POS.z, 4).forEach((t) => { t.clearStage = -1; if (t.alive) { t.alive = false; t.k = 0; this.forest.write(t); } });
     this.beaconLit = true;
     b.flame.visible = true;
     if (fresh) {
@@ -1341,6 +1341,13 @@ export class Game {
   // -------------------------------------------------------------------------
   // Trees and wood
   // -------------------------------------------------------------------------
+  // A felled tree grows back in the wild forest, never on ground the town took meanwhile.
+  mayRegrow(t) {
+    if (t.alive || t.clearStage <= this.stage) return false;
+    if (this.world.insideCamp(t.x, t.z)) return false;
+    return !(this.world.extraZones || []).some((z) => t.x > z.x0 - 2.5 && t.x < z.x1 + 2.5 && t.z > z.z0 - 2.5 && t.z < z.z1 + 2.5);
+  }
+
   computeChoppable() {
     const out = [];
     const dirs = [];
@@ -1384,7 +1391,7 @@ export class Game {
         this.audio.whoosh();
       });
       this.stats.chopped++;
-      setTimeout(() => { if (!t.alive && t.clearStage > this.stage) this.forest.regrow(t); }, 40000);
+      setTimeout(() => { if (this.mayRegrow(t)) this.forest.regrow(t); }, 40000);
     }
   }
 

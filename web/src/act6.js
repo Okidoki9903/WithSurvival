@@ -245,7 +245,7 @@ const methods = {
   buildCosmodrome(fresh) {
     if (this.launchPad) return;
     this.world.extraZones = [...(this.world.extraZones || []), COSMO];
-    this.forest.trees.forEach((t) => { if (t.alive && t.x > COSMO.x0 - 2.5 && t.x < COSMO.x1 + 2.5 && t.z > COSMO.z0 - 2.5 && t.z < COSMO.z1 + 1) { if (fresh) this.forest.poof(t, Math.random() * 0.6, () => {}); else { t.alive = false; t.k = 0; this.forest.write(t); } } });
+    this.forest.trees.forEach((t) => { if (t.x > COSMO.x0 - 2.5 && t.x < COSMO.x1 + 2.5 && t.z > COSMO.z0 - 2.5 && t.z < COSMO.z1 + 1) { t.clearStage = -1; if (!t.alive) return; if (fresh) this.forest.poof(t, Math.random() * 0.6, () => {}); else { t.alive = false; t.k = 0; this.forest.write(t); } } });
     const lp = makeLaunchPad(); lp.group.position.set(S.pad.x, 0, S.pad.z); this.scene.add(lp.group);
     this.launchPad = lp;
     this.world.circles.push({ x: S.pad.x, z: S.pad.z, r: 3.2 }, { x: S.pad.x - 2.8, z: S.pad.z, r: 0.9 });
